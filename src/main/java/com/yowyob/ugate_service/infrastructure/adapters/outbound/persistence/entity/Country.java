@@ -6,11 +6,12 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 @Table("country")
 public record Country(
         @Id
-        Long id,
+        UUID id,
 
         String name,
         String code, // Ex: "FR", "CM", "US"

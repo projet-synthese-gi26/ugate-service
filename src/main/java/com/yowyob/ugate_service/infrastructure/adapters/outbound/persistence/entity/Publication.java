@@ -5,17 +5,18 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 @Table("publication")
 public record Publication(
         @Id
-        Long id,
+        UUID id,
 
         @Column("branch_id")
-        Long branchId,    // FK -> Branch
+        UUID branchId,    // FK -> Branch
 
         @Column("author_id")
-        Long authorId,    // FK -> User
+        UUID authorId,    // FK -> User
 
         String content,
         String status,    // Ex: "PUBLISHED", "DRAFT"

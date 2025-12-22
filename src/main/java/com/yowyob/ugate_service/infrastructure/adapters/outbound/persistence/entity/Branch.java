@@ -14,10 +14,10 @@ import java.time.Instant;
 @Table("branch")
 public record Branch(
         @Id
-        Long id, // FK vers Agency.id selon le schéma
+        UUID id, // FK vers Agency.id selon le schéma
 
         @Column("syndicat_id")
-        Long syndicatId, // FK vers Syndicat
+        UUID syndicatId, // FK vers Syndicat
 
         String name,
         String location,

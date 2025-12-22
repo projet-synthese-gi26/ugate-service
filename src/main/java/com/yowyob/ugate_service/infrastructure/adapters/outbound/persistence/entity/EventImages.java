@@ -5,16 +5,17 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 @Table("event_images")
 public record EventImages(
         // Pas de @Id unique
 
         @Column("event_id")
-        Long eventId,
+        UUID eventId,
 
         @Column("image_id")
-        Long imageId,
+        UUID imageId,
 
         @CreatedDate
         @Column("created_at")

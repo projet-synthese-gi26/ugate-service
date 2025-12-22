@@ -5,14 +5,15 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 @Table("abstract_product")
 public record AbstractProduct(
         @Id
-        Long id,
+        UUID id,
 
         @Column("syndicat_id")
-        Long syndicatId, // FK -> Syndicat
+        UUID syndicatId, // FK -> Syndicat
 
         String name,
         String description,

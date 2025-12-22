@@ -7,8 +7,9 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public interface EventRepository extends R2dbcRepository<Event, UUID> {
-    Flux<Event> findByBrancheId(UUID brancheId);
+    Flux<Event> findByBranchId(UUID brancheId);
 
     // Trouver les événements à venir
-    Flux<Event> findByBrancheIdAndDateEvenementAfter(UUID brancheId, LocalDate date);
+
+    Flux<Event> findByBranchIdAndDateAfter(UUID brancheId, LocalDate date);
 }

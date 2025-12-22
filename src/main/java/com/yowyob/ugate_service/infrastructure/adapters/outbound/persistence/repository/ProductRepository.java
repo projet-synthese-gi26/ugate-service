@@ -10,6 +10,7 @@ import java.util.UUID;
 public interface ProductRepository extends R2dbcRepository<Product, UUID> {
 
     @Modifying
-    @Query("INSERT INTO produits (id, prix) VALUES (:#{#p.id}, :#{#p.prix})")
+    // Correction : table "product" et champ "standardPrice" (ou regularAmount selon votre logique métier)
+    @Query("INSERT INTO product (id, standard_price) VALUES (:#{#p.id}, :#{#p.standardPrice})")
     Mono<Void> insert(@org.springframework.data.repository.query.Param("p") Product produit);
 }

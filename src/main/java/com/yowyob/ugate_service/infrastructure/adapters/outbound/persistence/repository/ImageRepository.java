@@ -15,7 +15,7 @@ public interface ImageRepository extends R2dbcRepository<Image, UUID> {
         WHERE pi.publication_id = :pubId 
         ORDER BY pi.display_order ASC
     """)
-    Flux<Image> findByPublicationId(UUID pubId);
+    Flux<Image> findByPublicationId(UUID pubId);  //TODO a modifier
 
     // Même chose pour les événements
     @Query("""
@@ -24,5 +24,5 @@ public interface ImageRepository extends R2dbcRepository<Image, UUID> {
         WHERE ei.event_id = :eventId
         ORDER BY ei.display_order ASC
     """)
-    Flux<Image> findByEventId(UUID eventId);
+    Flux<Image> findByEventId(UUID eventId);   //TODO a modifier
 }

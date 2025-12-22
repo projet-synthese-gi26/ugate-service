@@ -10,15 +10,16 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.UUID;
 
 @Table("product")
 public record Product(
         // Cet ID doit correspondre à celui de abstract_product correspondant
         @Id
-        Long id,
+        UUID id,
 
         @Column("organization_id")
-        Long organizationId, // FK -> Organization
+        UUID organizationId, // FK -> Organization
 
         // Certains champs semblent redondants avec AbstractProduct (name, description)
         // Je les inclus car ils sont dans le schéma spécifique de Product
@@ -29,7 +30,7 @@ public record Product(
         Boolean isActive,
 
         @Column("standard_price")
-        BigDecimal standardPrice, // Utilisez BigDecimal pour les prix !
+        BigDecimal standardPrice,
 
         @Column("departure_location")
         String departureLocation,

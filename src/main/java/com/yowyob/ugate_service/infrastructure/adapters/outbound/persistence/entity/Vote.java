@@ -4,13 +4,15 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
+import java.util.UUID;
+
 @Table("vote")
 public record Vote(
         @Id
-        Long id,
+        UUID id,
 
         @Column("user_id")
-        Long userId, // FK -> User
+        UUID userId, // FK -> User
 
         @Column("publication_vote_id")
         Long publicationVoteId, // FK -> PublicationVote

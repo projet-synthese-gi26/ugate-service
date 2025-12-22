@@ -13,10 +13,12 @@ import java.time.Instant;
 @Table("syndicat")
 public record Syndicat(
         @Id
-        Long id,
+        UUID id,
 
         @Column("organization_id")
-        Long organizationId, // FK vers Organization
+        UUID organizationId, // FK vers Organization
+
+        UUID creatorId, // FK vers Le createur
 
         @Column("is_approved")
         Boolean isApproved,
@@ -52,7 +54,7 @@ public record Syndicat(
     public Syndicat withStatus(Boolean isApproved, String charteUrl, String statusUrl) {
         // On garde l'ID et les dates, on change le reste
         return new Syndicat(
-                this.id, this.organizationId, isApproved, this.name, this.description,
+                this.id, this.organizationId, this.creatorId, isApproved, this.name, this.description,
                 this.domain, this.type, charteUrl, statusUrl, this.membersListUrl,
                 this.commitmentCertificateUrl, this.createdAt, this.updatedAt
         );

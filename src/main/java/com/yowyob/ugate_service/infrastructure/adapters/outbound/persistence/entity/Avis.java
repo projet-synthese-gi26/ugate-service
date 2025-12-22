@@ -6,20 +6,21 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Table("avis")
 public record Avis(
         @Id
-        Long id,
+        UUID id,
 
         @Column("user_id")
-        Long userId,      // FK User
+        UUID userId,      // FK User
 
         @Column("product_id")
-        Long productId,   // FK Product
+        UUID productId,   // FK Product
 
         @Column("syndicat_id")
-        Long syndicatId,  // FK Syndicat
+        UUID syndicatId,  // FK Syndicat
 
         String comment,
 

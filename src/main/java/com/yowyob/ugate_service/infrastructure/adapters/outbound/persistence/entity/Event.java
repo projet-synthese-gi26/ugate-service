@@ -8,14 +8,15 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.UUID;
 
 @Table("event")
 public record Event(
         @Id
-        Long id,
+        UUID id,
 
         @Column("branch_id")
-        Long branchId, // FK -> Branch
+        UUID branchId, // FK -> Branch
 
         String title,
         String description,
