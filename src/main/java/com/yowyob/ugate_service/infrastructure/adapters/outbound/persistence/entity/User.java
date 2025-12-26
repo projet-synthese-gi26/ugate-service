@@ -16,8 +16,9 @@ public record User(
         @Column("last_name") String lastName,
         String email,
         @Column("password_hash") String passwordHash,
-        @Column("date_of_birth") LocalDate dateOfBirth
+        @Column("date_of_birth") LocalDate dateOfBirth,
 
         //TODO la structure de cette table est à revoir
+        String phoneNumber
 
 ) {}
