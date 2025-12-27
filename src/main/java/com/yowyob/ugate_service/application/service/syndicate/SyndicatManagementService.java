@@ -4,6 +4,10 @@ import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Syndicat;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatMember;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.MemberRole;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.MembershipRequestRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
 import com.yowyob.ugate_service.infrastructure.mappers.syndicate.SyndicateMapper;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,78 +34,71 @@ public class SyndicatManagementService {
     private final SyndicatRepository syndicatRepository;
     private final FileStoragePort fileStoragePort;
     private final SyndicateMapper syndicateMapper;
+    private final SyndicatMemberRepository syndicatMemberRepository;
 
     @Transactional
-    public Mono<SyndicateResponse> createSyndicate(String name,
-                                                   String description,
-                                                   String domain,
-                                                   FilePart logoFile,
-                                                   FilePart documentFile) {
+    public Mono<SyndicateResponse> createSyndicate(String name, String description, String domain,
+                                                   FilePart logoFile, FilePart documentFile) {
 
-        return ReactiveSecurityContextHolder.getContext()
-                .map(ctx -> {
-                    Jwt jwt = (Jwt) ctx.getAuthentication().getPrincipal();
-                    String subject = jwt.getSubject();
-                    try {
-                        return UUID.fromString(subject);
-                    } catch (IllegalArgumentException e) {
-                        log.error("Tentative de création avec un ID utilisateur invalide dans le token : {}", subject);
-                        throw new IllegalArgumentException("Token invalide : L'ID utilisateur n'est pas un UUID valide.");
-                    }
-                })
-                .flatMap(creatorId -> {
-
-                    return fileStoragePort.uploadFile(logoFile, "syndicats/logos")
-                            .flatMap(logoUrl -> {
-
-
-                                return fileStoragePort.uploadFile(documentFile, "syndicats/statuts")
-                                        .flatMap(docUrl -> {
-
-                                            UUID newId = UUID.randomUUID();
-
-                                            Syndicat syndicat = new Syndicat(
-                                                    newId,          // 1. id
-                                                    null,           // 2. organizationId
-                                                    creatorId,      // 3. creatorId
-                                                    true,          // 4. isApproved
-                                                    name,           // 5. name
-                                                    description,    // 6. description
-                                                    domain,         // 7. domain
-                                                    "STANDARD",     // 8. type
-                                                    null,           // 9. charteUrl
-                                                    logoUrl,        // 10. logoUrl (reçu du media-service)
-                                                    docUrl,         // 11. statusUrl (reçu du media-service)
-                                                    null,           // 12. membersListUrl
-                                                    null,           // 13. commitmentCertificateUrl
-                                                    null,           // 14. createdAt (Géré par R2DBC)
-                                                    null            // 15. updatedAt (Géré par R2DBC)
-                                            );
-
-                                            return syndicatRepository.save(syndicat);
-                                        });
-                            });
-                })
+        return extractUserIdFromContext()
+                .flatMap(creatorId -> uploadRequiredFiles(logoFile, documentFile)
+                        .flatMap(urls -> persistSyndicateAndAdmin(creatorId, name, description, domain, urls))
+                )
                 .map(syndicateMapper::toResponse)
-                .doOnSuccess(dto -> log.info("Nouveau syndicat créé avec succès : ID {} par User {}", dto.id(), dto.creatorId()))
-                .doOnError(e -> log.error("Erreur lors de la création du syndicat : {}", e.getMessage()));
+                .doOnSuccess(dto -> log.info("Syndicat créé : ID {} par {}", dto.id(), dto.creatorId()))
+                .doOnError(e -> log.error("Échec création syndicat : {}", e.getMessage()));
     }
 
 
 
+    private Mono<UUID> extractUserIdFromContext() {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> {
+                    String subject = ((Jwt) ctx.getAuthentication().getPrincipal()).getSubject();
+                    return UUID.fromString(subject);
+                })
+                .onErrorMap(IllegalArgumentException.class, e ->
+                        new IllegalArgumentException("ID utilisateur invalide dans le token."));
+    }
+
+    private Mono<UploadResults> uploadRequiredFiles(FilePart logo, FilePart doc) {
+        return Mono.zip(
+                fileStoragePort.uploadFile(logo, "syndicats/logos"),
+                fileStoragePort.uploadFile(doc, "syndicats/statuts")
+        ).map(tuple -> new UploadResults(tuple.getT1(), tuple.getT2()));
+    }
+
+    private Mono<Syndicat> persistSyndicateAndAdmin(UUID creatorId, String name, String description,
+                                                    String domain, UploadResults urls) {
+        UUID syndicatId = UUID.randomUUID();
+        Syndicat syndicat = new Syndicat(
+                syndicatId,
+                creatorId,
+                name,
+                description,
+                domain,
+                urls.logoUrl(),
+                urls.docUrl()
+        );
+        SyndicatMember adminMember = new SyndicatMember(
+                syndicatId, creatorId, Instant.now(), true, MemberRole.ADMIN
+        );
+        return syndicatRepository.save(syndicat)
+                .then(syndicatMemberRepository.save(adminMember))
+                .thenReturn(syndicat); // Plus propre que .then(Mono.just(...))
+    }
+
+    private record UploadResults(String logoUrl, String docUrl) {}
+
+
+
     public Mono<PaginatedResponse<SyndicateResponse>> getAllSyndicates(int page, int size) {
-
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
-        // 1. Récupérer le nombre total d'éléments (Pour calculer le nb de pages)
         Mono<Long> countMono = syndicatRepository.count();
 
-        // 2. Récupérer les données de la page courante
         Mono<List<SyndicateResponse>> contentMono = syndicatRepository.findAllBy(pageRequest)
-                .map(syndicateMapper::toResponse) // Conversion Entité -> DTO
-                .collectList(); // On transforme le Flux en List pour construire la réponse
-
-        // 3. Combiner les deux résultats (Zip)
+                .map(syndicateMapper::toResponse)
+                .collectList();
         return Mono.zip(countMono, contentMono)
                 .map(tuple -> {
                     Long total = tuple.getT1();

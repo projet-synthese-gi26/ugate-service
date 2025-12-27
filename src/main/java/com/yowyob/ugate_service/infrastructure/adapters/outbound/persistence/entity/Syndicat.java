@@ -56,6 +56,16 @@ public record Syndicat(
         @Column("updated_at")
         Instant updatedAt
 )implements Persistable<UUID> {
+
+
+    // Constructeur pour créer un Syndicat
+    public Syndicat(UUID id, UUID creatorId, String name, String description,
+                    String domain, String logoUrl, String statusUrl) {
+        this(id, null, creatorId, false, name, description, domain, "STANDARD",
+                null, logoUrl, statusUrl, null, null, null, null);
+    }
+
+
     // Méthode "Wither" pour mettre à jour lors d'un UPDATE
     public Syndicat withStatus(Boolean isApproved, String charteUrl,String logoUrl,  String statusUrl) {
         // On garde l'ID et les dates, on change le reste
