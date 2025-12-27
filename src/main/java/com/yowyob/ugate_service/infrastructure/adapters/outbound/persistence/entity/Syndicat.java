@@ -54,7 +54,10 @@ public record Syndicat(
 
         @LastModifiedDate
         @Column("updated_at")
-        Instant updatedAt
+        Instant updatedAt,
+
+        @Column("isActive")
+        Boolean isActive
 )implements Persistable<UUID> {
 
 
@@ -62,17 +65,33 @@ public record Syndicat(
     public Syndicat(UUID id, UUID creatorId, String name, String description,
                     String domain, String logoUrl, String statusUrl) {
         this(id, null, creatorId, false, name, description, domain, "STANDARD",
-                null, logoUrl, statusUrl, null, null, null, null);
+                null, logoUrl, statusUrl, null, null, null, null, true);
     }
 
 
     // Méthode "Wither" pour mettre à jour lors d'un UPDATE
-    public Syndicat withStatus(Boolean isApproved, String charteUrl,String logoUrl,  String statusUrl) {
+    public Syndicat withStatus(Boolean isApproved, String charteUrl,String logoUrl,  String statusUrl, Boolean isActive) {
         // On garde l'ID et les dates, on change le reste
         return new Syndicat(
                 this.id, this.organizationId, this.creatorId, isApproved, this.name, this.description,
                 this.domain, this.type, charteUrl, logoUrl, statusUrl, this.membersListUrl,
-                this.commitmentCertificateUrl, this.createdAt, this.updatedAt
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, isActive
+        );
+    }
+
+    public Syndicat withApproval(boolean approved) {
+        return new Syndicat(
+                this.id, this.organizationId, this.creatorId, approved, this.name, this.description,
+                this.domain, this.type, this.charteUrl, this.logoUrl, this.statusUrl, this.membersListUrl,
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, this.isActive
+        );
+    }
+
+    public Syndicat withActive(boolean active) {
+        return new Syndicat(
+                this.id, this.organizationId, this.creatorId, this.isApproved, this.name, this.description,
+                this.domain, this.type, this.charteUrl, this.logoUrl, this.statusUrl, this.membersListUrl,
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, active
         );
     }
 

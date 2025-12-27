@@ -1,6 +1,7 @@
 package com.yowyob.ugate_service.application.service.syndicate;
 
 import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BasicResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Syndicat;
@@ -12,6 +13,7 @@ import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.rep
 import com.yowyob.ugate_service.infrastructure.mappers.syndicate.SyndicateMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.codec.multipart.FilePart;
@@ -25,6 +27,7 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -85,7 +88,7 @@ public class SyndicatManagementService {
         );
         return syndicatRepository.save(syndicat)
                 .then(syndicatMemberRepository.save(adminMember))
-                .thenReturn(syndicat); // Plus propre que .then(Mono.just(...))
+                .thenReturn(syndicat);
     }
 
     private record UploadResults(String logoUrl, String docUrl) {}
@@ -113,5 +116,42 @@ public class SyndicatManagementService {
         return syndicatRepository.findAllByMemberUserId(userId)
                 .map(syndicateMapper::toResponse)
                 .doOnError(e -> log.error("Erreur lors de la récupération des syndicats pour l'user {}", userId, e));
+    }
+
+
+    //TODO pour ces suite de methodes plutard on va vérifier le role de l'utilisateur connecté
+    public Mono<SyndicateResponse> approve(UUID id) {
+        return updateState(id, s -> s.withApproval(true), "Approbation");
+    }
+
+    /**
+     * Désapprouve un syndicat.
+     */
+    public Mono<SyndicateResponse> disapprove(UUID id) {
+        return updateState(id, s -> s.withApproval(false), "Désapprobation");
+    }
+
+    /**
+     * Active le syndicat (accès aux fonctionnalités).
+     */
+    public Mono<SyndicateResponse> activate(UUID id) {
+        return updateState(id, s -> s.withActive(true), "Activation");
+    }
+
+    /**
+     * Désactive le syndicat (suspension temporaire).
+     */
+    public Mono<SyndicateResponse> deactivate(UUID id) {
+        return updateState(id, s -> s.withActive(false), "Désactivation");
+    }
+
+
+    private Mono<SyndicateResponse> updateState(UUID id, Function<Syndicat, Syndicat> stateTransformer, String actionName) {
+        return syndicatRepository.findById(id)
+                .map(stateTransformer)
+                .flatMap(syndicatRepository::save)
+                .map(syndicateMapper::toResponse)
+                .doOnSuccess(s -> log.info("{} réussie pour le syndicat ID: {}", actionName, id))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable avec l'ID: " + id)));
     }
 }

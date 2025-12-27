@@ -65,13 +65,11 @@ public class TraMaSysUserAdapter implements UserGatewayPort {
     @Override
     public Mono<User> updateProfile(User user) {
         String cacheKey = "user:" + user.id();
-
         UserUpdateRequest request = new UserUpdateRequest(
                 user.firstName(),
                 user.lastName(),
                user.phoneNumber()
         );
-
         return webClient.put()
                 .uri("/api/users/" + user.id())
                 .bodyValue(request)

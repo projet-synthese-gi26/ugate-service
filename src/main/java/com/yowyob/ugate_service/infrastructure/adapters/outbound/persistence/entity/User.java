@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Table("app_user")
 public record User(
-        @Id UUID id, // UUID au lieu de Long
+        @Id UUID id,
 
         @Column("profil_url") String profilUrl,
         @Column("first_name") String firstName,
