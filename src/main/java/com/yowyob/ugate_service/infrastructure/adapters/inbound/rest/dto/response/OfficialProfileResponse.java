@@ -7,11 +7,13 @@ public record OfficialProfileResponse(
         String firstName,
         String lastName,
         String photoUrl,
-        VehicleInfo vehicle
-) {
-    public record VehicleInfo(
-            String brand,
-            String model,
-            String licensePlate
-    ) {}
-}
+        // Détails de conformité
+        String cvUrl,
+        String cniNumber,
+        String cniRectoUrl,
+        String cniVersoUrl,
+        String licenseNumber,
+        String licenseRectoUrl,
+        String licenseVersoUrl,
+        Boolean isVerified
+) {}

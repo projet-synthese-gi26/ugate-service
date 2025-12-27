@@ -160,10 +160,10 @@ public class ComplianceService {
 
 
     public Mono<OfficialProfileResponse> getOfficialProfile(UUID driverId) {
-        // 1. Récupérer identité de base (TraMaSys)
+        // 1. Récupérer l'identité de base
         Mono<User> userMono = userGatewayPort.findById(driverId);
 
-        // 2. Récupérer détails officiels locaux (ComplianceDetails) pour la photo certifiée
+        // 2. Récupérer les détails officiels (ou un objet vide si inexistant)
         Mono<ComplianceDetails> detailsMono = complianceDetailsRepository.findById(driverId)
                 .defaultIfEmpty(ComplianceDetails.createEmpty(driverId));
 
@@ -172,17 +172,25 @@ public class ComplianceService {
                     User user = tuple.getT1();
                     ComplianceDetails details = tuple.getT2();
 
-                    // Priorité à la photo certifiée dans compliance_details, sinon photo profil user
+                    // Logique de priorité pour la photo
                     String officialPhotoUrl = (details.profilePhotoUrl() != null && !details.profilePhotoUrl().isBlank())
                             ? details.profilePhotoUrl()
                             : user.profilUrl();
+
 
                     return new OfficialProfileResponse(
                             user.id().toString(),
                             user.firstName(),
                             user.lastName(),
                             officialPhotoUrl,
-                            new OfficialProfileResponse.VehicleInfo("Inconnu", "Inconnu", "Inconnu") // TODO: Lier table Véhicule
+                            details.cvUrl(),
+                            details.cniNumber(),
+                            details.cniRectoUrl(),
+                            details.cniVersoUrl(),
+                            details.licenseNumber(),
+                            details.licenseRectoUrl(),
+                            details.licenseVersoUrl(),
+                            details.isVerified()
                     );
                 });
     }
