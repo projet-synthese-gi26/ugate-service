@@ -9,22 +9,21 @@ import java.util.UUID;
 
 @Table("publication")
 public record Publication(
-        @Id
-        UUID id,
+        @Id UUID id,
 
-        @Column("branch_id")
-        UUID branchId,    // FK -> Branch
+        @Column("branch_id") UUID branchId, // FK -> Branch
 
-        @Column("author_id")
-        UUID authorId,    // FK -> User
+        @Column("author_id") UUID authorId, // FK -> User
 
         String content,
-        String status,    // Ex: "PUBLISHED", "DRAFT"
+        // String status, // Ex: "PUBLISHED", "DRAFT"
 
-        @Column("n_likes")
-        Long nLikes,      // Compteur de likes
+        @Column("n_likes") Long nLikes, // Compteur de likes
 
-        @CreatedDate
-        @Column("created_at")
-        Instant createdAt
-) {}
+        @CreatedDate @Column("created_at") Instant createdAt) {
+
+    public Publication(UUID branchId, UUID authorId, String content, Long nLikes, Instant createdAt) {
+        this(null, branchId, authorId, content, nLikes, createdAt);
+    }
+}
+

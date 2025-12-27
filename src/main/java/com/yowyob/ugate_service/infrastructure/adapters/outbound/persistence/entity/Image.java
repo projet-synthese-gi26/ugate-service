@@ -20,4 +20,8 @@ public record Image(
         @CreatedDate
         @Column("uploaded_at")
         Instant uploadedAt
-) {}
+) {
+    public Image(String url, String altText, Instant uploadedAt) {
+        this(null, url, altText, uploadedAt);
+    }
+}
