@@ -11,7 +11,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
-@Table("branch")
+@Table("branches")
 public record Branch(
         @Id
         UUID id, // FK vers Agency.id selon le schéma

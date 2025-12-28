@@ -1,10 +1,9 @@
 package com.yowyob.ugate_service.application.service.syndicate;
 
 
-
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.MembershipRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatMember;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.MemberRole;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.MembershipRequestRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +80,7 @@ public class SyndicateMembershipService {
 
                         // 2. Créer l'entrée dans la table des membres
                         SyndicatMember newMember = new SyndicatMember(
-                                request.syndicatId(), request.userId(), Instant.now(), true, MemberRole.MEMBER
+                                request.syndicatId(), request.userId(), Instant.now(), true, RoleTypeEnum.CLIENT
                         );
 
                         // On combine les deux sauvegardes dans une transaction

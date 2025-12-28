@@ -7,7 +7,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("image")
+@Table("images")
 public record Image(
         @Id
         UUID id,

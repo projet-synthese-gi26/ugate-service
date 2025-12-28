@@ -1,6 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.MemberRole;
+
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -23,10 +24,10 @@ public record SyndicatMember(
         @Column("is_active")
         Boolean isActive,
 
-        @Column("role") MemberRole role   // MEMBER, MODERATOR, ADMIN
+        @Column("role") RoleTypeEnum role   // MEMBER, MODERATOR, ADMIN
 ) {
     // Constructeur utilitaire pour une adhésion par défaut
-    public static SyndicatMember create(UUID syndicatId, UUID userId, MemberRole role) {
+    public static SyndicatMember create(UUID syndicatId, UUID userId, RoleTypeEnum role) {
         return new SyndicatMember(syndicatId, userId, null, true, role);
     }
 
@@ -39,11 +40,11 @@ public record SyndicatMember(
     }
 
     public boolean isAdmin() {
-        return MemberRole.ADMIN.equals(this.role);
+        return RoleTypeEnum.ADMIN.equals(this.role);
     }
 
     public boolean isModerator() {
-        return MemberRole.MODERATOR.equals(this.role);
+        return RoleTypeEnum.MODERATOR.equals(this.role);
     }
 
     /**
@@ -56,7 +57,7 @@ public record SyndicatMember(
     /**
      * Version générique pour vérifier n'importe quel rôle
      */
-    public boolean hasRole(MemberRole targetRole) {
+    public boolean hasRole(RoleTypeEnum targetRole) {
         return this.role == targetRole;
     }
 }

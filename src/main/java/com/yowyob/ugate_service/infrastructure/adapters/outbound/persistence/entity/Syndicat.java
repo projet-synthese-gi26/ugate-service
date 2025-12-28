@@ -21,7 +21,7 @@ public record Syndicat(
         UUID organizationId, // FK vers Organization
 
         @Column("creator_id")
-        UUID creatorId, // FK vers Le createur
+        UUID creatorId, // FK vers Le createur   //ajouté par moi, nécessite une migraton
 
         @Column("is_approved")
         Boolean isApproved,
@@ -56,7 +56,7 @@ public record Syndicat(
         @Column("updated_at")
         Instant updatedAt,
 
-        @Column("isActive")
+        @Column("is_active")
         Boolean isActive
 )implements Persistable<UUID> {
 
@@ -69,9 +69,8 @@ public record Syndicat(
     }
 
 
-    // Méthode "Wither" pour mettre à jour lors d'un UPDATE
+
     public Syndicat withStatus(Boolean isApproved, String charteUrl,String logoUrl,  String statusUrl, Boolean isActive) {
-        // On garde l'ID et les dates, on change le reste
         return new Syndicat(
                 this.id, this.organizationId, this.creatorId, isApproved, this.name, this.description,
                 this.domain, this.type, charteUrl, logoUrl, statusUrl, this.membersListUrl,

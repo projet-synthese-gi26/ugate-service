@@ -1,13 +1,15 @@
 package com.yowyob.ugate_service.application.service.syndicate;
 
 import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
-import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BasicResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.BusinessActor;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Organization;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Syndicat;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatMember;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.MemberRole;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.MembershipRequestRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.BusinessActorRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.OrganisationRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
 import com.yowyob.ugate_service.infrastructure.mappers.syndicate.SyndicateMapper;
@@ -24,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
@@ -38,21 +39,48 @@ public class SyndicatManagementService {
     private final FileStoragePort fileStoragePort;
     private final SyndicateMapper syndicateMapper;
     private final SyndicatMemberRepository syndicatMemberRepository;
+    private final OrganisationRepository organizationRepository;
+    private final BusinessActorRepository businessActorRepository;
 
     @Transactional
     public Mono<SyndicateResponse> createSyndicate(String name, String description, String domain,
                                                    FilePart logoFile, FilePart documentFile) {
-
         return extractUserIdFromContext()
                 .flatMap(creatorId -> uploadRequiredFiles(logoFile, documentFile)
-                        .flatMap(urls -> persistSyndicateAndAdmin(creatorId, name, description, domain, urls))
+                        .flatMap(urls -> persistFullSyndicateStack(creatorId, name, description, domain, urls))
                 )
                 .map(syndicateMapper::toResponse)
-                .doOnSuccess(dto -> log.info("Syndicat créé : ID {} par {}", dto.id(), dto.creatorId()))
-                .doOnError(e -> log.error("Échec création syndicat : {}", e.getMessage()));
+                .doOnSuccess(dto -> log.info("Syndicat et Organisation créés avec succès : ID {}", dto.id()))
+                .doOnError(e -> log.error("Erreur fatale lors de la création de la pile syndicale : {}", e.getMessage()));
     }
 
 
+    private BusinessActor createBusinessActor(UUID userId, String name) {
+        return BusinessActor.createNew(userId, name, null, null);
+    }
+
+    private Organization createOrganization(UUID id, UUID creatorId, String name) {
+        String orgCode = name.toUpperCase().replaceAll("\\s+", "_");
+        return new Organization(id, creatorId, orgCode, null, name, name, "SYNDICAT");
+    }
+
+    private Syndicat createSyndicat(UUID id, UUID orgId, UUID creatorId, String name,
+                                    String description, String domain, UploadResults urls) {
+        return new Syndicat(
+                id,
+                orgId,
+                creatorId,
+                false, // isApproved
+                name,
+                description,
+                domain,
+                "STANDARD",
+                null,
+                urls.logoUrl(),
+                urls.docUrl(),
+                null, null, null, null, true // isActive
+        );
+    }
 
     private Mono<UUID> extractUserIdFromContext() {
         return ReactiveSecurityContextHolder.getContext()
@@ -71,22 +99,20 @@ public class SyndicatManagementService {
         ).map(tuple -> new UploadResults(tuple.getT1(), tuple.getT2()));
     }
 
-    private Mono<Syndicat> persistSyndicateAndAdmin(UUID creatorId, String name, String description,
-                                                    String domain, UploadResults urls) {
+    private Mono<Syndicat> persistFullSyndicateStack(UUID creatorId, String name, String description,
+                                                     String domain, UploadResults urls) {
+
+        UUID orgId = UUID.randomUUID();
         UUID syndicatId = UUID.randomUUID();
-        Syndicat syndicat = new Syndicat(
-                syndicatId,
-                creatorId,
-                name,
-                description,
-                domain,
-                urls.logoUrl(),
-                urls.docUrl()
-        );
-        SyndicatMember adminMember = new SyndicatMember(
-                syndicatId, creatorId, Instant.now(), true, MemberRole.ADMIN
-        );
-        return syndicatRepository.save(syndicat)
+
+        BusinessActor actor = createBusinessActor(creatorId, name);
+        Organization organization = createOrganization(orgId, creatorId, name);
+        Syndicat syndicat = createSyndicat(syndicatId, orgId, creatorId, name, description, domain, urls);
+        SyndicatMember adminMember = SyndicatMember.create(syndicatId, creatorId, RoleTypeEnum.ADMIN);
+
+        return businessActorRepository.save(actor)
+                .then(organizationRepository.save(organization))
+                .then(syndicatRepository.save(syndicat))
                 .then(syndicatMemberRepository.save(adminMember))
                 .thenReturn(syndicat);
     }
@@ -124,23 +150,18 @@ public class SyndicatManagementService {
         return updateState(id, s -> s.withApproval(true), "Approbation");
     }
 
-    /**
-     * Désapprouve un syndicat.
-     */
+
     public Mono<SyndicateResponse> disapprove(UUID id) {
         return updateState(id, s -> s.withApproval(false), "Désapprobation");
     }
 
-    /**
-     * Active le syndicat (accès aux fonctionnalités).
-     */
+
     public Mono<SyndicateResponse> activate(UUID id) {
         return updateState(id, s -> s.withActive(true), "Activation");
     }
 
-    /**
-     * Désactive le syndicat (suspension temporaire).
-     */
+
+
     public Mono<SyndicateResponse> deactivate(UUID id) {
         return updateState(id, s -> s.withActive(false), "Désactivation");
     }

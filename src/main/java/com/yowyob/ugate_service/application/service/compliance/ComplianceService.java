@@ -1,16 +1,14 @@
 package com.yowyob.ugate_service.application.service.compliance;
 
 
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.FeedbackRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BatchComplianceResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ComplianceResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.OfficialProfileResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.*;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.AvisRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ComplianceDetailsRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
@@ -36,7 +34,8 @@ public class ComplianceService {
     private final SyndicatMemberRepository memberRepository;
     private final SyndicatRepository syndicatRepository;
     private final AvisRepository avisRepository;
-    private final ComplianceDetailsRepository complianceDetailsRepository; // <--- AJOUTÉ
+    private final ComplianceDetailsRepository complianceDetailsRepository;
+    private final ProfileRepository profileRepository;
 
     // Gateway vers TraMaSys (Auth)
     private final UserGatewayPort userGatewayPort;
@@ -160,28 +159,28 @@ public class ComplianceService {
 
 
     public Mono<OfficialProfileResponse> getOfficialProfile(UUID driverId) {
-        // 1. Récupérer l'identité de base
-        Mono<User> userMono = userGatewayPort.findById(driverId);
 
-        // 2. Récupérer les détails officiels (ou un objet vide si inexistant)
+        Mono<ExternalUserInfo> userMono = userGatewayPort.findById(driverId);
+        Mono<Profile> profile = profileRepository.findByUserId(driverId);
+
         Mono<ComplianceDetails> detailsMono = complianceDetailsRepository.findById(driverId)
                 .defaultIfEmpty(ComplianceDetails.createEmpty(driverId));
 
-        return Mono.zip(userMono, detailsMono)
+        return Mono.zip(userMono, detailsMono, profile)
                 .map(tuple -> {
-                    User user = tuple.getT1();
+                    ExternalUserInfo user = tuple.getT1();
                     ComplianceDetails details = tuple.getT2();
+                    Profile profile1 = tuple.getT3();
 
-                    // Logique de priorité pour la photo
                     String officialPhotoUrl = (details.profilePhotoUrl() != null && !details.profilePhotoUrl().isBlank())
                             ? details.profilePhotoUrl()
-                            : user.profilUrl();
+                            : profile1.profilImageUrl();
 
 
                     return new OfficialProfileResponse(
                             user.id().toString(),
-                            user.firstName(),
-                            user.lastName(),
+                            profile1.firstName(),
+                            profile1.lastName(),
                             officialPhotoUrl,
                             details.cvUrl(),
                             details.cniNumber(),

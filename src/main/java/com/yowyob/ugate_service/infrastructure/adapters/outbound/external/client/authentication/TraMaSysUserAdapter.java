@@ -1,6 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.authentication;
 
 
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.User;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -33,42 +35,33 @@ public class TraMaSysUserAdapter implements UserGatewayPort {
 
 
     @Override
-    public Mono<User> findById(UUID id) {
-        String cacheKey = "user:" + id;
+    public Mono<ExternalUserInfo> findById(UUID id) {
+        String cacheKey = "ext_user:" + id;
 
         return redisTemplate.opsForValue().get(cacheKey)
-                .cast(User.class)
-                .switchIfEmpty(
-                        fetchFromApi(id)
-                                .flatMap(user ->
-                                        // Et on met en cache pour la prochaine fois
-                                        redisTemplate.opsForValue().set(cacheKey, user, CACHE_TTL)
-                                                .thenReturn(user)
-                                )
-                );
+                .cast(ExternalUserInfo.class)
+                .switchIfEmpty(fetchFromApi(id)
+                        .flatMap(dto -> redisTemplate.opsForValue()
+                                .set(cacheKey, dto, Duration.ofHours(1))
+                                .thenReturn(dto)));
     }
 
-    private Mono<User> fetchFromApi(UUID id) {
+    private Mono<ExternalUserInfo> fetchFromApi(UUID id) {
         return webClient.get()
-                .uri("/api/users/" + id)
+                .uri("/api/users/{id}", id)
                 .retrieve()
-                .bodyToMono(TraMaSysUserDTO.class)
-                .map(this::mapToDomain)
-                .onErrorResume(WebClientResponseException.NotFound.class, e -> {
-                    log.warn("Utilisateur {} introuvable dans TraMaSys", id);
-                    return Mono.empty();
-                })
-                .doOnError(e -> log.error("Erreur technique lors de l'appel TraMaSys pour user {}", id, e));
+                .bodyToMono(TraMaSysUserDTO.class) // Le DTO technique de l'API
+                .map(this::mapToDomain); // Conversion vers votre Domain DTO
     }
 
 
     @Override
-    public Mono<User> updateProfile(User user) {
+    public Mono<ExternalUserInfo> updateProfile(ExternalUserInfo user) {
         String cacheKey = "user:" + user.id();
         UserUpdateRequest request = new UserUpdateRequest(
                 user.firstName(),
                 user.lastName(),
-               user.phoneNumber()
+               user.phone()
         );
         return webClient.put()
                 .uri("/api/users/" + user.id())
@@ -92,22 +85,20 @@ public class TraMaSysUserAdapter implements UserGatewayPort {
     }
 
 
-    record TraMaSysUserDTO(String id, String username, String email, String firstName, String lastName, String phone) {}
+    record TraMaSysUserDTO(String id, String username, String email, String firstName, String lastName, String phone, List<String> permissions, List<String> roles) {}
 
 
     record UserUpdateRequest(String firstName, String lastName, String phone) {}
 
-    private User mapToDomain(TraMaSysUserDTO dto) {
-        return new User(
+    private ExternalUserInfo mapToDomain(TraMaSysUserDTO dto) {
+        return new ExternalUserInfo(
                 UUID.fromString(dto.id()),
-                null,
                 dto.firstName(),
                 dto.lastName(),
                 dto.email(),
-                null,
-                null ,
-                dto.phone()
-
+                dto.phone(),
+                dto.permissions(),
+                dto.roles()
         );
     }
 }

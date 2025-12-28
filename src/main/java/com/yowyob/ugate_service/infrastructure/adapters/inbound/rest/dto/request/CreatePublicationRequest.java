@@ -1,4 +1,4 @@
-package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto;
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;

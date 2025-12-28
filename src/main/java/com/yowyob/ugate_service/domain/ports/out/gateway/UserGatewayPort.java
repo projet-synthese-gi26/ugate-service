@@ -1,6 +1,7 @@
 package com.yowyob.ugate_service.domain.ports.out.gateway;
 
 
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.User;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
@@ -22,7 +23,7 @@ public interface UserGatewayPort {
      * @param id L'identifiant UUID de l'utilisateur (sub du Token)
      * @return L'objet User du domaine (ou Mono.empty() si introuvable)
      */
-    Mono<User> findById(UUID id);
+    Mono<ExternalUserInfo> findById(UUID id);
 
     /**
      * Met à jour les informations de profil dans le système distant.
@@ -30,7 +31,7 @@ public interface UserGatewayPort {
      * @param user L'utilisateur avec les nouvelles données
      * @return L'utilisateur mis à jour
      */
-    Mono<User> updateProfile(User user);
+    Mono<ExternalUserInfo> updateProfile(ExternalUserInfo user);
 
     /**
      * Vérifie rapidement si un ID utilisateur est valide/existant.
