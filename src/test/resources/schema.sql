@@ -1,5 +1,8 @@
-CREATE TABLE app_user (
-    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY
+CREATE TABLE users (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    name VARCHAR(255),
+    phone_number VARCHAR(50),
+    email_address VARCHAR(255)
 );
 
 CREATE TABLE syndicats (

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ComplianceResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -16,30 +18,28 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class RedisConfig {
 
-    @Bean
+
     @Primary
-    public ReactiveRedisTemplate<String, Object> reactiveRedisTemplate(ReactiveRedisConnectionFactory factory) {
+    @Bean
+    public ReactiveRedisTemplate<String, ExternalUserInfo> externalUserRedisTemplate(ReactiveRedisConnectionFactory factory) {
+        return createTemplate(factory, ExternalUserInfo.class);
+    }
 
-        // 1. Configurer Jackson pour gérer le polymorphisme (stocker le type de classe)
+    @Bean
+    public ReactiveRedisTemplate<String, ComplianceResponse> complianceRedisTemplate(ReactiveRedisConnectionFactory factory) {
+        return createTemplate(factory, ComplianceResponse.class);
+    }
+
+    private <T> ReactiveRedisTemplate<String, T> createTemplate(ReactiveRedisConnectionFactory factory, Class<T> clazz) {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule()); // Pour gérer les LocalDate/Instant
+        mapper.registerModule(new JavaTimeModule());
 
-        // C'est cette ligne qui permet de stocker User, Product, Syndicat avec le même template
-        mapper.activateDefaultTyping(
-                LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY
-        );
 
-        // 2. Configurer le sérialiseur
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(mapper, Object.class);
+        Jackson2JsonRedisSerializer<T> serializer = new Jackson2JsonRedisSerializer<>(mapper, clazz);
 
-        // 3. Construire le contexte de sérialisation
-        RedisSerializationContext<String, Object> context = RedisSerializationContext
-                .<String, Object>newSerializationContext(new StringRedisSerializer()) 
+        RedisSerializationContext<String, T> context = RedisSerializationContext
+                .<String, T>newSerializationContext(new StringRedisSerializer())
                 .value(serializer)
-                .hashKey(serializer)
-                .hashValue(serializer)
                 .build();
 
         return new ReactiveRedisTemplate<>(factory, context);

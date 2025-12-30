@@ -1,4 +1,4 @@
-package com.yowyob.ugate_service.infrastructure.adapters.outbound.external;
+package com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media;
 
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;

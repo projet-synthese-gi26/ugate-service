@@ -1,15 +1,12 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.authentication;
 
-
 import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.User;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -21,74 +18,82 @@ import java.util.UUID;
 public class TraMaSysUserAdapter implements UserGatewayPort {
 
     private final WebClient webClient;
-    private final ReactiveRedisTemplate<String, Object> redisTemplate;
-
+    private final ReactiveRedisTemplate<String, ExternalUserInfo> userRedisTemplate;
     private static final Duration CACHE_TTL = Duration.ofHours(1);
 
     public TraMaSysUserAdapter(WebClient.Builder builder,
                                @Value("${application.external.auth-service-url}") String authUrl,
-                               ReactiveRedisTemplate<String, Object> redisTemplate) {
+                               ReactiveRedisTemplate<String, ExternalUserInfo> userRedisTemplate) {
         this.webClient = builder.baseUrl(authUrl).build();
-        this.redisTemplate = redisTemplate;
+        this.userRedisTemplate = userRedisTemplate;
     }
 
+    @Override
+    public Mono<ExternalUserInfo> registerUser(String email, String firstName, String lastName, String password) {
+        var registerRequest = new RegisterRequest(
+                email,      // username = email
+                password,
+                email,
+                null,
+                firstName,
+                lastName,
+                "SYNDICAT",
+                List.of("CLIENT")
+        );
 
+        return webClient.post()
+                .uri("/api/auth/register")
+                .bodyValue(registerRequest)
+                .retrieve()
+                .bodyToMono(AuthResponse.class)
+                .map(response -> mapToDomain(response.user()))
+                .doOnSuccess(user -> log.info("Utilisateur créé sur TraMaSys : {}", user.id()))
+                .doOnError(e -> log.error("Erreur registration TraMaSys : {}", e.getMessage()));
+    }
 
     @Override
     public Mono<ExternalUserInfo> findById(UUID id) {
-        String cacheKey = "ext_user:" + id;
-
-        return redisTemplate.opsForValue().get(cacheKey)
+        String cacheKey = "v2_user:" + id;
+        return userRedisTemplate.opsForValue().get(cacheKey)
                 .cast(ExternalUserInfo.class)
-                .switchIfEmpty(fetchFromApi(id)
-                        .flatMap(dto -> redisTemplate.opsForValue()
-                                .set(cacheKey, dto, Duration.ofHours(1))
+                .switchIfEmpty(webClient.get()
+                        .uri("/api/users/{id}", id)
+                        .retrieve()
+                        .bodyToMono(TraMaSysUserDTO.class)
+                        .map(this::mapToDomain)
+                        .flatMap(dto -> userRedisTemplate.opsForValue()
+                                .set(cacheKey, dto, CACHE_TTL)
                                 .thenReturn(dto)));
     }
 
-    private Mono<ExternalUserInfo> fetchFromApi(UUID id) {
-        return webClient.get()
-                .uri("/api/users/{id}", id)
-                .retrieve()
-                .bodyToMono(TraMaSysUserDTO.class) // Le DTO technique de l'API
-                .map(this::mapToDomain); // Conversion vers votre Domain DTO
-    }
-
-
     @Override
     public Mono<ExternalUserInfo> updateProfile(ExternalUserInfo user) {
-        String cacheKey = "user:" + user.id();
-        UserUpdateRequest request = new UserUpdateRequest(
-                user.firstName(),
-                user.lastName(),
-               user.phone()
-        );
+        // Implémentation via PUT /api/users/{id}
+        var updateRequest = new UserUpdateRequest(user.firstName(), user.lastName(), user.phone());
         return webClient.put()
-                .uri("/api/users/" + user.id())
-                .bodyValue(request)
+                .uri("/api/users/{id}", user.id())
+                .bodyValue(updateRequest)
                 .retrieve()
                 .bodyToMono(TraMaSysUserDTO.class)
                 .map(this::mapToDomain)
-                .flatMap(updatedUser ->
-                        redisTemplate.opsForValue().set(cacheKey, updatedUser, CACHE_TTL)
-                                .thenReturn(updatedUser)
-                )
-                .doOnError(e -> log.error("Erreur lors de la mise à jour du profil {}", user.id(), e));
+                .doOnSuccess(u -> userRedisTemplate.opsForValue().delete("ext_user:" + u.id()).subscribe());
     }
-
 
     @Override
     public Mono<Boolean> existsById(UUID id) {
-        return findById(id)
-                .map(u -> true)
-                .defaultIfEmpty(false);
+        return findById(id).map(u -> true).defaultIfEmpty(false);
     }
 
 
-    record TraMaSysUserDTO(String id, String username, String email, String firstName, String lastName, String phone, List<String> permissions, List<String> roles) {}
+    private record RegisterRequest(String username, String password, String email, String phone,
+                                   String firstName, String lastName, String service, List<String> roles) {}
 
+    private record AuthResponse(TraMaSysUserDTO user) {}
 
-    record UserUpdateRequest(String firstName, String lastName, String phone) {}
+    private record TraMaSysUserDTO(String id, String firstName, String lastName, String email,
+                                   String phone, List<String> permissions, List<String> roles) {}
+
+    private record UserUpdateRequest(String firstName, String lastName, String phone) {}
 
     private ExternalUserInfo mapToDomain(TraMaSysUserDTO dto) {
         return new ExternalUserInfo(

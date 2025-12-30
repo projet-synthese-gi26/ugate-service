@@ -94,7 +94,7 @@ public class CommentControllerTests {
                 imageRepository.deleteAll().block();
 
                 // Setup test data
-                testUser = userRepository.save(new User(null)).block();
+                testUser = userRepository.save(new User(null, "Test user", "6587895423", "test@mail.co", true)).block();
                 testSyndicat = syndicatRepository.save(new Syndicat(null, testUser.id(), "Test Syndicat", "description",
                                 "domain", "logo", "status"))
                                 .block();

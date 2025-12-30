@@ -93,4 +93,43 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="v1.0-create-compliance-details" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="compliance_details"/></not>
+        </preConditions>
+        <createTable tableName="compliance_details">
+            <column name="user_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" foreignKeyName="fk_compliance_user" referencedTableName="users" referencedColumnNames="id"/>
+            </column>
+            <column name="profile_photo_url" type="text"/>
+            <column name="cv_url" type="text"/>
+
+            <column name="cni_number" type="text"/>
+            <column name="cni_recto_url" type="text"/>
+            <column name="cni_verso_url" type="text"/>
+
+            <column name="license_number" type="text"/>
+            <column name="license_recto_url" type="text"/>
+            <column name="license_verso_url" type="text"/>
+
+            <column name="is_verified" type="boolean" defaultValueBoolean="false"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.1-add-syndicat-logo-url" author="ERIC KOGHENE">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="syndicats" columnName="logo_url"/></not>
+        </preConditions>
+        <addColumn tableName="syndicats">
+            <column name="logo_url" type="text"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.1-fix-enum-cast-role" author="ugate-service">
+        <sql>
+            CREATE CAST (character varying as role_type_enum) WITH INOUT AS IMPLICIT;
+        </sql>
+    </changeSet>
+
 </databaseChangeLog>
