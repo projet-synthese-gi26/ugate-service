@@ -1,13 +1,11 @@
 package com.yowyob.ugate_service.application.service.content;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 import com.yowyob.ugate_service.domain.model.CommentModel;
 import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.model.ImageModel;
-import com.yowyob.ugate_service.domain.model.MediaInfo;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.CommentPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;

@@ -12,4 +12,6 @@ public interface PublicationPersistencePort {
   Mono<PublicationModel> save(PublicationModel publicationModel);
 
   Flux<PublicationModel> findByBranchId(UUID branchId);
+
+  Mono<Void> incrementLikes(UUID publicationId);
 }

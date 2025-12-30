@@ -68,3 +68,11 @@ CREATE TABLE comment (
     content VARCHAR(255),
     created_at TIMESTAMP
 );
+
+CREATE TABLE reaction (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    publication_id UUID,
+    user_id UUID,
+    type VARCHAR(255),
+    reacted_at TIMESTAMP
+);

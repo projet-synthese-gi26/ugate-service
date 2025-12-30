@@ -24,8 +24,7 @@ public class PublicationPersistenceAdapter implements PublicationPersistencePort
                 publicationModel.getAuthorId(),
                 publicationModel.getContent(),
                 publicationModel.getNLikes(),
-                publicationModel.getCreatedAt()
-        );
+                publicationModel.getCreatedAt());
 
         return publicationRepository.save(publication)
                 .map(savedPublication -> {
@@ -48,6 +47,20 @@ public class PublicationPersistenceAdapter implements PublicationPersistencePort
                     return model;
                 });
     }
+
+    @Override
+    public Mono<Void> incrementLikes(UUID publicationId) {
+        return publicationRepository.findById(publicationId)
+                .flatMap(publication -> {
+                    Publication updatedPublication = new Publication(
+                            publication.id(),
+                            publication.branchId(),
+                            publication.authorId(),
+                            publication.content(),
+                            publication.nLikes() + 1,
+                            publication.createdAt());
+                    return publicationRepository.save(updatedPublication);
+                })
+                .then();
+    }
 }
-
-

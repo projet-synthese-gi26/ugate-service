@@ -104,4 +104,8 @@ public class PublicationService {
                                                         });
                                 });
         }
+
+        public Mono<Void> incrementLikes(UUID publicationId) {
+                return publicationModelRepository.incrementLikes(publicationId);
+        }
 }
