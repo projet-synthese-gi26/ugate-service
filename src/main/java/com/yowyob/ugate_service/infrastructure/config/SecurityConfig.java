@@ -34,7 +34,7 @@ public class SecurityConfig {
 
                 // 3. On définit les règles d'autorisation
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
+                        .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**", "/actuator/**").permitAll()
                         .anyExchange().authenticated()
                 )
 
