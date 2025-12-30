@@ -7,7 +7,7 @@ CREATE TABLE publication (
     created_at TIMESTAMP
 );
 
-CREATE TABLE image (
+CREATE TABLE images (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     url VARCHAR(255),
     alt_text VARCHAR(255),
