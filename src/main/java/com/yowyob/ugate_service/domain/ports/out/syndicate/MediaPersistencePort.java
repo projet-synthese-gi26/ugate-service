@@ -5,6 +5,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
+import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.model.MediaInfo;
 
 public interface MediaPersistencePort {
@@ -15,4 +16,8 @@ public interface MediaPersistencePort {
   Mono<Void> saveAudioMedia(String audioUrl, String title, UUID publicationId);
 
   Flux<MediaInfo> getMediaByPublicationId(UUID publicationId);
+
+  Mono<ImageModel> saveImage(String audioUrl, String altext);
+
+  Mono<ImageModel> getImageById(UUID imageId);
 }

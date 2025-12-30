@@ -1,11 +1,13 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.adapters;
 
+import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.model.MediaInfo;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Image;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.PublicationImage;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ImageRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationImageRepository;
+import com.yowyob.ugate_service.infrastructure.mappers.ImageMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -20,10 +22,11 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
 
     private final ImageRepository imageRepository;
     private final PublicationImageRepository publicationImageRepository;
+    private final ImageMapper imageMapper;
 
     @Override
     public Mono<Void> saveImageMedia(String imageUrl, String altText, UUID publicationId) {
-        Image image = new Image(imageUrl, altText, Instant.now());
+        Image image = new Image(null, imageUrl, altText, Instant.now());
 
         return imageRepository.save(image)
                 .flatMap(savedImage -> {
@@ -52,5 +55,24 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
                 .map(image -> new MediaInfo(
                         image.url(),
                         "IMAGE"));
+    }
+
+    @Override
+    public Mono<ImageModel> saveImage(String imageUrl, String altText) {
+        ImageModel imageModel = new ImageModel();
+        imageModel.setUrl(imageUrl);
+        imageModel.setAltText(altText);
+        imageModel.setUploadedAt(Instant.now());
+        Image image = imageMapper.toEntity(imageModel);
+        return imageRepository.save(image).map(imageMapper::toModel);
+    }
+
+    @Override
+    public Mono<ImageModel> getImageById(UUID imageId) {
+        if (imageId == null) {
+            return Mono.empty();
+        }
+        return imageRepository.findById(imageId)
+                .map(imageMapper::toModel);
     }
 }

@@ -1,3 +1,37 @@
+CREATE TABLE app_user (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY
+);
+
+CREATE TABLE syndicats (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    organization_id UUID,
+    creator_id UUID,
+    is_approved BOOLEAN,
+    name VARCHAR(255),
+    description VARCHAR(255),
+    domain VARCHAR(255),
+    type VARCHAR(255),
+    charte_url VARCHAR(255),
+    logo_url VARCHAR(255),
+    status_url VARCHAR(255),
+    members_list_url VARCHAR(255),
+    commitment_certificate_url VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    is_active BOOLEAN
+);
+
+CREATE TABLE branches (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    syndicat_id UUID,
+    name VARCHAR(255),
+    location VARCHAR(255),
+    contact VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+
 CREATE TABLE publication (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     branch_id UUID,
@@ -20,4 +54,14 @@ CREATE TABLE publication_image (
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     PRIMARY KEY (publication_id, image_id)
+);
+
+CREATE TABLE comment (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    author_id UUID,
+    publication_id UUID,
+    parent_id UUID,
+    image_id UUID,
+    content VARCHAR(255),
+    created_at TIMESTAMP
 );

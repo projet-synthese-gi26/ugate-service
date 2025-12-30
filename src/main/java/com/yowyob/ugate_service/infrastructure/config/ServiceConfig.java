@@ -1,7 +1,9 @@
 package com.yowyob.ugate_service.infrastructure.config;
 
+import com.yowyob.ugate_service.application.service.content.CommentService;
 import com.yowyob.ugate_service.application.service.content.PublicationService;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.CommentPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
 import org.springframework.context.annotation.Bean;
@@ -13,5 +15,10 @@ public class ServiceConfig {
     @Bean
     public PublicationService publicationService(PublicationPersistencePort publicationPersistencePort, MediaPersistencePort mediaPersistencePort, UserGatewayPort userGatewayPort) {
         return new PublicationService(publicationPersistencePort, mediaPersistencePort, userGatewayPort);
+    }
+
+    @Bean
+    public CommentService commentService(MediaPersistencePort mediaPersistencePort, CommentPersistencePort commentPersistencePort, UserGatewayPort userGatewayPort) {
+        return new CommentService(mediaPersistencePort, commentPersistencePort, userGatewayPort);
     }
 }
