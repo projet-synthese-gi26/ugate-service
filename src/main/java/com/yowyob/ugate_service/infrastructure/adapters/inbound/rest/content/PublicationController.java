@@ -19,6 +19,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
+import org.springframework.web.bind.annotation.GetMapping;
+import reactor.core.publisher.Flux;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -68,4 +72,22 @@ public class PublicationController {
                 })
                 .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));
     }
+
+
+    @Operation(summary = "Get publications by branch",
+            description = "Retrieves a list of publications for a specific branch.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Publications retrieved successfully",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PublicationResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Branch not found",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    @GetMapping("/branch/{branchId}")
+    public Flux<PublicationResponseDTO> getPublicationsByBranch(
+            @Parameter(description = "ID of the branch to retrieve publications from")
+            @PathVariable UUID branchId) {
+        return publicationService.getSyndicatPublication(branchId);
+    }
+
 }
