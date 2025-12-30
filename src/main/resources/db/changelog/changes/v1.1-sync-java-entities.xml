@@ -6,11 +6,14 @@
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
 
     <changeSet id="v1.1-add-syndicat-creator" author="ERIC KOGHENE">
-        <preConditions onFail="MARK_RAN">
-            <not><columnExists tableName="syndicats" columnName="creator_id"/></not>
-        </preConditions>
+        <validCheckSum>ANY</validCheckSum> 
+
         <addColumn tableName="syndicats">
-            <column name="creator_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="creator_id"
+                    type="UUID"
+                    defaultValueComputed="'00000000-0000-0000-0000-000000000000'">
+                <constraints nullable="false"/>
+            </column>
         </addColumn>
     </changeSet>
 
