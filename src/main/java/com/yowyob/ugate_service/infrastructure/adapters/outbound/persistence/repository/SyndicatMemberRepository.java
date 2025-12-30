@@ -33,4 +33,6 @@ public interface SyndicatMemberRepository extends ReactiveCrudRepository<Syndica
 
     @Query("SELECT * FROM syndicat_members WHERE user_id = :userId")
     Flux<SyndicatMember> findAllByUserId(UUID userId);
+
+    Mono<Long> countByIsActiveTrue();
 }

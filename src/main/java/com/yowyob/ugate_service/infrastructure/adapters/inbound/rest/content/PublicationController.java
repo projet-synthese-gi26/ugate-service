@@ -2,7 +2,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
 import com.yowyob.ugate_service.application.service.content.PublicationService;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreatePublicationRequest;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.MediaService;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

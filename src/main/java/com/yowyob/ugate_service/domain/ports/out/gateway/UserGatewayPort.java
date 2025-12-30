@@ -40,4 +40,15 @@ public interface UserGatewayPort {
      * @return true si l'utilisateur existe
      */
     Mono<Boolean> existsById(UUID id);
+
+    /**
+     * Enregistre un nouvel utilisateur dans le système d'authentification externe.
+     *
+     * @param email     Email (servira d'identifiant)
+     * @param firstName Prénom
+     * @param lastName  Nom
+     * @param password  Mot de passe initial
+     * @return Les informations de l'utilisateur créé
+     */
+    Mono<ExternalUserInfo> registerUser(String email, String firstName, String lastName, String password);
 }

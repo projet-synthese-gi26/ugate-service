@@ -1,13 +1,17 @@
 package com.yowyob.ugate_service.application.service.syndicate;
 
 
+import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.MembershipRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Profile;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatMember;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.User;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.MembershipRequestRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -24,6 +28,12 @@ public class SyndicateMembershipService {
 
     private final MembershipRequestRepository requestRepository;
     private final SyndicatMemberRepository memberRepository;
+    private final UserGatewayPort userGateway;
+    private final NotificationPort notificationPort;
+    private final UserRepository userRepository;
+    private final ProfileRepository profileRepository;
+    private final SyndicatRepository syndicatRepository;
+
 
     /**
      * Un utilisateur demande à rejoindre un syndicat via une branche.
@@ -32,7 +42,7 @@ public class SyndicateMembershipService {
     public Mono<MembershipRequest> requestToJoin(UUID syndicatId, UUID branchId, String motivation) {
         return getCurrentUserId()
                 .flatMap(userId ->
-                        // Vérifier s'il n'y a pas déjà une demande en attente
+
                         requestRepository.findLastRequest(userId, syndicatId)
                                 .flatMap(lastRequest -> {
                                     if (lastRequest.status() == MembershipRequest.MembershipStatus.PENDING) {
@@ -41,7 +51,7 @@ public class SyndicateMembershipService {
                                     if (lastRequest.status() == MembershipRequest.MembershipStatus.APPROVED) {
                                         return Mono.error(new IllegalStateException("Vous êtes déjà membre de ce syndicat."));
                                     }
-                                    // Si REJECTED, on continue et on autorise une nouvelle demande
+
                                     return createNewRequest(userId, syndicatId, branchId, motivation);
                                 })
                                 .switchIfEmpty(createNewRequest(userId, syndicatId, branchId, motivation))
@@ -100,6 +110,35 @@ public class SyndicateMembershipService {
                         return requestRepository.save(rejectedRequest).then();
                     }
                 });
+    }
+
+
+    @Transactional
+    public Mono<Void> addMemberByAdmin(UUID syndicateId, String email, String firstName, String lastName) {
+        return syndicatRepository.findById(syndicateId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable")))
+                .flatMap(syndicate ->
+
+                        userGateway.registerUser(email, firstName, lastName, "00000000")
+                                .flatMap(extUser -> {
+                                    UUID userId = extUser.id();
+
+
+                                    User localUser = new User(userId, firstName + " "+ lastName, null, email);
+                                    Profile localProfile = new Profile(
+                                            UUID.randomUUID(), userId, null, firstName, lastName,
+                                            null, null, null, null, Instant.now(), Instant.now()
+                                    );
+
+
+                                    SyndicatMember member = SyndicatMember.create(syndicateId, userId, RoleTypeEnum.CLIENT);
+
+                                    return userRepository.save(localUser)
+                                            .then(profileRepository.save(localProfile))
+                                            .then(memberRepository.save(member))
+                                            .then(notificationPort.sendSyndicateInvitation(email, syndicate.name(), firstName));
+                                })
+                );
     }
 
     private Mono<UUID> getCurrentUserId() {

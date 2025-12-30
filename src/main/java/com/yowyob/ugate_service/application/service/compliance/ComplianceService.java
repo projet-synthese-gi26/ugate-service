@@ -28,29 +28,27 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ComplianceService {
 
-    private final ReactiveRedisTemplate<String, Object> redisTemplate;
+    private final ReactiveRedisTemplate<String, ComplianceResponse> redisTemplate;
 
-    // Repositories Locaux (Sources de vérité)
+
     private final SyndicatMemberRepository memberRepository;
     private final SyndicatRepository syndicatRepository;
     private final AvisRepository avisRepository;
     private final ComplianceDetailsRepository complianceDetailsRepository;
     private final ProfileRepository profileRepository;
+    private final UserRepository userRepository;
 
-    // Gateway vers TraMaSys (Auth)
+
     private final UserGatewayPort userGatewayPort;
 
     private static final Duration CACHE_TTL = Duration.ofMinutes(15);
 
 
     public Mono<ComplianceResponse> checkCompliance(UUID driverId) {
-        String cacheKey = "compliance:" + driverId;
-
-        // 1. Check Cache Redis
+        String cacheKey = "v2_compliance:" + driverId;
         return redisTemplate.opsForValue().get(cacheKey)
                 .cast(ComplianceResponse.class)
                 .switchIfEmpty(
-                        // 2. Cache Miss -> Vérification complète en Base de Données
                         verifyDriverStatusLocally(driverId)
                                 .flatMap(response -> redisTemplate.opsForValue()
                                         .set(cacheKey, response, CACHE_TTL)
@@ -60,33 +58,26 @@ public class ComplianceService {
 
     private Mono<ComplianceResponse> verifyDriverStatusLocally(UUID driverId) {
 
-        // 1. On récupère TOUTES les adhésions du chauffeur (renvoie un Flux)
         return memberRepository.findAllByUserId(driverId)
-                // 2. Pour chaque adhésion, on récupère les détails du syndicat associé
                 .flatMap(member ->
                         syndicatRepository.findById(member.syndicatId())
                                 .map(syndicat -> buildPartialResponse(member, syndicat))
                 )
-                // 3. On rassemble toutes les "décisions partielles" dans une liste
                 .collectList()
                 .map(partialResults -> {
-                    // Si la liste est vide, le chauffeur n'est membre d'aucun syndicat
+
                     if (partialResults.isEmpty()) {
                         return buildBannedResponse(driverId, "NOT_A_MEMBER");
                     }
 
-                    // RÈGLE MÉTIER : On cherche si au moins UNE des adhésions est valide (statut AUTHORIZED)
                     boolean isAuthorized = partialResults.stream()
                             .anyMatch(res -> "AUTHORIZED".equals(res.globalStatus()));
 
                     if (isAuthorized) {
-                        // Si on trouve une adhésion valide, on retourne ce statut.
                         return partialResults.stream()
                                 .filter(res -> "AUTHORIZED".equals(res.globalStatus()))
                                 .findFirst().get();
                     } else {
-                        // Sinon (toutes les adhésions sont suspendues ou dans des syndicats non approuvés),
-                        // on retourne le premier statut "RESTRICTED" trouvé.
                         return partialResults.get(0);
                     }
                 })
@@ -160,27 +151,63 @@ public class ComplianceService {
 
     public Mono<OfficialProfileResponse> getOfficialProfile(UUID driverId) {
 
-        Mono<ExternalUserInfo> userMono = userGatewayPort.findById(driverId);
-        Mono<Profile> profile = profileRepository.findByUserId(driverId);
+        // 1. Récupération User Info (Robuste)
+        // On essaie le portail externe/redis, sinon on fallback sur la table locale 'users'
+        Mono<ExternalUserInfo> userMono = userGatewayPort.findById(driverId)
+                .switchIfEmpty(
+                        userRepository.findById(driverId)
+                                .map(localUser -> {
+                                    // Extraction basique Prénom/Nom si on n'a que le "name" complet
+                                    String fullName = localUser.name() != null ? localUser.name() : "Utilisateur Inconnu";
+                                    String[] parts = fullName.split(" ", 2);
+                                    String firstName = parts.length > 0 ? parts[0] : "";
+                                    String lastName = parts.length > 1 ? parts[1] : "";
 
+                                    return new ExternalUserInfo(
+                                            localUser.id(),
+                                            firstName,
+                                            lastName,
+                                            localUser.email(),
+                                            localUser.phoneNumber(),
+                                            List.of(),
+                                            List.of()
+                                    );
+                                })
+                );
+
+        // 2. Récupération Profile (Robuste)
+        // Si pas de profil, on en crée un vide pour éviter que le ZIP ne plante
+        Mono<Profile> profileMono = profileRepository.findByUserId(driverId)
+                .defaultIfEmpty(new Profile(
+                        UUID.randomUUID(), driverId, null, "", "", null, null, null, null, Instant.now(), Instant.now()
+                ));
+
+        // 3. Récupération Détails Compliance (Déjà robuste mais on garde)
         Mono<ComplianceDetails> detailsMono = complianceDetailsRepository.findById(driverId)
                 .defaultIfEmpty(ComplianceDetails.createEmpty(driverId));
 
-        return Mono.zip(userMono, detailsMono, profile)
+        // 4. Assemblage (Mono.zip n'échouera plus car tous les monos ont une valeur par défaut)
+        return Mono.zip(userMono, detailsMono, profileMono)
                 .map(tuple -> {
                     ExternalUserInfo user = tuple.getT1();
                     ComplianceDetails details = tuple.getT2();
-                    Profile profile1 = tuple.getT3();
+                    Profile profile = tuple.getT3();
 
+                    // Logique de priorité pour la photo : Compliance > Profile > Rien
                     String officialPhotoUrl = (details.profilePhotoUrl() != null && !details.profilePhotoUrl().isBlank())
                             ? details.profilePhotoUrl()
-                            : profile1.profilImageUrl();
+                            : (profile.profilImageUrl() != null ? profile.profilImageUrl() : "");
 
+                    // Logique de priorité pour les noms : Profile > User > "N/A"
+                    String finalFirstName = (profile.firstName() != null && !profile.firstName().isBlank())
+                            ? profile.firstName() : user.firstName();
+                    String finalLastName = (profile.lastName() != null && !profile.lastName().isBlank())
+                            ? profile.lastName() : user.lastName();
 
                     return new OfficialProfileResponse(
                             user.id().toString(),
-                            profile1.firstName(),
-                            profile1.lastName(),
+                            finalFirstName != null ? finalFirstName : "N/A",
+                            finalLastName != null ? finalLastName : "N/A",
                             officialPhotoUrl,
                             details.cvUrl(),
                             details.cniNumber(),
@@ -189,10 +216,11 @@ public class ComplianceService {
                             details.licenseNumber(),
                             details.licenseRectoUrl(),
                             details.licenseVersoUrl(),
-                            details.isVerified()
+                            Boolean.TRUE.equals(details.isVerified())
                     );
                 });
     }
+
 
 
     public Mono<BatchComplianceResponse> checkComplianceBatch(List<UUID> driverIds) {

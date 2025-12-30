@@ -1,16 +1,16 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.superadmin;
 
 import com.yowyob.ugate_service.application.service.syndicate.SyndicatManagementService;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.StatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -18,12 +18,14 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/admin/syndicates")
+@RequestMapping("/super-admin/syndicates")
 @RequiredArgsConstructor
 @Tag(name = "SuperAdmin Management", description = "Gestion de l'état d'un Syndicat ( l'approuver, le désactiver, etc)")
 public class SyndicateSuperAdminController {
 
     private final SyndicatManagementService syndicateService;
+    private final SyndicatRepository syndicatRepository;
+    private final SyndicatMemberRepository memberRepository;
 
 
 
@@ -62,4 +64,26 @@ public class SyndicateSuperAdminController {
         log.info("Requête de désactivation pour le syndicat: {}", id);
         return syndicateService.deactivate(id);
     }
+
+
+    @GetMapping("/dashboard")
+    @Operation(summary = "Obtenir les statistiques globales")
+    public Mono<StatsResponse> getGlobalStats() {
+        return Mono.zip(
+                syndicatRepository.count(),
+                syndicatRepository.countByIsActiveTrue(),
+                syndicatRepository.countByIsApprovedFalse(),
+                memberRepository.count(),
+                memberRepository.countByIsActiveTrue()
+        ).map(tuple -> new StatsResponse(
+                tuple.getT1(),
+                tuple.getT2(),
+                tuple.getT3(),
+                tuple.getT4(),
+                tuple.getT5(),
+                0.0
+        ));
+    }
+
+
 }

@@ -3,7 +3,7 @@ package com.yowyob.ugate_service;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.MediaService;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Publication;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationRepository;
 import java.util.List;

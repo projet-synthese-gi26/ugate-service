@@ -1,17 +1,12 @@
 package com.yowyob.ugate_service.application.service.syndicate;
 
+import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.BusinessActor;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Organization;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Syndicat;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatMember;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.*;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.BusinessActorRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.OrganisationRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.*;
 import com.yowyob.ugate_service.infrastructure.mappers.syndicate.SyndicateMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,11 +36,14 @@ public class SyndicatManagementService {
     private final SyndicatMemberRepository syndicatMemberRepository;
     private final OrganisationRepository organizationRepository;
     private final BusinessActorRepository businessActorRepository;
+    private final UserRepository userRepository;
+    private final UserGatewayPort userGatewayPort;
 
     @Transactional
     public Mono<SyndicateResponse> createSyndicate(String name, String description, String domain,
                                                    FilePart logoFile, FilePart documentFile) {
         return extractUserIdFromContext()
+                .flatMap(this::ensureUserExistsLocally)
                 .flatMap(creatorId -> uploadRequiredFiles(logoFile, documentFile)
                         .flatMap(urls -> persistFullSyndicateStack(creatorId, name, description, domain, urls))
                 )
@@ -61,7 +59,7 @@ public class SyndicatManagementService {
 
     private Organization createOrganization(UUID id, UUID creatorId, String name) {
         String orgCode = name.toUpperCase().replaceAll("\\s+", "_");
-        return new Organization(id, creatorId, orgCode, null, name, name, "SYNDICAT");
+        return new Organization(id, creatorId, orgCode, null, name);
     }
 
     private Syndicat createSyndicat(UUID id, UUID orgId, UUID creatorId, String name,
@@ -104,6 +102,7 @@ public class SyndicatManagementService {
 
         UUID orgId = UUID.randomUUID();
         UUID syndicatId = UUID.randomUUID();
+
 
         BusinessActor actor = createBusinessActor(creatorId, name);
         Organization organization = createOrganization(orgId, creatorId, name);
@@ -166,6 +165,29 @@ public class SyndicatManagementService {
         return updateState(id, s -> s.withActive(false), "Désactivation");
     }
 
+    // Dans SyndicatManagementService.java
+
+    private Mono<UUID> ensureUserExistsLocally(UUID userId) {
+        return userRepository.existsById(userId)
+                .flatMap(exists -> {
+                    if (exists) return Mono.just(userId);
+
+                    log.info("Synchronisation complète de l'utilisateur {} en base locale", userId);
+                    return userGatewayPort.findById(userId)
+                            .switchIfEmpty(Mono.error(new RuntimeException("Utilisateur introuvable sur TraMaSys")))
+                            .flatMap(extUser -> {
+                                String fullName = extUser.firstName() + " " + extUser.lastName();
+                                User newUser = new User(
+                                        extUser.id(),
+                                        fullName,
+                                        extUser.phone(),
+                                        extUser.email()
+                                );
+                                return userRepository.save(newUser);
+                            })
+                            .thenReturn(userId);
+                });
+    }
 
     private Mono<SyndicateResponse> updateState(UUID id, Function<Syndicat, Syndicat> stateTransformer, String actionName) {
         return syndicatRepository.findById(id)
