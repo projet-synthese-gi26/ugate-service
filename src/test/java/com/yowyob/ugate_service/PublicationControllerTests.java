@@ -34,9 +34,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import org.springframework.test.annotation.DirtiesContext;
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Import(TestSecurityConfig.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PublicationControllerTests {
 
     @Autowired
@@ -72,7 +75,8 @@ class PublicationControllerTests {
         bodyBuilder.part("content", "Test publication content");
         bodyBuilder.part("authorId", UUID.randomUUID().toString());
         bodyBuilder.part("branchId", UUID.randomUUID().toString());
-        bodyBuilder.part("images", new ClassPathResource("test-image.png")).contentType(org.springframework.http.MediaType.IMAGE_PNG);
+        bodyBuilder.part("images", new ClassPathResource("test-image.png"))
+                .contentType(org.springframework.http.MediaType.IMAGE_PNG);
 
         webTestClient.post()
                 .uri("/publications")
@@ -120,7 +124,6 @@ class PublicationControllerTests {
                 .expectStatus().isBadRequest();
     }
 
-
     @Test
     void testGetPublicationsByBranch() {
         // Arrange
@@ -134,8 +137,7 @@ class PublicationControllerTests {
                 authorId,
                 "Content for branch test",
                 5L,
-                Instant.now()
-        );
+                Instant.now());
         Publication savedPublication = publicationRepository.save(publication).block();
         assertNotNull(savedPublication);
 
@@ -143,13 +145,13 @@ class PublicationControllerTests {
         Image savedImage = imageRepository.save(image).block();
         assertNotNull(savedImage);
 
-        PublicationImage publicationImage = new PublicationImage(savedPublication.id(), savedImage.id(), Instant.now(), Instant.now());
+        PublicationImage publicationImage = new PublicationImage(savedPublication.id(), savedImage.id(), Instant.now(),
+                Instant.now());
         publicationImageRepository.save(publicationImage).block();
 
-
-        ExternalUserInfo authorInfo = new ExternalUserInfo(authorId, authorFirstName, authorLastName, "email@test.com", "123456789", Collections.emptyList(), Collections.emptyList());
+        ExternalUserInfo authorInfo = new ExternalUserInfo(authorId, authorFirstName, authorLastName, "email@test.com",
+                "123456789", Collections.emptyList(), Collections.emptyList());
         when(userGatewayPort.findById(authorId)).thenReturn(Mono.just(authorInfo));
-
 
         // Act & Assert
         webTestClient.get()

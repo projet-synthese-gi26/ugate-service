@@ -13,7 +13,7 @@ public record Reaction(
         UUID id,
 
         @Column("publication_id")
-        Long publicationId, // FK -> Publication
+        UUID publicationId, // FK -> Publication
 
         @Column("user_id")
         UUID userId,        // FK -> User
@@ -23,4 +23,8 @@ public record Reaction(
         @CreatedDate
         @Column("reacted_at")
         Instant reactedAt
-) {}
+) {
+    public Reaction(UUID publicationId, UUID userId, String type) {
+        this(null, publicationId, userId, type, Instant.now());
+    }
+}
