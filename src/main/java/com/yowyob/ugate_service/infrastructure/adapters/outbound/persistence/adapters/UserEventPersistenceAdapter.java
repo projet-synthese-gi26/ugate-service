@@ -7,7 +7,10 @@ import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.rep
 import com.yowyob.ugate_service.infrastructure.mappers.UserEventMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -20,5 +23,16 @@ public class UserEventPersistenceAdapter implements UserEventPersistencePort {
     public Mono<Void> save(UserEventModel userEventModel) {
         UserEvent userEventEntity = userEventMapper.toEntity(userEventModel);
         return userEventRepository.save(userEventEntity).then();
+    }
+
+    @Override
+    public Mono<Long> countByEventId(UUID eventId) {
+        return userEventRepository.countByEventId(eventId.toString());
+    }
+
+    @Override
+    public Flux<UserEventModel> findByEventId(UUID eventId) {
+        return userEventRepository.findByEventId(eventId.toString())
+                .map(userEventMapper::toModel);
     }
 }

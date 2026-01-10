@@ -33,7 +33,7 @@ public class ServiceConfig {
     }
 
     @Bean
-    public EventService eventService(EventPersistencePort eventPersistencePort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort) {
-        return new EventService(eventPersistencePort, mediaPersistencePort, userEventPersistencePort);
+    public EventService eventService(EventPersistencePort eventPersistencePort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort, UserGatewayPort userGatewayPort) {
+        return new EventService(eventPersistencePort, mediaPersistencePort, userEventPersistencePort, userGatewayPort);
     }
 }

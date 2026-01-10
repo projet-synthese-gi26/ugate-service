@@ -1,5 +1,9 @@
 package com.yowyob.ugate_service;
 
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
+import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ParticipantDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Event;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.UserEvent;
@@ -62,6 +66,9 @@ class EventControllerTests {
 
     @MockBean
     private MediaService mediaService;
+
+    @MockBean
+    private UserGatewayPort userGatewayPort;
 
     @BeforeEach
     void setUp() {
@@ -188,5 +195,70 @@ class EventControllerTests {
         assertNotNull(userEvent);
         assertEquals(testUserId.toString(), userEvent.userId());
         assertEquals(savedEvent.id().toString(), userEvent.eventId());
+    }
+
+    @Test
+    void testGetEventsByBranch_Success() {
+        // 1. Create test data
+        UUID branchId = UUID.randomUUID();
+        Event event1 = new Event(UUID.randomUUID(), branchId, "Event 1", "Desc 1", "Loc 1", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
+        Event event2 = new Event(UUID.randomUUID(), branchId, "Event 2", "Desc 2", "Loc 2", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
+        Event savedEvent1 = eventRepository.save(event1).block();
+        Event savedEvent2 = eventRepository.save(event2).block();
+        assertNotNull(savedEvent1);
+        assertNotNull(savedEvent2);
+
+        // 2. Simulate users joining event1 (2 participants)
+        userEventRepository.save(new UserEvent(null, UUID.randomUUID().toString(), savedEvent1.id().toString(), Instant.now())).block();
+        userEventRepository.save(new UserEvent(null, UUID.randomUUID().toString(), savedEvent1.id().toString(), Instant.now())).block();
+
+        // 3. Perform GET request
+        webTestClient.get()
+            .uri("/events/branch/{branchId}", branchId)
+            .exchange()
+            .expectStatus().isOk()
+            .expectBodyList(EventResponseDTO.class)
+            .hasSize(2)
+            .value(events -> {
+                EventResponseDTO dto1 = events.stream().filter(e -> e.getId().equals(savedEvent1.id())).findFirst().orElseThrow();
+                assertEquals(2, dto1.getParticipantCount());
+                assertEquals("Event 1", dto1.getTitle());
+
+                EventResponseDTO dto2 = events.stream().filter(e -> e.getId().equals(savedEvent2.id())).findFirst().orElseThrow();
+                assertEquals(0, dto2.getParticipantCount());
+                assertEquals("Event 2", dto2.getTitle());
+            });
+    }
+
+    @Test
+    void testGetEventParticipants_Success() {
+        // 1. Create test data
+        Event testEvent = new Event(UUID.randomUUID(), UUID.randomUUID(), "Event With Participants", "Desc", "Loc", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
+        Event savedEvent = eventRepository.save(testEvent).block();
+        assertNotNull(savedEvent);
+
+        UUID userId1 = UUID.randomUUID();
+        UUID userId2 = UUID.randomUUID();
+        userEventRepository.save(new UserEvent(null, userId1.toString(), savedEvent.id().toString(), Instant.now())).block();
+        userEventRepository.save(new UserEvent(null, userId2.toString(), savedEvent.id().toString(), Instant.now())).block();
+
+        // 2. Mock the UserGatewayPort
+        when(userGatewayPort.findById(userId1)).thenReturn(Mono.just(new ExternalUserInfo(userId1, "John", "Doe", "j.doe@mail.com", "123", null, null)));
+        when(userGatewayPort.findById(userId2)).thenReturn(Mono.just(new ExternalUserInfo(userId2, "Jane", "Smith", "j.smith@mail.com", "456", null, null)));
+
+        // 3. Perform GET request
+        webTestClient.get()
+            .uri("/events/{eventId}/participants", savedEvent.id())
+            .exchange()
+            .expectStatus().isOk()
+            .expectBodyList(ParticipantDTO.class)
+            .hasSize(2)
+            .value(participants -> {
+                ParticipantDTO p1 = participants.stream().filter(p -> p.getUserId().equals(userId1)).findFirst().orElseThrow();
+                assertEquals("John Doe", p1.getFullName());
+
+                ParticipantDTO p2 = participants.stream().filter(p -> p.getUserId().equals(userId2)).findFirst().orElseThrow();
+                assertEquals("Jane Smith", p2.getFullName());
+            });
     }
 }

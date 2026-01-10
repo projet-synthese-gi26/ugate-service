@@ -1,8 +1,12 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
 import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
+import com.yowyob.ugate_service.domain.ports.in.content.GetEventParticipantsUseCase;
+import com.yowyob.ugate_service.domain.ports.in.content.GetEventsByBranchUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.JoinEventUseCase;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateEventRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ParticipantDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,6 +24,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -34,6 +39,8 @@ public class EventController {
 
     private final CreateEventUseCase createEventUseCase;
     private final JoinEventUseCase joinEventUseCase;
+    private final GetEventsByBranchUseCase getEventsByBranchUseCase;
+    private final GetEventParticipantsUseCase getEventParticipantsUseCase;
     private final MediaService mediaService;
 
     @Operation(summary = "Create a new event",
@@ -92,5 +99,31 @@ public class EventController {
         UUID userId = UUID.fromString(jwt.getSubject());
         return joinEventUseCase.joinEvent(userId, eventId)
                 .then(Mono.just(ResponseEntity.ok().build()));
+    }
+
+    @Operation(summary = "Get events by branch",
+            description = "Retrieves a list of events for a specific branch, including participant counts.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Events retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Branch not found")
+    })
+    @GetMapping("/branch/{branchId}")
+    public Flux<EventResponseDTO> getEventsByBranch(
+            @Parameter(description = "ID of the branch to retrieve events from")
+            @PathVariable UUID branchId) {
+        return getEventsByBranchUseCase.getEventsByBranch(branchId);
+    }
+
+    @Operation(summary = "Get participants for an event",
+            description = "Retrieves a list of participants for a specific event.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Participants retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Event not found")
+    })
+    @GetMapping("/{eventId}/participants")
+    public Flux<ParticipantDTO> getParticipants(
+            @Parameter(description = "ID of the event to retrieve participants from")
+            @PathVariable UUID eventId) {
+        return getEventParticipantsUseCase.getParticipants(eventId);
     }
 }
