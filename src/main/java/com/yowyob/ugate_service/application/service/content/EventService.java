@@ -1,6 +1,9 @@
 package com.yowyob.ugate_service.application.service.content;
 
+import com.yowyob.ugate_service.domain.model.UserEventModel;
 import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
+import com.yowyob.ugate_service.domain.ports.in.content.JoinEventUseCase;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
 import lombok.AllArgsConstructor;
 import com.yowyob.ugate_service.domain.model.EventModel;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
@@ -14,10 +17,11 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 @AllArgsConstructor
-public class EventService implements CreateEventUseCase {
+public class EventService implements CreateEventUseCase, JoinEventUseCase {
 
     private final EventPersistencePort eventPersistencePort;
     private final MediaPersistencePort mediaPersistencePort;
+    private final UserEventPersistencePort userEventPersistencePort;
 
     @Override
     public Mono<Void> createEvent(UUID creatorId, UUID branchId, String title, String description, LocalDate eventDate,
@@ -63,5 +67,15 @@ public class EventService implements CreateEventUseCase {
 
                     return Mono.when(imagesMono, videosMono, filesMono);
                 });
+    }
+
+    @Override
+    public Mono<Void> joinEvent(UUID userId, UUID eventId) {
+        // Here you might add logic to check if the event and user exist before creating the link
+        UserEventModel userEventModel = new UserEventModel();
+        userEventModel.setUserId(userId);
+        userEventModel.setEventId(eventId);
+        userEventModel.setTimestamp(Instant.now());
+        return userEventPersistencePort.save(userEventModel);
     }
 }

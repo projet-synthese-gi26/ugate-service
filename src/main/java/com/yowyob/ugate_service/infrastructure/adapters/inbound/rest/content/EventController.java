@@ -1,6 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
 import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
+import com.yowyob.ugate_service.domain.ports.in.content.JoinEventUseCase;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateEventRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -30,6 +33,7 @@ import java.util.UUID;
 public class EventController {
 
     private final CreateEventUseCase createEventUseCase;
+    private final JoinEventUseCase joinEventUseCase;
     private final MediaService mediaService;
 
     @Operation(summary = "Create a new event",
@@ -72,5 +76,21 @@ public class EventController {
                     );
                 })
                 .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));
+    }
+
+    @Operation(summary = "Join an event",
+            description = "Allows an authenticated user to join an existing event.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully joined the event"),
+            @ApiResponse(responseCode = "404", description = "Event not found")
+    })
+    @PostMapping("/{eventId}/join")
+    public Mono<ResponseEntity<Void>> joinEvent(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "ID of the event to join") @PathVariable UUID eventId) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+        return joinEventUseCase.joinEvent(userId, eventId)
+                .then(Mono.just(ResponseEntity.ok().build()));
     }
 }

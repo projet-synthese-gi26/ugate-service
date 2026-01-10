@@ -98,3 +98,10 @@ CREATE TABLE event_images (
     updated_at TIMESTAMP,
     PRIMARY KEY (event_id, image_id)
 );
+
+CREATE TABLE user_events (
+    user_event_id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    user_id VARCHAR(255),
+    event_id VARCHAR(255),
+    timestamp TIMESTAMP
+);

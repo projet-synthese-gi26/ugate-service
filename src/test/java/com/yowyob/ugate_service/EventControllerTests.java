@@ -2,14 +2,17 @@ package com.yowyob.ugate_service;
 
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Event;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.UserEvent;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.EventImagesRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.EventRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ImageRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.UserEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
@@ -19,6 +22,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -28,6 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.springSecurity;
 
 import org.springframework.test.annotation.DirtiesContext;
 
@@ -37,8 +43,10 @@ import org.springframework.test.annotation.DirtiesContext;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class EventControllerTests {
 
-    @Autowired
     private WebTestClient webTestClient;
+
+    @Autowired
+    private ApplicationContext context;
 
     @Autowired
     private EventRepository eventRepository;
@@ -49,14 +57,24 @@ class EventControllerTests {
     @Autowired
     private EventImagesRepository eventImagesRepository;
 
+    @Autowired
+    private UserEventRepository userEventRepository;
+
     @MockBean
     private MediaService mediaService;
 
     @BeforeEach
     void setUp() {
+        this.webTestClient = WebTestClient
+                .bindToApplicationContext(this.context)
+                .apply(springSecurity())
+                .configureClient()
+                .build();
+        
         eventRepository.deleteAll().block();
         imageRepository.deleteAll().block();
         eventImagesRepository.deleteAll().block();
+        userEventRepository.deleteAll().block();
         
         // Mock the media service to return a dummy URL
         when(mediaService.uploadImage(any())).thenReturn(Mono.just(List.of("http://localhost:8080/media/test-image.png")));
@@ -134,5 +152,41 @@ class EventControllerTests {
                 .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
                 .exchange()
                 .expectStatus().isBadRequest();
+    }
+
+    @Test
+    void testJoinEvent_Success() {
+        // 1. Create a test event
+        Event testEvent = new Event(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "Test Event for Joining",
+            "Description",
+            "Online",
+            LocalDate.now().plusDays(10),
+            LocalTime.of(18, 0),
+            LocalTime.of(20, 0),
+            Instant.now(),
+            Instant.now()
+        );
+        Event savedEvent = eventRepository.save(testEvent).block();
+        assertNotNull(savedEvent);
+
+        // 2. Create a test user UUID
+        UUID testUserId = UUID.randomUUID();
+
+        // 3. Perform authenticated POST request
+        webTestClient
+            .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
+            .post()
+            .uri("/events/{eventId}/join", savedEvent.id())
+            .exchange()
+            .expectStatus().isOk();
+
+        // 4. Verify that the user-event link was created
+        UserEvent userEvent = userEventRepository.findAll().blockFirst();
+        assertNotNull(userEvent);
+        assertEquals(testUserId.toString(), userEvent.userId());
+        assertEquals(savedEvent.id().toString(), userEvent.eventId());
     }
 }
