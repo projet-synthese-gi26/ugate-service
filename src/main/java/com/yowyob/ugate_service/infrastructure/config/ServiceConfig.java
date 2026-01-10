@@ -8,6 +8,8 @@ import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
 import com.yowyob.ugate_service.application.service.content.ReactionService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.ReactionPersistencePort;
+import com.yowyob.ugate_service.application.service.content.EventService;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,5 +29,10 @@ public class ServiceConfig {
     @Bean
     public ReactionService reactionService(PublicationService publicationService, ReactionPersistencePort reactionPersistencePort) {
         return new ReactionService(publicationService, reactionPersistencePort);
+    }
+
+    @Bean
+    public EventService eventService(EventPersistencePort eventPersistencePort, MediaPersistencePort mediaPersistencePort) {
+        return new EventService(eventPersistencePort, mediaPersistencePort);
     }
 }

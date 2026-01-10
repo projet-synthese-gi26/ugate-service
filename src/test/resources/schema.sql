@@ -76,3 +76,25 @@ CREATE TABLE reaction (
     type VARCHAR(255),
     reacted_at TIMESTAMP
 );
+
+CREATE TABLE event (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    creator_id UUID,
+    branch_id UUID,
+    title VARCHAR(255),
+    description TEXT,
+    location VARCHAR(255),
+    event_date DATE,
+    start_time TIME,
+    end_time TIME,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE event_images (
+    event_id UUID,
+    image_id UUID,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (event_id, image_id)
+);
