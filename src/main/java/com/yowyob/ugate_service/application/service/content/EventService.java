@@ -5,6 +5,7 @@ import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetEventParticipantsUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetEventsByBranchUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.JoinEventUseCase;
+import com.yowyob.ugate_service.domain.ports.in.content.LeaveEventUseCase;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
@@ -22,7 +23,7 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 @AllArgsConstructor
-public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEventsByBranchUseCase, GetEventParticipantsUseCase {
+public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEventsByBranchUseCase, GetEventParticipantsUseCase, LeaveEventUseCase {
 
     private final EventPersistencePort eventPersistencePort;
     private final MediaPersistencePort mediaPersistencePort;
@@ -113,6 +114,9 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
                 .flatMap(userEvent -> userGatewayPort.findById(userEvent.getUserId()))
                 .map(userInfo -> new ParticipantDTO(userInfo.id(), userInfo.firstName() + " " + userInfo.lastName()));
     }
+
+    @Override
+    public Mono<Void> leaveEvent(UUID userId, UUID eventId) {
+        return userEventPersistencePort.delete(userId, eventId);
+    }
 }
-
-

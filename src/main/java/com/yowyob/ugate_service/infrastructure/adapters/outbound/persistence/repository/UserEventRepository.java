@@ -11,4 +11,5 @@ import reactor.core.publisher.Mono;
 public interface UserEventRepository extends R2dbcRepository<UserEvent, UUID> {
     Mono<Long> countByEventId(String eventId);
     Flux<UserEvent> findByEventId(String eventId);
+    Mono<Void> deleteByUserIdAndEventId(String userId, String eventId);
 }

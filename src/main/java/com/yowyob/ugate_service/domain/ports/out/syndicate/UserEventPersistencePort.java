@@ -9,4 +9,5 @@ public interface UserEventPersistencePort {
     Mono<Void> save(UserEventModel userEventModel);
     Mono<Long> countByEventId(UUID eventId);
     Flux<UserEventModel> findByEventId(UUID eventId);
+    Mono<Void> delete(UUID userId, UUID eventId);
 }

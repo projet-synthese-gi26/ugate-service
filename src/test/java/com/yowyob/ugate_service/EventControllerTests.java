@@ -261,4 +261,28 @@ class EventControllerTests {
                 assertEquals("Jane Smith", p2.getFullName());
             });
     }
+
+    @Test
+    void testLeaveEvent_Success() {
+        // 1. Create a test event and a user who has joined it
+        Event testEvent = new Event(UUID.randomUUID(), UUID.randomUUID(), "Event to Leave", "Desc", "Loc", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
+        Event savedEvent = eventRepository.save(testEvent).block();
+        assertNotNull(savedEvent);
+
+        UUID testUserId = UUID.randomUUID();
+        UserEvent userEvent = new UserEvent(null, testUserId.toString(), savedEvent.id().toString(), Instant.now());
+        userEventRepository.save(userEvent).block();
+        assertEquals(1, userEventRepository.count().block());
+
+        // 2. Perform authenticated DELETE request
+        webTestClient
+            .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
+            .delete()
+            .uri("/events/{eventId}/leave", savedEvent.id())
+            .exchange()
+            .expectStatus().isNoContent();
+
+        // 3. Verify that the user-event link has been deleted
+        assertEquals(0, userEventRepository.count().block());
+    }
 }

@@ -1,9 +1,6 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
-import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
-import com.yowyob.ugate_service.domain.ports.in.content.GetEventParticipantsUseCase;
-import com.yowyob.ugate_service.domain.ports.in.content.GetEventsByBranchUseCase;
-import com.yowyob.ugate_service.domain.ports.in.content.JoinEventUseCase;
+import com.yowyob.ugate_service.domain.ports.in.content.*;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateEventRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ParticipantDTO;
@@ -41,6 +38,7 @@ public class EventController {
     private final JoinEventUseCase joinEventUseCase;
     private final GetEventsByBranchUseCase getEventsByBranchUseCase;
     private final GetEventParticipantsUseCase getEventParticipantsUseCase;
+    private final LeaveEventUseCase leaveEventUseCase;
     private final MediaService mediaService;
 
     @Operation(summary = "Create a new event",
@@ -125,5 +123,21 @@ public class EventController {
             @Parameter(description = "ID of the event to retrieve participants from")
             @PathVariable UUID eventId) {
         return getEventParticipantsUseCase.getParticipants(eventId);
+    }
+
+    @Operation(summary = "Leave an event",
+            description = "Allows an authenticated user to leave an event they have joined.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Successfully left the event"),
+            @ApiResponse(responseCode = "404", description = "Event or participation not found")
+    })
+    @DeleteMapping("/{eventId}/leave")
+    public Mono<ResponseEntity<Void>> leaveEvent(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "ID of the event to leave") @PathVariable UUID eventId) {
+        
+        UUID userId = UUID.fromString(jwt.getSubject());
+        return leaveEventUseCase.leaveEvent(userId, eventId)
+                .then(Mono.just(ResponseEntity.noContent().build()));
     }
 }

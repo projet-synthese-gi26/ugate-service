@@ -35,4 +35,9 @@ public class UserEventPersistenceAdapter implements UserEventPersistencePort {
         return userEventRepository.findByEventId(eventId.toString())
                 .map(userEventMapper::toModel);
     }
+
+    @Override
+    public Mono<Void> delete(UUID userId, UUID eventId) {
+        return userEventRepository.deleteByUserIdAndEventId(userId.toString(), eventId.toString());
+    }
 }
