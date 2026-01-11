@@ -23,7 +23,7 @@ import java.util.UUID;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 @RestController
-@RequestMapping("/api/v1/publications/{publicationId}/comments")
+@RequestMapping("/publications/{publicationId}/comments")
 @AllArgsConstructor
 @Tag(name = "Comments", description = "API for managing comments on publications")
 public class CommentController {

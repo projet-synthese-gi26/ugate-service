@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/syndicates/{syndicatId}/memberships")
+@RequestMapping("/syndicates/{syndicatId}/memberships")
 @RequiredArgsConstructor
 @Tag(name = "Adhésions", description = "Gestion des demandes et statuts des membres")
 public class SyndicateMembershipController {
