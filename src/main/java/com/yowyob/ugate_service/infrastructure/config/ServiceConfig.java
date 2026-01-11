@@ -8,7 +8,11 @@ import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
 import com.yowyob.ugate_service.application.service.content.ReactionService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.ReactionPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.VotePersistencePort;
+import com.yowyob.ugate_service.application.service.content.PublicationVoteService;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationVotePersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
+//... (keep existing imports)
 import com.yowyob.ugate_service.application.service.content.EventService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +34,11 @@ public class ServiceConfig {
     @Bean
     public ReactionService reactionService(PublicationService publicationService, ReactionPersistencePort reactionPersistencePort) {
         return new ReactionService(publicationService, reactionPersistencePort);
+    }
+
+    @Bean
+    public PublicationVoteService publicationVoteService(PublicationVotePersistencePort publicationVotePersistencePort, VotePersistencePort votePersistencePort) {
+        return new PublicationVoteService(publicationVotePersistencePort, votePersistencePort);
     }
 
     @Bean

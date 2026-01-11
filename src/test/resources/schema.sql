@@ -105,3 +105,19 @@ CREATE TABLE user_events (
     event_id VARCHAR(255),
     timestamp TIMESTAMP
 );
+
+CREATE TABLE publication_vote (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    branch_id UUID,
+    title VARCHAR(255),
+    description VARCHAR(255),
+    closing_at TIMESTAMP,
+    type VARCHAR(255)
+);
+
+CREATE TABLE vote (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    user_id UUID,
+    publication_vote_id UUID,
+    label VARCHAR(255)
+);
