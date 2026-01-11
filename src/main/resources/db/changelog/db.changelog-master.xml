@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <include file="classpath:db/changelog/changes/v1.1-sync-java-entities.xml"/>
+    <include file="classpath:db/changelog/changes/v1.2-create-event-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.3-create-publication-vote-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.4-create-vote-table.xml"/>
+</databaseChangeLog>

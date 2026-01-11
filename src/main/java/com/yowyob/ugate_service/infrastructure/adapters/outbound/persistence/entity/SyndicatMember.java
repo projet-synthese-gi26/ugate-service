@@ -1,5 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
+
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -20,10 +22,42 @@ public record SyndicatMember(
         Instant joinedAt,
 
         @Column("is_active")
-        Boolean isActive
+        Boolean isActive,
+
+        @Column("role") RoleTypeEnum role   // MEMBER, MODERATOR, ADMIN
 ) {
     // Constructeur utilitaire pour une adhésion par défaut
-    public static SyndicatMember create(UUID syndicatId, UUID userId) {
-        return new SyndicatMember(syndicatId, userId, null, true);
+    public static SyndicatMember create(UUID syndicatId, UUID userId, RoleTypeEnum role) {
+        return new SyndicatMember(syndicatId, userId, null, true, role);
+    }
+
+    public boolean isStatusActive() {
+        return Boolean.TRUE.equals(isActive);
+    }
+
+    public boolean isStatusDisabled() {
+        return !isStatusActive();
+    }
+
+    public boolean isAdmin() {
+        return RoleTypeEnum.ADMIN.equals(this.role);
+    }
+
+    public boolean isModerator() {
+        return RoleTypeEnum.MODERATOR.equals(this.role);
+    }
+
+    /**
+     * Vérifie si l'utilisateur possède un privilège de gestion (Admin ou Modérateur)
+     */
+    public boolean hasManagementPrivileges() {
+        return isAdmin() || isModerator();
+    }
+
+    /**
+     * Version générique pour vérifier n'importe quel rôle
+     */
+    public boolean hasRole(RoleTypeEnum targetRole) {
+        return this.role == targetRole;
     }
 }

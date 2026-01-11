@@ -27,4 +27,12 @@ public interface SyndicatMemberRepository extends ReactiveCrudRepository<Syndica
     // RECUPERER LES IDS DES MEMBRES (Pour charger les Users ensuite)
     @Query("SELECT user_id FROM syndicat_members WHERE syndicat_id = :syndicatId")
     Flux<UUID> findUserIdsBySyndicatId(UUID syndicatId);
+
+    @Query("SELECT * FROM syndicat_members WHERE user_id = :userId")
+    Mono<SyndicatMember> findByUserId(UUID userId);
+
+    @Query("SELECT * FROM syndicat_members WHERE user_id = :userId")
+    Flux<SyndicatMember> findAllByUserId(UUID userId);
+
+    Mono<Long> countByIsActiveTrue();
 }

@@ -15,7 +15,7 @@ public record Vote(
         UUID userId, // FK -> User
 
         @Column("publication_vote_id")
-        Long publicationVoteId, // FK -> PublicationVote
+        UUID publicationVoteId, // FK -> PublicationVote
 
         String label // Le choix voté
 ) {}

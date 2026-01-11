@@ -7,7 +7,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("abstract_product")
+@Table("abstract_products")
 public record AbstractProduct(
         @Id
         UUID id,

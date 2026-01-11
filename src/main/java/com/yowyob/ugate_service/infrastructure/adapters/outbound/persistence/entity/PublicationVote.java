@@ -8,15 +8,15 @@ import java.util.UUID;
 
 @Table("publication_vote")
 public record PublicationVote(
-        @Id
-        UUID id,
+                @Id UUID id,
 
-        String title,
-        String description,
+                UUID branchId, // FK -> Branch
 
-        // "closing_at" suggère un timestamp précis
-        @Column("closing_at")
-        Instant closingAt,
+                String title,
+                String description,
 
-        String type
-) {}
+                // "closing_at" suggère un timestamp précis
+                @Column("closing_at") Instant closingAt,
+
+                String type) {
+}

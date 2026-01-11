@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <changeSet id="v1.1-add-syndicat-creator" author="ERIC KOGHENE">
+        <validCheckSum>ANY</validCheckSum> 
+
+        <addColumn tableName="syndicats">
+            <column name="creator_id"
+                    type="UUID"
+                    defaultValueComputed="'00000000-0000-0000-0000-000000000000'">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.1-add-syndicat-active" author="ERIC KOGHENE">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="syndicats" columnName="is_active"/></not>
+        </preConditions>
+        <addColumn tableName="syndicats">
+            <column name="is_active" type="boolean" defaultValueBoolean="true"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.0-create-members-table" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="syndicat_members"/></not>
+        </preConditions>
+        <createTable tableName="syndicat_members">
+            <column name="syndicat_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" foreignKeyName="fk_member_syndicat" referencedTableName="syndicats" referencedColumnNames="id"/>
+            </column>
+            <column name="user_id" type="UUID">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="joined_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.1-add-member-role" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="syndicat_members" columnName="role"/></not>
+        </preConditions>
+        <addColumn tableName="syndicat_members">
+            <column name="role" type="role_type_enum" defaultValue="CLIENT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.1-add-org-long-name" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="organizations" columnName="long_name"/></not>
+        </preConditions>
+        <addColumn tableName="organizations">
+            <column name="long_name" type="text"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.1-add-org-logo-uri" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="organizations" columnName="logo_uri"/></not>
+        </preConditions>
+        <addColumn tableName="organizations">
+            <column name="logo_uri" type="text"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.1-add-org-social" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="organizations" columnName="social_network"/></not>
+        </preConditions>
+        <addColumn tableName="organizations">
+            <column name="social_network" type="text"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.1-add-org-keywords" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="organizations" columnName="keywords"/></not>
+        </preConditions>
+        <addColumn tableName="organizations">
+            <column name="keywords" type="text"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.1-add-org-legal-form" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="organizations" columnName="legal_form"/></not>
+        </preConditions>
+        <addColumn tableName="organizations">
+            <column name="legal_form" type="text"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.0-create-compliance-details" author="ugate-service">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="compliance_details"/></not>
+        </preConditions>
+        <createTable tableName="compliance_details">
+            <column name="user_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" foreignKeyName="fk_compliance_user" referencedTableName="users" referencedColumnNames="id"/>
+            </column>
+            <column name="profile_photo_url" type="text"/>
+            <column name="cv_url" type="text"/>
+
+            <column name="cni_number" type="text"/>
+            <column name="cni_recto_url" type="text"/>
+            <column name="cni_verso_url" type="text"/>
+
+            <column name="license_number" type="text"/>
+            <column name="license_recto_url" type="text"/>
+            <column name="license_verso_url" type="text"/>
+
+            <column name="is_verified" type="boolean" defaultValueBoolean="false"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.1-add-syndicat-logo-url" author="ERIC KOGHENE">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="syndicats" columnName="logo_url"/></not>
+        </preConditions>
+        <addColumn tableName="syndicats">
+            <column name="logo_url" type="text"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="v1.1-fix-enum-cast-role" author="ugate-service">
+        <sql>
+            CREATE CAST (character varying as role_type_enum) WITH INOUT AS IMPLICIT;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

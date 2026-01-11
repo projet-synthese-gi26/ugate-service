@@ -5,12 +5,14 @@ import java.util.UUID;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
-@Table("syndicat")
+@Table("syndicats")
 public record Syndicat(
         @Id
         UUID id,
@@ -18,7 +20,8 @@ public record Syndicat(
         @Column("organization_id")
         UUID organizationId, // FK vers Organization
 
-        UUID creatorId, // FK vers Le createur
+        @Column("creator_id")
+        UUID creatorId, // FK vers Le createur   //ajouté par moi, nécessite une migraton
 
         @Column("is_approved")
         Boolean isApproved,
@@ -31,6 +34,9 @@ public record Syndicat(
         // URLs
         @Column("charte_url")
         String charteUrl,
+
+        @Column("logo_url")
+        String logoUrl,
 
         @Column("status_url")
         String statusUrl,
@@ -48,15 +54,54 @@ public record Syndicat(
 
         @LastModifiedDate
         @Column("updated_at")
-        Instant updatedAt
-) {
-    // Méthode "Wither" pour mettre à jour lors d'un UPDATE
-    public Syndicat withStatus(Boolean isApproved, String charteUrl, String statusUrl) {
-        // On garde l'ID et les dates, on change le reste
+        Instant updatedAt,
+
+        @Column("is_active")
+        Boolean isActive
+)implements Persistable<UUID> {
+
+
+    // Constructeur pour créer un Syndicat
+    public Syndicat(UUID id, UUID creatorId, String name, String description,
+                    String domain, String logoUrl, String statusUrl) {
+        this(id, null, creatorId, false, name, description, domain, "STANDARD",
+                null, logoUrl, statusUrl, null, null, null, null, true);
+    }
+
+
+
+    public Syndicat withStatus(Boolean isApproved, String charteUrl,String logoUrl,  String statusUrl, Boolean isActive) {
         return new Syndicat(
                 this.id, this.organizationId, this.creatorId, isApproved, this.name, this.description,
-                this.domain, this.type, charteUrl, statusUrl, this.membersListUrl,
-                this.commitmentCertificateUrl, this.createdAt, this.updatedAt
+                this.domain, this.type, charteUrl, logoUrl, statusUrl, this.membersListUrl,
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, isActive
         );
+    }
+
+    public Syndicat withApproval(boolean approved) {
+        return new Syndicat(
+                this.id, this.organizationId, this.creatorId, approved, this.name, this.description,
+                this.domain, this.type, this.charteUrl, this.logoUrl, this.statusUrl, this.membersListUrl,
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, this.isActive
+        );
+    }
+
+    public Syndicat withActive(boolean active) {
+        return new Syndicat(
+                this.id, this.organizationId, this.creatorId, this.isApproved, this.name, this.description,
+                this.domain, this.type, this.charteUrl, this.logoUrl, this.statusUrl, this.membersListUrl,
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, active
+        );
+    }
+
+    @Override
+    public UUID getId() {
+        return this.id;
+    }
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return createdAt == null || updatedAt == null;
     }
 }
