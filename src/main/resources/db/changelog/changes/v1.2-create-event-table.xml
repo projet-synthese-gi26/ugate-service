@@ -23,7 +23,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet id="v1.2-2" author="gemini-agent">
+    <!--<changeSet id="v1.2-2" author="gemini-agent">
         <createTable tableName="event_images">
             <column name="event_id" type="UUID">
                 <constraints nullable="false"/>
@@ -35,6 +35,6 @@
             <column name="updated_at" type="TIMESTAMP"/>
         </createTable>
         <addPrimaryKey tableName="event_images" columnNames="event_id, image_id"/>
-    </changeSet>
+    </changeSet>-->
 
 </databaseChangeLog>
