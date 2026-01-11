@@ -1,6 +1,5 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
-import java.time.LocalDate;
 import java.util.UUID;
 
 import org.springframework.data.annotation.CreatedDate;

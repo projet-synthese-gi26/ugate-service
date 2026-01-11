@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
 
-@Table("service") // Nom de table au singulier pour cohérence
+@Table("services") // Nom de table au singulier pour cohérence
 public record Service(
         @Id
         UUID id,

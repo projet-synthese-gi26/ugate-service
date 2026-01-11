@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
 
-@Table("product")
+@Table("abstract_products")
 public record Product(
         // Cet ID doit correspondre à celui de abstract_product correspondant
         @Id
