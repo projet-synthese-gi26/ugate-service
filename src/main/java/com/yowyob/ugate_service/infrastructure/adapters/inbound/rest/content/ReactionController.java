@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/publications/{publicationId}/reactions")
+@RequestMapping("/publications/{publicationId}/reactions")
 @RequiredArgsConstructor
 @Tag(name = "Reactions", description = "API for managing reactions on publications")
 public class ReactionController {
