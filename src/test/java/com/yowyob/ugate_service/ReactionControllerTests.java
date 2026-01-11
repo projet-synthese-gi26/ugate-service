@@ -2,7 +2,6 @@ package com.yowyob.ugate_service;
 
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateReactionRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Publication;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Reaction;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ReactionRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +56,7 @@ class ReactionControllerTests {
         UUID userId = UUID.randomUUID();
         String reactionType = "LIKE";
         CreateReactionRequest request = new CreateReactionRequest();
-        request.setUserId(userId.toString());
+        request.setUserId(userId);
         request.setReactionType(reactionType);
 
         // Act: Call the endpoint to add a reaction

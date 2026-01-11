@@ -8,17 +8,18 @@ import org.springframework.http.codec.multipart.FilePart;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.UUID;
 
 @Data
 @Schema(name = "CreateEventRequest", description = "Request DTO for creating a new event")
 public class CreateEventRequest {
     @NotNull(message = "Creator ID cannot be null")
     @Schema(description = "The unique identifier of the user creating the event", example = "a1b2c3d4-e5f6-7890-1234-567890abcdef")
-    private String creatorId;
+    private UUID creatorId;
 
     @NotNull(message = "Branch ID cannot be null")
     @Schema(description = "The unique identifier of the branch to which the event belongs", example = "f1e2d3c4-b5a6-9876-5432-10fedcba9876")
-    private String branchId;
+    private UUID branchId;
 
     @NotBlank(message = "Title cannot be blank")
     @Schema(description = "The title of the event", example = "Community Meetup")

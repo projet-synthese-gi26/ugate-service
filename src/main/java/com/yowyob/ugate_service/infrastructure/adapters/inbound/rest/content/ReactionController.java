@@ -35,7 +35,7 @@ public class ReactionController {
             @RequestBody CreateReactionRequest request) {
         return reactionService.addReactionToPublication(
                 publicationId,
-                UUID.fromString(request.getUserId()),
+                request.getUserId(),
                 request.getReactionType()
         ).then(Mono.just(ResponseEntity.ok().build()));
     }

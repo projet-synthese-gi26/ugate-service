@@ -4,6 +4,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+
+import java.util.UUID;
+
 import org.springframework.http.codec.multipart.FilePart;
 
 @Data
@@ -15,11 +18,11 @@ public class CreatePublicationRequest {
 
     @NotNull(message = "Author ID cannot be null")
     @Schema(description = "The unique identifier of the author of the publication", example = "a1b2c3d4-e5f6-7890-1234-567890abcdef")
-    private String authorId;
+    private UUID authorId;
 
     @NotNull(message = "Branch ID cannot be null")
     @Schema(description = "The unique identifier of the branch to which the publication belongs", example = "f1e2d3c4-b5a6-9876-5432-10fedcba9876")
-    private String branchId;
+    private UUID branchId;
 
     @Schema(description = "An array of image files to be attached to the publication")
     private FilePart[] images;

@@ -1,5 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request;
 
+import java.util.UUID;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -8,7 +10,7 @@ import lombok.Data;
 public class CreateReactionRequest {
 
     @Schema(description = "The UUID of the user creating the reaction", example = "a1b2c3d4-e5f6-7890-1234-567890abcdef")
-    private String userId;
+    private UUID userId;
 
     @Schema(description = "The type of the reaction", example = "LIKE")
     private String reactionType;
