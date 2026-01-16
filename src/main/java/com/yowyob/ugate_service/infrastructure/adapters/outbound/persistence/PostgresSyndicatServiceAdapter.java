@@ -1,17 +1,17 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.r2dbc.core.DatabaseClient;
+
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.yowyob.ugate_service.domain.model.SyndicatService;
 import com.yowyob.ugate_service.domain.ports.out.marketplace.ServiceOfferingRepositoryPort;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatServiceRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatServiceRow;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.ServiceEntity;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ServiceRepository;
 
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
@@ -21,84 +21,78 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepositoryPort {
 
-    private final SyndicatServiceRepository syndicatServiceRepository;
-    private final DatabaseClient databaseClient;
+    private final ServiceRepository syndicatServiceRepository;
 
     @Override
     public Mono<SyndicatService> findServiceById(UUID id) {
-        return syndicatServiceRepository.findFullById(id)
+        return syndicatServiceRepository.findById(id)
                 .map(this::mapToDomain);
     }
 
     @Override
     public Flux<SyndicatService> findAllActiveServices() {
-        return syndicatServiceRepository.findAllActiveFull()
+        return syndicatServiceRepository.findAll()
                 .map(this::mapToDomain);
     }
 
     @Override
     @Transactional
     public Mono<SyndicatService> save(SyndicatService service) {
-        // 1. Insertion dans la table commune 'services'
-        return databaseClient.sql("""
-                INSERT INTO services (id, title, description, is_active)
-                VALUES (:id, :title, :description, :isActive)
-                ON CONFLICT (id) DO UPDATE SET 
-                    title = EXCLUDED.title, 
-                    description = EXCLUDED.description,
-                    is_active = EXCLUDED.is_active
-                """)
-                .bind("id", service.id())
-                .bind("title", service.title())
-                .bind("description", service.description())
-                .bind("isActive", service.isActive())
-                .then()
-                // 2. Insertion dans la table d'extension 'syndicat_services'
-                .then(databaseClient.sql("""
-                    INSERT INTO syndicat_services (service_id, price, features)
-                    VALUES (:id, :price, :features)
-                    ON CONFLICT (service_id) DO UPDATE SET 
-                        price = EXCLUDED.price, 
-                        features = EXCLUDED.features
-                    """)
-                    .bind("id", service.id())
-                    .bind("price", service.price())
-                    // Conversion de List<String> en tableau String[] pour Postgres
-                    .bind("features", service.features().toArray(new String[0]))
-                    .then())
-                .thenReturn(service);
+        ServiceEntity entity = new ServiceEntity(
+            service.id(),
+            service.title(),
+            service.description(),
+            service.price(),
+            service.features(),
+            service.isActive(),
+            true
+        );
+        return syndicatServiceRepository.save(entity)
+               .map(this::mapToDomain);
     }
 
     @Override
-    @Transactional
     public Mono<SyndicatService> updateService(SyndicatService service) {
-        return save(service); // L'UPSERT gère l'update
+        return syndicatServiceRepository.findById(service.id())
+        .switchIfEmpty(Mono.error(new RuntimeException("Service not found")))
+        .map(entity -> {
+
+            Optional.ofNullable(service.title()).ifPresent(entity::setTitle);
+            Optional.ofNullable(service.description()).ifPresent(entity::setDescription);
+            Optional.ofNullable(service.price()).ifPresent(entity::setPrice);
+            Optional.ofNullable(service.features()).ifPresent(entity::setFeatures);
+            Optional.ofNullable(service.isActive()).ifPresent(entity::setIsActive);
+            entity.setNew(false);
+        
+            return entity;
+        })
+        
+        .flatMap(syndicatServiceRepository::save)
+        .map(this::mapToDomain);
     }
 
     @Override
-    @Transactional
     public Mono<Void> deleteService(UUID id) {
-        return databaseClient.sql("DELETE FROM syndicat_services WHERE service_id = :id")
-                .bind("id", id)
-                .then()
-                .then(databaseClient.sql("DELETE FROM services WHERE id = :id")
-                        .bind("id", id)
-                        .then());
+        syndicatServiceRepository.findById(id)
+        .switchIfEmpty(Mono.error(new RuntimeException("Service not found")));
+
+
+        return syndicatServiceRepository.deleteById(id);
     }
 
     // --- MAPPER ---
-    private SyndicatService mapToDomain(SyndicatServiceRow row) {
-        List<String> featuresList = row.features() != null 
-                ? Arrays.asList(row.features()) 
+    private SyndicatService mapToDomain(ServiceEntity row) {
+        List<String> featuresList = row.getFeatures() != null 
+                ? row.getFeatures() 
                 : List.of();
 
         return new SyndicatService(
-            row.id(),
-            row.title(),
-            row.description(),
-            row.price(),
+            row.getId(),
+            row.getTitle(),
+            row.getDescription(),
+            row.getPrice(),
             featuresList,
-            row.isActive()
+            row.getIsActive()
         );
     }
 }
