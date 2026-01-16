@@ -5,15 +5,10 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
          http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
-    <changeSet id="v1.4-1" author="gemini-agent">
-        <createTable tableName="vote">
-            <column name="id" type="UUID">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="user_id" type="UUID"/>
-            <column name="publication_vote_id" type="UUID"/>
-            <column name="label" type="VARCHAR(255)"/>
-        </createTable>
+    <changeSet id="v1.5-add-branch-banner" author="yowyob">
+        <addColumn tableName="branches">
+            <column name="banner_url" type="VARCHAR(1024)"/>
+        </addColumn>
     </changeSet>
 
 </databaseChangeLog>
