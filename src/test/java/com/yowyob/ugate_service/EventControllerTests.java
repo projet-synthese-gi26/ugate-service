@@ -77,14 +77,15 @@ class EventControllerTests {
                 .apply(springSecurity())
                 .configureClient()
                 .build();
-        
+
         eventRepository.deleteAll().block();
         imageRepository.deleteAll().block();
         eventImagesRepository.deleteAll().block();
         userEventRepository.deleteAll().block();
-        
+
         // Mock the media service to return a dummy URL
-        when(mediaService.uploadImage(any())).thenReturn(Mono.just(List.of("http://localhost:8080/media/test-image.png")));
+        when(mediaService.uploadImage(any()))
+                .thenReturn(Mono.just(List.of("http://localhost:8080/media/test-image.png")));
         when(mediaService.uploadVideo(any())).thenReturn(Mono.just(List.of()));
         when(mediaService.uploadFiles(any())).thenReturn(Mono.just(List.of()));
     }
@@ -142,11 +143,11 @@ class EventControllerTests {
     }
 
     @Test
-    void testCreateEventWithInvalidInput() {
+    void testCreateEventWithMissingRequiredPart() {
         MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
         bodyBuilder.part("creatorId", UUID.randomUUID().toString());
         bodyBuilder.part("branchId", UUID.randomUUID().toString());
-        bodyBuilder.part("title", ""); // Invalid: empty title
+        // Missing title part, which is required
         bodyBuilder.part("description", "A description without a title.");
         bodyBuilder.part("eventDate", "2026-02-10");
         bodyBuilder.part("location", "A Location");
@@ -165,17 +166,16 @@ class EventControllerTests {
     void testJoinEvent_Success() {
         // 1. Create a test event
         Event testEvent = new Event(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            "Test Event for Joining",
-            "Description",
-            "Online",
-            LocalDate.now().plusDays(10),
-            LocalTime.of(18, 0),
-            LocalTime.of(20, 0),
-            Instant.now(),
-            Instant.now()
-        );
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Test Event for Joining",
+                "Description",
+                "Online",
+                LocalDate.now().plusDays(10),
+                LocalTime.of(18, 0),
+                LocalTime.of(20, 0),
+                Instant.now(),
+                Instant.now());
         Event savedEvent = eventRepository.save(testEvent).block();
         assertNotNull(savedEvent);
 
@@ -184,11 +184,11 @@ class EventControllerTests {
 
         // 3. Perform authenticated POST request
         webTestClient
-            .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
-            .post()
-            .uri("/events/{eventId}/join", savedEvent.id())
-            .exchange()
-            .expectStatus().isOk();
+                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
+                .post()
+                .uri("/events/{eventId}/join", savedEvent.id())
+                .exchange()
+                .expectStatus().isOk();
 
         // 4. Verify that the user-event link was created
         UserEvent userEvent = userEventRepository.findAll().blockFirst();
@@ -201,71 +201,87 @@ class EventControllerTests {
     void testGetEventsByBranch_Success() {
         // 1. Create test data
         UUID branchId = UUID.randomUUID();
-        Event event1 = new Event(UUID.randomUUID(), branchId, "Event 1", "Desc 1", "Loc 1", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
-        Event event2 = new Event(UUID.randomUUID(), branchId, "Event 2", "Desc 2", "Loc 2", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
+        Event event1 = new Event(UUID.randomUUID(), branchId, "Event 1", "Desc 1", "Loc 1", LocalDate.now(),
+                LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
+        Event event2 = new Event(UUID.randomUUID(), branchId, "Event 2", "Desc 2", "Loc 2", LocalDate.now(),
+                LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
         Event savedEvent1 = eventRepository.save(event1).block();
         Event savedEvent2 = eventRepository.save(event2).block();
         assertNotNull(savedEvent1);
         assertNotNull(savedEvent2);
 
         // 2. Simulate users joining event1 (2 participants)
-        userEventRepository.save(new UserEvent(null, UUID.randomUUID().toString(), savedEvent1.id().toString(), Instant.now())).block();
-        userEventRepository.save(new UserEvent(null, UUID.randomUUID().toString(), savedEvent1.id().toString(), Instant.now())).block();
+        userEventRepository
+                .save(new UserEvent(null, UUID.randomUUID().toString(), savedEvent1.id().toString(), Instant.now()))
+                .block();
+        userEventRepository
+                .save(new UserEvent(null, UUID.randomUUID().toString(), savedEvent1.id().toString(), Instant.now()))
+                .block();
 
         // 3. Perform GET request
         webTestClient.get()
-            .uri("/events/branch/{branchId}", branchId)
-            .exchange()
-            .expectStatus().isOk()
-            .expectBodyList(EventResponseDTO.class)
-            .hasSize(2)
-            .value(events -> {
-                EventResponseDTO dto1 = events.stream().filter(e -> e.getId().equals(savedEvent1.id())).findFirst().orElseThrow();
-                assertEquals(2, dto1.getParticipantCount());
-                assertEquals("Event 1", dto1.getTitle());
+                .uri("/events/branch/{branchId}", branchId)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(EventResponseDTO.class)
+                .hasSize(2)
+                .value(events -> {
+                    EventResponseDTO dto1 = events.stream().filter(e -> e.getId().equals(savedEvent1.id())).findFirst()
+                            .orElseThrow();
+                    assertEquals(2, dto1.getParticipantCount());
+                    assertEquals("Event 1", dto1.getTitle());
 
-                EventResponseDTO dto2 = events.stream().filter(e -> e.getId().equals(savedEvent2.id())).findFirst().orElseThrow();
-                assertEquals(0, dto2.getParticipantCount());
-                assertEquals("Event 2", dto2.getTitle());
-            });
+                    EventResponseDTO dto2 = events.stream().filter(e -> e.getId().equals(savedEvent2.id())).findFirst()
+                            .orElseThrow();
+                    assertEquals(0, dto2.getParticipantCount());
+                    assertEquals("Event 2", dto2.getTitle());
+                });
     }
 
     @Test
     void testGetEventParticipants_Success() {
         // 1. Create test data
-        Event testEvent = new Event(UUID.randomUUID(), UUID.randomUUID(), "Event With Participants", "Desc", "Loc", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
+        Event testEvent = new Event(UUID.randomUUID(), UUID.randomUUID(), "Event With Participants", "Desc", "Loc",
+                LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
         Event savedEvent = eventRepository.save(testEvent).block();
         assertNotNull(savedEvent);
 
         UUID userId1 = UUID.randomUUID();
         UUID userId2 = UUID.randomUUID();
-        userEventRepository.save(new UserEvent(null, userId1.toString(), savedEvent.id().toString(), Instant.now())).block();
-        userEventRepository.save(new UserEvent(null, userId2.toString(), savedEvent.id().toString(), Instant.now())).block();
+        userEventRepository.save(new UserEvent(null, userId1.toString(), savedEvent.id().toString(), Instant.now()))
+                .block();
+        userEventRepository.save(new UserEvent(null, userId2.toString(), savedEvent.id().toString(), Instant.now()))
+                .block();
 
         // 2. Mock the UserGatewayPort
-        when(userGatewayPort.findById(userId1)).thenReturn(Mono.just(new ExternalUserInfo(userId1, "John", "Doe", "j.doe@mail.com", "123", null, null)));
-        when(userGatewayPort.findById(userId2)).thenReturn(Mono.just(new ExternalUserInfo(userId2, "Jane", "Smith", "j.smith@mail.com", "456", null, null)));
+        when(userGatewayPort.findById(userId1)).thenReturn(
+                Mono.just(new ExternalUserInfo(userId1, "John", "Doe", "j.doe@mail.com", "123", null, null)));
+        when(userGatewayPort.findById(userId2)).thenReturn(
+                Mono.just(new ExternalUserInfo(userId2, "Jane", "Smith", "j.smith@mail.com", "456", null, null)));
 
         // 3. Perform GET request
         webTestClient.get()
-            .uri("/events/{eventId}/participants", savedEvent.id())
-            .exchange()
-            .expectStatus().isOk()
-            .expectBodyList(ParticipantDTO.class)
-            .hasSize(2)
-            .value(participants -> {
-                ParticipantDTO p1 = participants.stream().filter(p -> p.getUserId().equals(userId1)).findFirst().orElseThrow();
-                assertEquals("John Doe", p1.getFullName());
+                .uri("/events/{eventId}/participants", savedEvent.id())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(ParticipantDTO.class)
+                .hasSize(2)
+                .value(participants -> {
+                    ParticipantDTO p1 = participants.stream().filter(p -> p.getUserId().equals(userId1)).findFirst()
+                            .orElseThrow();
+                    assertEquals("John Doe", p1.getFullName());
 
-                ParticipantDTO p2 = participants.stream().filter(p -> p.getUserId().equals(userId2)).findFirst().orElseThrow();
-                assertEquals("Jane Smith", p2.getFullName());
-            });
+                    ParticipantDTO p2 = participants.stream().filter(p -> p.getUserId().equals(userId2)).findFirst()
+                            .orElseThrow();
+                    assertEquals("Jane Smith", p2.getFullName());
+                });
     }
 
     @Test
     void testLeaveEvent_Success() {
         // 1. Create a test event and a user who has joined it
-        Event testEvent = new Event(UUID.randomUUID(), UUID.randomUUID(), "Event to Leave", "Desc", "Loc", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
+        Event testEvent = new Event(UUID.randomUUID(), UUID.randomUUID(), "Event to Leave", "Desc", "Loc",
+                LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
         Event savedEvent = eventRepository.save(testEvent).block();
         assertNotNull(savedEvent);
 
@@ -276,11 +292,11 @@ class EventControllerTests {
 
         // 2. Perform authenticated DELETE request
         webTestClient
-            .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
-            .delete()
-            .uri("/events/{eventId}/leave", savedEvent.id())
-            .exchange()
-            .expectStatus().isNoContent();
+                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
+                .delete()
+                .uri("/events/{eventId}/leave", savedEvent.id())
+                .exchange()
+                .expectStatus().isNoContent();
 
         // 3. Verify that the user-event link has been deleted
         assertEquals(0, userEventRepository.count().block());

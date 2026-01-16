@@ -61,7 +61,7 @@ class ReactionControllerTests {
 
         // Act: Call the endpoint to add a reaction
         webTestClient.post()
-                .uri("/api/v1/publications/{publicationId}/reactions", savedPublication.id())
+                .uri("/publications/{publicationId}/reactions", savedPublication.id())
                 .bodyValue(request)
                 .exchange()
                 .expectStatus().isOk();

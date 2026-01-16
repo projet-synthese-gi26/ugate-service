@@ -131,7 +131,7 @@ public class CommentControllerTests {
                 webTestClient
                                 .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUser.id().toString())))
                                 .post()
-                                .uri("/api/v1/publications/" + testPublication.id() + "/comments")
+                                .uri("/publications/" + testPublication.id() + "/comments")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .bodyValue(request)
                                 .exchange()
@@ -158,7 +158,7 @@ public class CommentControllerTests {
                                 .block();
 
                 webTestClient.get()
-                                .uri("/api/v1/publications/" + testPublication.id() + "/comments")
+                                .uri("/publications/{publicationId}/comments", testPublication.id().toString())
                                 .exchange()
                                 .expectStatus().isOk()
                                 .expectBody()

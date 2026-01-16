@@ -35,7 +35,7 @@ CREATE TABLE branches (
 );
 
 
-CREATE TABLE publication (
+CREATE TABLE publications (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     branch_id UUID,
     author_id UUID,

@@ -79,9 +79,8 @@ class PublicationVoteControllerTests {
 
     @Test
     void testCastVote_Success() {
-        // 1. Create a poll that is currently open
         PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
-                Instant.now().plus(1, ChronoUnit.HOURS), "SINGLE");
+                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
         PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
         assertNotNull(savedPoll);
 
@@ -133,7 +132,7 @@ class PublicationVoteControllerTests {
     void testGetVoteResults_Success() {
         // 1. Create a poll
         PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
-                Instant.now().plus(1, ChronoUnit.HOURS), "SINGLE");
+                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
         PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
         assertNotNull(savedPoll);
 
@@ -170,7 +169,7 @@ class PublicationVoteControllerTests {
     void testGetVoteResults_UserHasNotVoted() {
         // 1. Create a poll
         PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Animal", "desc",
-                Instant.now().plus(1, ChronoUnit.HOURS), "SINGLE");
+                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
         PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
         assertNotNull(savedPoll);
 

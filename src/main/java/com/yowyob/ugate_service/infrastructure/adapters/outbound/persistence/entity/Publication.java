@@ -7,7 +7,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("publication")
+@Table("publications")
 public record Publication(
         @Id UUID id,
 
@@ -26,4 +26,3 @@ public record Publication(
         this(null, branchId, authorId, content, nLikes, createdAt);
     }
 }
-
