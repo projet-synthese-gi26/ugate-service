@@ -6208,7 +6208,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("comment")
+@Table("comments")
 public record Comment(
         @Id
         UUID id,
@@ -6815,7 +6815,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("publication_image")
+@Table("publication_images")
 public record PublicationImage(
         // Pas de @Id unique ici car c'est une clé composite (publication_id + image_id)
 
@@ -6883,7 +6883,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("reaction")
+@Table("reactions")
 public record Reaction(
         @Id
         UUID id,
@@ -7767,7 +7767,7 @@ public interface ImageRepository extends R2dbcRepository<Image, UUID> {
     // directement
     @Query("""
                 SELECT i.* FROM images i
-                JOIN publication_image pi ON i.id = pi.image_id
+                JOIN publication_images pi ON i.id = pi.image_id
                 WHERE pi.publication_id = :pubId
             """)
     Flux<Image> findByPublicationId(UUID pubId); // TODO a modifier
@@ -10320,7 +10320,7 @@ CREATE TABLE images (
     uploaded_at TIMESTAMP
 );
 
-CREATE TABLE publication_image (
+CREATE TABLE publication_images (
     publication_id UUID,
     image_id UUID,
     created_at TIMESTAMP,
@@ -10338,7 +10338,7 @@ CREATE TABLE comment (
     created_at TIMESTAMP
 );
 
-CREATE TABLE reaction (
+CREATE TABLE reactions (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     publication_id UUID,
     user_id UUID,

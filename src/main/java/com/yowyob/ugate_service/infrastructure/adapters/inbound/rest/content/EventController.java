@@ -1,7 +1,6 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
 import com.yowyob.ugate_service.domain.ports.in.content.*;
-import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateEventRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ParticipantDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
@@ -23,7 +22,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import org.springframework.http.codec.multipart.FilePart; // Added import
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,27 +50,50 @@ public class EventController {
         })
         @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public Mono<ResponseEntity<Void>> createEvent(
-                        @Parameter(description = "Event request data including creator, branch, title, description, date, time, location, and optional media files", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE, schema = @Schema(implementation = CreateEventRequest.class))) @Valid @ModelAttribute CreateEventRequest request) {
+                        @Parameter(description = "Creator ID") @RequestPart("creatorId") Mono<String> creatorId,
+                        @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
+                        @Parameter(description = "Title") @RequestPart("title") Mono<String> title,
+                        @Parameter(description = "Description") @RequestPart("description") Mono<String> description,
+                        @Parameter(description = "Event Date (YYYY-MM-DD)") @RequestPart("eventDate") Mono<String> eventDate,
+                        @Parameter(description = "Location") @RequestPart("location") Mono<String> location,
+                        @Parameter(description = "Start Time (HH:MM)") @RequestPart("startTime") Mono<String> startTime,
+                        @Parameter(description = "End Time (HH:MM)") @RequestPart("endTime") Mono<String> endTime,
+                        @Parameter(description = "Optional image files to be attached") @RequestPart(name = "images", required = false) Flux<FilePart> images,
+                        @Parameter(description = "Optional video files to be attached") @RequestPart(name = "videos", required = false) Flux<FilePart> videos,
+                        @Parameter(description = "Optional general files to be attached") @RequestPart(name = "files", required = false) Flux<FilePart> files) {
 
-                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(request.getImages());
-                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(request.getVideos());
-                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(request.getFiles());
+                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(images == null ? Flux.empty() : images);
+                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videos == null ? Flux.empty() : videos);
+                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(files == null ? Flux.empty() : files);
 
-                return Mono.zip(imagesUrlsMono, videosUrlsMono, filesUrlsMono)
+                return Mono.zip(creatorId, branchId, title, description, eventDate, location, startTime, endTime)
+                                .zipWith(Mono.zip(imagesUrlsMono, videosUrlsMono, filesUrlsMono))
                                 .flatMap(tuple -> {
-                                        List<String> imageUrls = tuple.getT1();
-                                        List<String> videoUrls = tuple.getT2();
-                                        List<String> fileUrls = tuple.getT3();
+                                        var fields = tuple.getT1();
+                                        var media = tuple.getT2();
+
+                                        UUID creatorIdVal = UUID.fromString(fields.getT1());
+                                        UUID branchIdVal = UUID.fromString(fields.getT2());
+                                        String titleVal = fields.getT3();
+                                        String descriptionVal = fields.getT4();
+                                        LocalDate eventDateVal = LocalDate.parse(fields.getT5());
+                                        String locationVal = fields.getT6();
+                                        LocalTime startTimeVal = LocalTime.parse(fields.getT7());
+                                        LocalTime endTimeVal = LocalTime.parse(fields.getT8());
+
+                                        List<String> imageUrls = media.getT1();
+                                        List<String> videoUrls = media.getT2();
+                                        List<String> fileUrls = media.getT3();
 
                                         return createEventUseCase.createEvent(
-                                                        request.getCreatorId(),
-                                                        request.getBranchId(),
-                                                        request.getTitle(),
-                                                        request.getDescription(),
-                                                        request.getEventDate(),
-                                                        request.getLocation(),
-                                                        request.getStartTime(),
-                                                        request.getEndTime(),
+                                                        creatorIdVal,
+                                                        branchIdVal,
+                                                        titleVal,
+                                                        descriptionVal,
+                                                        eventDateVal,
+                                                        locationVal,
+                                                        startTimeVal,
+                                                        endTimeVal,
                                                         imageUrls.toArray(new String[0]),
                                                         videoUrls.toArray(new String[0]),
                                                         fileUrls.toArray(new String[0]));
@@ -93,8 +118,8 @@ public class EventController {
 
         @Operation(summary = "Get events by branch", description = "Retrieves a list of events for a specific branch, including participant counts.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Events retrieved successfully"),
-                        @ApiResponse(responseCode = "404", description = "Branch not found")
+                        @ApiResponse(responseCode = "200", description = "Events retrieved successfully", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = EventResponseDTO.class))),
+                        @ApiResponse(responseCode = "404", description = "Branch not found", content = @Content(schema = @Schema(hidden = true)))
         })
         @GetMapping("/branch/{branchId}")
         public Flux<EventResponseDTO> getEventsByBranch(

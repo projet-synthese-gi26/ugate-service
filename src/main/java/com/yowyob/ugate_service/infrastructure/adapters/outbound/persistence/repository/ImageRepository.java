@@ -12,7 +12,7 @@ public interface ImageRepository extends R2dbcRepository<Image, UUID> {
     // directement
     @Query("""
                 SELECT i.* FROM images i
-                JOIN publication_image pi ON i.id = pi.image_id
+                JOIN publication_images pi ON i.id = pi.image_id
                 WHERE pi.publication_id = :pubId
             """)
     Flux<Image> findByPublicationId(UUID pubId); // TODO a modifier

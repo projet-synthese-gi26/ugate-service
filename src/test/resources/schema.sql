@@ -35,7 +35,7 @@ CREATE TABLE branches (
 );
 
 
-CREATE TABLE publication (
+CREATE TABLE publications (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     branch_id UUID,
     author_id UUID,
@@ -51,7 +51,7 @@ CREATE TABLE images (
     uploaded_at TIMESTAMP
 );
 
-CREATE TABLE publication_image (
+CREATE TABLE publication_images (
     publication_id UUID,
     image_id UUID,
     created_at TIMESTAMP,
@@ -59,7 +59,7 @@ CREATE TABLE publication_image (
     PRIMARY KEY (publication_id, image_id)
 );
 
-CREATE TABLE comment (
+CREATE TABLE comments (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     author_id UUID,
     publication_id UUID,
@@ -69,7 +69,7 @@ CREATE TABLE comment (
     created_at TIMESTAMP
 );
 
-CREATE TABLE reaction (
+CREATE TABLE reactions (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     publication_id UUID,
     user_id UUID,

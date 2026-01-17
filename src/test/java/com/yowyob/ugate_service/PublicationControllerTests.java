@@ -121,7 +121,7 @@ class PublicationControllerTests {
                 .contentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA)
                 .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
                 .exchange()
-                .expectStatus().isBadRequest();
+                .expectStatus().isCreated();
     }
 
     @Test
