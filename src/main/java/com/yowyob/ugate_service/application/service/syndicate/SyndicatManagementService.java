@@ -11,6 +11,7 @@ import com.yowyob.ugate_service.infrastructure.mappers.syndicate.SyndicateMapper
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.codec.multipart.FilePart;
@@ -103,13 +104,17 @@ public class SyndicatManagementService {
         UUID orgId = UUID.randomUUID();
         UUID syndicatId = UUID.randomUUID();
 
+        Mono<BusinessActor> businessActorMono = businessActorRepository.findById(creatorId)
+                .switchIfEmpty(Mono.defer(() -> {
+                    BusinessActor newActor = createBusinessActor(creatorId, name);
+                    return businessActorRepository.save(newActor);
+                }));
 
-        BusinessActor actor = createBusinessActor(creatorId, name);
         Organization organization = createOrganization(orgId, creatorId, name);
         Syndicat syndicat = createSyndicat(syndicatId, orgId, creatorId, name, description, domain, urls);
         SyndicatMember adminMember = SyndicatMember.create(syndicatId, creatorId, RoleTypeEnum.ADMIN);
 
-        return businessActorRepository.save(actor)
+        return businessActorMono
                 .then(organizationRepository.save(organization))
                 .then(syndicatRepository.save(syndicat))
                 .then(syndicatMemberRepository.save(adminMember))
@@ -165,7 +170,7 @@ public class SyndicatManagementService {
         return updateState(id, s -> s.withActive(false), "Désactivation");
     }
 
-    // Dans SyndicatManagementService.java
+
 
     private Mono<UUID> ensureUserExistsLocally(UUID userId) {
         return userRepository.existsById(userId)
@@ -176,16 +181,24 @@ public class SyndicatManagementService {
                     return userGatewayPort.findById(userId)
                             .switchIfEmpty(Mono.error(new RuntimeException("Utilisateur introuvable sur TraMaSys")))
                             .flatMap(extUser -> {
-                                String fullName = extUser.firstName() + " " + extUser.lastName();
-                                User newUser = new User(
-                                        extUser.id(),
-                                        fullName,
-                                        extUser.phone(),
-                                        extUser.email()
-                                );
-                                return userRepository.save(newUser);
-                            })
-                            .thenReturn(userId);
+                                return userRepository.findByEmail(extUser.email())
+                                        .flatMap(existingUser -> {
+                                            log.info("Utilisateur existant trouvé par email: {}", existingUser.getId());
+
+                                            return Mono.just(existingUser.getId());
+                                        })
+                                        .switchIfEmpty(Mono.defer(() -> {
+
+                                            String fullName = extUser.firstName() + " " + extUser.lastName();
+                                            User newUser = new User(
+                                                    extUser.id(),
+                                                    fullName,
+                                                    extUser.phone(),
+                                                    extUser.email()
+                                            );
+                                            return userRepository.save(newUser).map(User::getId);
+                                        }));
+                            });
                 });
     }
 

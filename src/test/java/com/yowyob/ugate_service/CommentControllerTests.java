@@ -99,7 +99,7 @@ public class CommentControllerTests {
                                 "domain", "logo", "status"))
                                 .block();
                 testBranch = branchRepository.save(new Branch(null, testSyndicat.id(), "Test Branch", "location",
-                                "contact", Instant.now(), Instant.now())).block();
+                                "contact","bannerUrl", Instant.now(), Instant.now())).block();
                 testPublication = publicationRepository
                                 .save(new Publication(testBranch.id(), testUser.id(), "Test Content", 0L,
                                                 Instant.now()))

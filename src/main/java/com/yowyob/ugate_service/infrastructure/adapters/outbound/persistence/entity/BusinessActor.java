@@ -1,6 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.PersistenceCreator; // Import Important
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
@@ -11,7 +12,7 @@ import java.util.UUID;
 @Table("business_actors")
 public record BusinessActor(
         @Id
-        UUID id, // PK et FK vers User.id
+        UUID id,
 
         String name,
 
@@ -27,11 +28,14 @@ public record BusinessActor(
 
 ) implements Persistable<UUID> {
 
+    @PersistenceCreator
+    public BusinessActor(UUID id, String name, String phoneNumber, String emailAddress) {
+        this(id, name, phoneNumber, emailAddress, false);
+    }
 
     public static BusinessActor createNew(UUID userId, String name, String phone, String email) {
         return new BusinessActor(userId, name, phone, email, true);
     }
-
 
     public static BusinessActor existing(UUID userId, String name, String phone, String email) {
         return new BusinessActor(userId, name, phone, email, false);

@@ -9,4 +9,5 @@
     <include file="classpath:db/changelog/changes/v1.2-create-event-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.3-create-publication-vote-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.4-create-vote-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.5-add-branch-banner.xml"/>
 </databaseChangeLog>
