@@ -1,5 +1,6 @@
 package com.yowyob.ugate_service;
 
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateReactionRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Publication;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationRepository;
@@ -54,7 +55,7 @@ class ReactionControllerTests {
 
         // Prepare the reaction request
         UUID userId = UUID.randomUUID();
-        String reactionType = "LIKE";
+        ReactionTypeEnum reactionType = ReactionTypeEnum.LIKE;
         CreateReactionRequest request = new CreateReactionRequest();
         request.setUserId(userId);
         request.setReactionType(reactionType);

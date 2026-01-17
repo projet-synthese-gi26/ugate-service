@@ -2,6 +2,8 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.reques
 
 import java.util.UUID;
 
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -13,5 +15,5 @@ public class CreateReactionRequest {
     private UUID userId;
 
     @Schema(description = "The type of the reaction", example = "LIKE")
-    private String reactionType;
+    private ReactionTypeEnum reactionType;
 }

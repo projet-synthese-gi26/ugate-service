@@ -1,6 +1,7 @@
 package com.yowyob.ugate_service.application.service.content;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.yowyob.ugate_service.domain.model.CommentModel;
@@ -23,44 +24,57 @@ public class CommentService {
   private final UserGatewayPort userGatewayPort;
 
   public Mono<Void> createComment(UUID authorId, UUID publicationId, UUID parentId, String ImageUrl, String content) {
-    return this.mediaPersistencePort.saveImage(ImageUrl, "alt text")
-        .flatMap(imageModel -> {
-          CommentModel comment = new CommentModel();
-          comment.setAuthorId(authorId);
-          comment.setPublicationId(publicationId);
-          comment.setParentId(parentId);
-          comment.setImageId(imageModel.getId());
-          comment.setContent(content);
-          comment.setCreatedAt(Instant.now());
 
-          return this.commentPersistencePort.saveComment(comment);
-        });
+    CommentModel comment = new CommentModel();
+    comment.setAuthorId(authorId);
+    comment.setPublicationId(publicationId);
+    comment.setParentId(parentId);
+    comment.setContent(content);
+    comment.setCreatedAt(Instant.now());
+
+    if (ImageUrl == null) {
+      return this.commentPersistencePort.saveComment(comment);
+    } else {
+      return this.mediaPersistencePort.saveImage(ImageUrl, "alt text")
+          .flatMap(imageModel -> {
+            comment.setImageId(imageModel.getId());
+
+            return this.commentPersistencePort.saveComment(comment);
+          });
+    }
+
   }
 
   public Flux<CommentResponseDto> getCommentsByPublicationId(UUID publicationId) {
-    return this.commentPersistencePort.findCommentsByPublicationId(publicationId).flatMap(
-        commentModel -> {
-          Mono<ExternalUserInfo> authorMono = userGatewayPort
-              .findById(commentModel.getAuthorId());
-          Mono<ImageModel> commentImage = this.mediaPersistencePort.getImageById(commentModel.getImageId());
+    return commentPersistencePort.findCommentsByPublicationId(publicationId)
+        .flatMap(commentModel -> {
 
-          return Mono.zip(authorMono, commentImage).map(tuple -> {
-            ExternalUserInfo author = tuple.getT1();
-            ImageModel imageModel = tuple.getT2();
+          Mono<ExternalUserInfo> authorMono = userGatewayPort.findById(commentModel.getAuthorId());
 
-            CommentResponseDto commentResponseDto = new CommentResponseDto();
-            commentResponseDto.setAuthorFullName(author.firstName() + author.lastName());
-            commentResponseDto.setAuthorId(author.id());
-            commentResponseDto.setContent(commentModel.getContent());
-            commentResponseDto.setCreatedAt(commentModel.getCreatedAt());
-            commentResponseDto.setId(commentModel.getId());
-            commentResponseDto.setImageUrl(imageModel.getUrl());
-            commentResponseDto.setParentId(commentModel.getParentId());
-            commentResponseDto.setPublicationId(commentModel.getPublicationId());
+          Mono<Optional<ImageModel>> imageMono = Mono.justOrEmpty(commentModel.getImageId())
+              .flatMap(mediaPersistencePort::getImageById)
+              .map(Optional::of)
+              .defaultIfEmpty(Optional.empty());
 
-            return commentResponseDto;
+          return authorMono.zipWith(imageMono)
+              .map(tuple -> {
+                ExternalUserInfo author = tuple.getT1();
+                Optional<ImageModel> imageOpt = tuple.getT2();
 
-          });
+                CommentResponseDto dto = new CommentResponseDto();
+                dto.setAuthorFullName(author.firstName() + " " + author.lastName());
+                dto.setAuthorId(author.id());
+                dto.setContent(commentModel.getContent());
+                dto.setCreatedAt(commentModel.getCreatedAt());
+                dto.setId(commentModel.getId());
+                dto.setParentId(commentModel.getParentId());
+                dto.setPublicationId(commentModel.getPublicationId());
+
+                imageOpt.ifPresent(img -> dto.setImageUrl(img.getUrl()));
+
+                return dto;
+              });
         });
   }
+
 }
