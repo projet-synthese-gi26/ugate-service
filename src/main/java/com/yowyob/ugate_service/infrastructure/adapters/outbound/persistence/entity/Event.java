@@ -25,7 +25,7 @@ public record Event(
         @Column("updated_at") Instant updatedAt) {
 
     public Event(UUID creatorId, UUID branchId, String title, String description, String location,
-                 LocalDate date, LocalTime startTime, LocalTime endTime, Instant createdAt, Instant updatedAt) {
+            LocalDate date, LocalTime startTime, LocalTime endTime, Instant createdAt, Instant updatedAt) {
         this(null, creatorId, branchId, title, description, location, date, startTime, endTime, createdAt, updatedAt);
     }
 }

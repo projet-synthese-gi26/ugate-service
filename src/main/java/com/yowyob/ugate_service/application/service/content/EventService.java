@@ -23,7 +23,8 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 @AllArgsConstructor
-public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEventsByBranchUseCase, GetEventParticipantsUseCase, LeaveEventUseCase {
+public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEventsByBranchUseCase,
+        GetEventParticipantsUseCase, LeaveEventUseCase {
 
     private final EventPersistencePort eventPersistencePort;
     private final MediaPersistencePort mediaPersistencePort;
@@ -51,7 +52,7 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
                     Mono<Void> imagesMono = Mono.empty();
                     if (imagesUrls != null) {
                         imagesMono = Flux.fromArray(imagesUrls)
-                                .flatMap(imageUrl -> mediaPersistencePort.saveImageMedia(imageUrl, "altText",
+                                .flatMap(imageUrl -> mediaPersistencePort.saveEventMedia(imageUrl, "altText",
                                         savedEvent.getId()))
                                 .then();
                     }
@@ -78,7 +79,8 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
 
     @Override
     public Mono<Void> joinEvent(UUID userId, UUID eventId) {
-        // Here you might add logic to check if the event and user exist before creating the link
+        // Here you might add logic to check if the event and user exist before creating
+        // the link
         UserEventModel userEventModel = new UserEventModel();
         userEventModel.setUserId(userId);
         userEventModel.setEventId(eventId);
@@ -89,23 +91,20 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
     @Override
     public Flux<EventResponseDTO> getEventsByBranch(UUID branchId) {
         return eventPersistencePort.findByBranchId(branchId)
-                .flatMap(eventModel ->
-                    userEventPersistencePort.countByEventId(eventModel.getId())
+                .flatMap(eventModel -> userEventPersistencePort.countByEventId(eventModel.getId())
                         .map(count -> new EventResponseDTO(
-                            eventModel.getId(),
-                            eventModel.getCreatorId(),
-                            eventModel.getBranchId(),
-                            eventModel.getTitle(),
-                            eventModel.getDescription(),
-                            eventModel.getLocation(),
-                            eventModel.getDate(),
-                            eventModel.getStartTime(),
-                            eventModel.getEndTime(),
-                            eventModel.getCreatedAt(),
-                            eventModel.getUpdatedAt(),
-                            count
-                        ))
-                );
+                                eventModel.getId(),
+                                eventModel.getCreatorId(),
+                                eventModel.getBranchId(),
+                                eventModel.getTitle(),
+                                eventModel.getDescription(),
+                                eventModel.getLocation(),
+                                eventModel.getDate(),
+                                eventModel.getStartTime(),
+                                eventModel.getEndTime(),
+                                eventModel.getCreatedAt(),
+                                eventModel.getUpdatedAt(),
+                                count)));
     }
 
     @Override

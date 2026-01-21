@@ -77,7 +77,7 @@ CREATE TABLE reactions (
     reacted_at TIMESTAMP
 );
 
-CREATE TABLE event (
+CREATE TABLE events (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     creator_id UUID,
     branch_id UUID,

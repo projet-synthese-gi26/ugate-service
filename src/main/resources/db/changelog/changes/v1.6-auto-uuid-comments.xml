@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- 1. S’assurer que l’extension pgcrypto est présente -->
+    <changeSet id="001-enable-pgcrypto" author="daniel">
+        <sql>CREATE EXTENSION IF NOT EXISTS "pgcrypto";</sql>
+    </changeSet>
+
+    <!-- 2. Définir UUID automatique pour la colonne id -->
+    <changeSet id="002-auto-uuid-event" author="daniel">
+        <addDefaultValue
+            tableName="event"
+            columnName="id"
+            defaultValueComputed="gen_random_uuid()"/>
+    </changeSet>
+</databaseChangeLog>
