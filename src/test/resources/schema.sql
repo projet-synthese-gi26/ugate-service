@@ -1,3 +1,6 @@
+CREATE DOMAIN IF NOT EXISTS reaction_type_enum AS VARCHAR(255);
+CREATE DOMAIN IF NOT EXISTS role_type_enum AS VARCHAR(255);
+
 CREATE TABLE users (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     name VARCHAR(255),
@@ -30,6 +33,7 @@ CREATE TABLE branches (
     name VARCHAR(255),
     location VARCHAR(255),
     contact VARCHAR(255),
+    banner_url VARCHAR(255),
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );

@@ -1,5 +1,6 @@
 package com.yowyob.ugate_service.application.service.content;
 
+import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.model.UserEventModel;
 import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetEventParticipantsUseCase;
@@ -20,6 +21,7 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 @AllArgsConstructor
@@ -91,20 +93,29 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
     @Override
     public Flux<EventResponseDTO> getEventsByBranch(UUID branchId) {
         return eventPersistencePort.findByBranchId(branchId)
-                .flatMap(eventModel -> userEventPersistencePort.countByEventId(eventModel.getId())
-                        .map(count -> new EventResponseDTO(
-                                eventModel.getId(),
-                                eventModel.getCreatorId(),
-                                eventModel.getBranchId(),
-                                eventModel.getTitle(),
-                                eventModel.getDescription(),
-                                eventModel.getLocation(),
-                                eventModel.getDate(),
-                                eventModel.getStartTime(),
-                                eventModel.getEndTime(),
-                                eventModel.getCreatedAt(),
-                                eventModel.getUpdatedAt(),
-                                count)));
+                .flatMap(eventModel -> {
+                    Mono<Long> participantCountMono = userEventPersistencePort.countByEventId(eventModel.getId());
+                    Mono<List<String>> imageUrlsMono = mediaPersistencePort.getImagesByEventId(eventModel.getId())
+                            .map(ImageModel::getUrl)
+                            .collectList();
+
+                    return Mono.zip(participantCountMono, imageUrlsMono)
+                            .map(tuple -> new EventResponseDTO(
+                                    eventModel.getId(),
+                                    eventModel.getCreatorId(),
+                                    eventModel.getBranchId(),
+                                    eventModel.getTitle(),
+                                    eventModel.getDescription(),
+                                    eventModel.getLocation(),
+                                    eventModel.getDate(),
+                                    eventModel.getStartTime(),
+                                    eventModel.getEndTime(),
+                                    eventModel.getCreatedAt(),
+                                    eventModel.getUpdatedAt(),
+                                    tuple.getT1(), // participant count
+                                    tuple.getT2()  // image urls
+                            ));
+                });
     }
 
     @Override

@@ -21,5 +21,7 @@ public interface MediaPersistencePort {
 
   Mono<ImageModel> getImageById(UUID imageId);
 
-  Mono<Void> saveEventMedia(String imageUrl, String altText, UUID publicationId);
+  Mono<Void> saveEventMedia(String imageUrl, String altText, UUID eventId);
+
+  Flux<ImageModel> getImagesByEventId(UUID eventId);
 }

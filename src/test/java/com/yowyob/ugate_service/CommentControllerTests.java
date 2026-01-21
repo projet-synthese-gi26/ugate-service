@@ -98,8 +98,8 @@ public class CommentControllerTests {
                 testSyndicat = syndicatRepository.save(new Syndicat(null, testUser.id(), "Test Syndicat", "description",
                                 "domain", "logo", "status"))
                                 .block();
-                testBranch = branchRepository.save(new Branch(null, testSyndicat.id(), "Test Branch", "location",
-                                "contact","bannerUrl", Instant.now(), Instant.now())).block();
+                testBranch = branchRepository.save(Branch.createNew(UUID.randomUUID(), testSyndicat.id(), "Test Branch", "location",
+                                "contact","bannerUrl")).block();
                 testPublication = publicationRepository
                                 .save(new Publication(testBranch.id(), testUser.id(), "Test Content", 0L,
                                                 Instant.now()))

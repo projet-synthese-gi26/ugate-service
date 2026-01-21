@@ -90,4 +90,11 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
         return imageRepository.findById(imageId)
                 .map(imageMapper::toModel);
     }
+
+    @Override
+    public Flux<ImageModel> getImagesByEventId(UUID eventId) {
+        return eventImagesRepository.findByEventId(eventId)
+                .flatMap(eventImage -> imageRepository.findById(eventImage.imageId()))
+                .map(imageMapper::toModel);
+    }
 }

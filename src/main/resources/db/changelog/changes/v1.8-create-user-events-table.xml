@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="v1.8-1-create-user-events" author="gemini-agent">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="user_events"/>
+            </not>
+        </preConditions>
+        <createTable tableName="user_events">
+            <column name="user_event_id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="timestamp" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.8-2-add-fk-user-events-to-event" author="gemini-agent">
+        <addForeignKeyConstraint baseTableName="user_events"
+                                 baseColumnNames="event_id"
+                                 constraintName="fk_user_events_event"
+                                 referencedTableName="event"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>
