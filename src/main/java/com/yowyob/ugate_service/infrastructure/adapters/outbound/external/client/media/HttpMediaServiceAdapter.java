@@ -66,7 +66,7 @@ public class HttpMediaServiceAdapter implements FileStoragePort {
                 ? this.mediaServiceBaseUrl.substring(0, this.mediaServiceBaseUrl.length() - 1)
                 : this.mediaServiceBaseUrl;
 
-        return baseUrl + "/media/proxy/" + dto.id();
+        return baseUrl + "/media/" + dto.id();
     }
 
 
