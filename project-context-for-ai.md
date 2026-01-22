@@ -1,7 +1,7 @@
 # Contexte Complet du Projet
 
 **Projet:** ugate-service  
-**Date de génération:** 16/01/2026 13:28:47  
+**Date de génération:** 22/01/2026 19:27:38  
 **Chemin:** D:\Projets\Scolaire\Reseau\New Version\ugate-service
 
 ---
@@ -54,6 +54,8 @@
 │   │   │               │       │   └── SyndicatManagementService.java
 │   │   │               │       └── .gitkeep
 │   │   │               ├── domain
+│   │   │               │   ├── enumeration
+│   │   │               │   │   └── ReactionTypeEnum.java
 │   │   │               │   ├── exception
 │   │   │               │   │   ├── .gitkeep
 │   │   │               │   │   ├── InsufficientStockException.java
@@ -132,9 +134,8 @@
 │   │   │               │   │   │       │   ├── request
 │   │   │               │   │   │       │   │   ├── BatchComplianceRequest.java
 │   │   │               │   │   │       │   │   ├── CastVoteRequest.java
+│   │   │               │   │   │       │   │   ├── CreateBranchRequest.java
 │   │   │               │   │   │       │   │   ├── CreateCommentRequest.java
-│   │   │               │   │   │       │   │   ├── CreateEventRequest.java
-│   │   │               │   │   │       │   │   ├── CreatePublicationRequest.java
 │   │   │               │   │   │       │   │   ├── CreatePublicationVoteRequest.java
 │   │   │               │   │   │       │   │   ├── CreateReactionRequest.java
 │   │   │               │   │   │       │   │   ├── CreateSyndicateRequest.java
@@ -144,10 +145,12 @@
 │   │   │               │   │   │       │   │   ├── MembershipRequestRequest.java
 │   │   │               │   │   │       │   │   ├── ProductRequest.java
 │   │   │               │   │   │       │   │   ├── ServiceOfferingRequest.java
+│   │   │               │   │   │       │   │   ├── UpdateBranchRequest.java
 │   │   │               │   │   │       │   │   └── WebhookStatusChangeRequest.java
 │   │   │               │   │   │       │   ├── response
 │   │   │               │   │   │       │   │   ├── BasicResponse.java
 │   │   │               │   │   │       │   │   ├── BatchComplianceResponse.java
+│   │   │               │   │   │       │   │   ├── BranchResponse.java
 │   │   │               │   │   │       │   │   ├── ComplianceResponse.java
 │   │   │               │   │   │       │   │   ├── EventResponseDTO.java
 │   │   │               │   │   │       │   │   ├── OfficialProfileResponse.java
@@ -168,6 +171,7 @@
 │   │   │               │   │   │       │   ├── SuperAdminAnalyticsController.java
 │   │   │               │   │   │       │   └── SyndicateSuperAdminController.java
 │   │   │               │   │   │       └── syndicate
+│   │   │               │   │   │           ├── BranchController.java
 │   │   │               │   │   │           ├── SyndicateController.java
 │   │   │               │   │   │           ├── SyndicateMangementController.java
 │   │   │               │   │   │           └── SyndicateMembershipController.java
@@ -189,6 +193,7 @@
 │   │   │               │   │       │   └── .gitkeep
 │   │   │               │   │       └── persistence
 │   │   │               │   │           ├── adapters
+│   │   │               │   │           │   ├── BranchPersistenceAdapter.java
 │   │   │               │   │           │   ├── CommentPersistenceAdapter.java
 │   │   │               │   │           │   ├── EventPersistenceAdapter.java
 │   │   │               │   │           │   ├── MediaPersistenceAdapter.java
@@ -202,6 +207,7 @@
 │   │   │               │   │           │   │   ├── ComplianceStatus.java
 │   │   │               │   │           │   │   └── RoleTypeEnum.java
 │   │   │               │   │           │   ├── AbstractProduct.java
+│   │   │               │   │           │   ├── Agency.java
 │   │   │               │   │           │   ├── Avis.java
 │   │   │               │   │           │   ├── Branch.java
 │   │   │               │   │           │   ├── BusinessActor.java
@@ -213,21 +219,20 @@
 │   │   │               │   │           │   ├── Image.java
 │   │   │               │   │           │   ├── MembershipRequest.java
 │   │   │               │   │           │   ├── Organization.java
-│   │   │               │   │           │   ├── Product.java
+│   │   │               │   │           │   ├── ProductEntity.java
 │   │   │               │   │           │   ├── Profile.java
 │   │   │               │   │           │   ├── Publication.java
 │   │   │               │   │           │   ├── PublicationImage.java
 │   │   │               │   │           │   ├── PublicationVote.java
 │   │   │               │   │           │   ├── Reaction.java
-│   │   │               │   │           │   ├── Service.java
+│   │   │               │   │           │   ├── ServiceEntity.java
 │   │   │               │   │           │   ├── Syndicat.java
 │   │   │               │   │           │   ├── SyndicatMember.java
-│   │   │               │   │           │   ├── SyndicatProductEntity.java
-│   │   │               │   │           │   ├── SyndicatServiceEntity.java
 │   │   │               │   │           │   ├── User.java
 │   │   │               │   │           │   ├── UserEvent.java
 │   │   │               │   │           │   └── Vote.java
 │   │   │               │   │           ├── repository
+│   │   │               │   │           │   ├── AgencyRepository.java
 │   │   │               │   │           │   ├── AvisRepository.java
 │   │   │               │   │           │   ├── BranchRepository.java
 │   │   │               │   │           │   ├── BusinessActorRepository.java
@@ -244,24 +249,21 @@
 │   │   │               │   │           │   ├── PublicationRepository.java
 │   │   │               │   │           │   ├── PublicationVoteRepository.java
 │   │   │               │   │           │   ├── ReactionRepository.java
+│   │   │               │   │           │   ├── ServiceRepository.java
 │   │   │               │   │           │   ├── SyndicatMemberRepository.java
-│   │   │               │   │           │   ├── SyndicatProductRepository.java
-│   │   │               │   │           │   ├── SyndicatProductRow.java
 │   │   │               │   │           │   ├── SyndicatRepository.java
-│   │   │               │   │           │   ├── SyndicatServiceRepository.java
-│   │   │               │   │           │   ├── SyndicatServiceRow.java
 │   │   │               │   │           │   ├── UserEventRepository.java
 │   │   │               │   │           │   ├── UserRepository.java
 │   │   │               │   │           │   └── VoteRepository.java
 │   │   │               │   │           ├── PostgresSyndicatProductAdapter.java
 │   │   │               │   │           └── PostgresSyndicatServiceAdapter.java
 │   │   │               │   ├── config
-│   │   │               │   │   ├── .gitkeep
 │   │   │               │   │   ├── KafkaConfig.java
 │   │   │               │   │   ├── OpenApiConfig.java
 │   │   │               │   │   ├── RedisConfig.java
 │   │   │               │   │   ├── SecurityConfig.java
 │   │   │               │   │   ├── ServiceConfig.java
+│   │   │               │   │   ├── UserSyncWebFilter.java
 │   │   │               │   │   └── WebClientConfig.java
 │   │   │               │   └── mappers
 │   │   │               │       ├── media
@@ -270,6 +272,7 @@
 │   │   │               │       ├── serviceOffering
 │   │   │               │       │   └── ServiceOfferingMapper.java
 │   │   │               │       ├── syndicate
+│   │   │               │       │   ├── BranchMapper.java
 │   │   │               │       │   └── SyndicateMapper.java
 │   │   │               │       ├── CommentMapper.java
 │   │   │               │       ├── EventMapper.java
@@ -285,7 +288,12 @@
 │   │       │       │   ├── v1.1-sync-java-entities.xml
 │   │       │       │   ├── v1.2-create-event-table.xml
 │   │       │       │   ├── v1.3-create-publication-vote-table.xml
-│   │       │       │   └── v1.4-create-vote-table.xml
+│   │       │       │   ├── v1.4-create-vote-table.xml
+│   │       │       │   ├── v1.5-add-branch-banner.xml
+│   │       │       │   ├── v1.6-auto-uuid-comments.xml
+│   │       │       │   ├── v1.7-create-event-images-table.xml
+│   │       │       │   ├── v1.8-create-user-events-table.xml
+│   │       │       │   └── v1.9-alter-user-events-table.xml
 │   │       │       └── db.changelog-master.xml
 │   │       └── application.properties
 │   └── test
@@ -583,7 +591,6 @@ If you manually switch to a different parent and actually want the inheritance, 
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>r2dbc-postgresql</artifactId>
-			<scope>runtime</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.liquibase</groupId>
@@ -735,7 +742,7 @@ If you manually switch to a different parent and actually want the inheritance, 
 </project>
 ```
 
-*Lignes: 202*
+*Lignes: 201*
 
 ---
 
@@ -744,12 +751,93 @@ If you manually switch to a different parent and actually want the inheritance, 
 ```java
 package com.yowyob.ugate_service.application.service.auth;
 
-public class UserManagementService {
-}
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Profile;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.User;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ProfileRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class UserManagementService {
+
+    private final UserRepository userRepository;
+    private final ProfileRepository profileRepository;
+    private final ReactiveRedisTemplate<String, ExternalUserInfo> redisTemplate;
+
+    private static final Duration USER_EXISTENCE_CACHE_TTL = Duration.ofHours(24);
+
+    @Transactional
+    public Mono<Void> synchronizeUser(UUID userId, String username) {
+        String cacheKey = "user_exists:" + userId;
+        return redisTemplate.hasKey(cacheKey)
+                .flatMap(existsInCache -> {
+                    if (Boolean.TRUE.equals(existsInCache)) {
+                        return Mono.empty();
+                    }
+                    return userRepository.existsById(userId)
+                            .flatMap(existsInDb -> {
+                                if (Boolean.TRUE.equals(existsInDb)) {
+                                    return cacheUserExistence(cacheKey);
+                                }
+                                return createUserAndProfile(userId, username)
+                                        .then(cacheUserExistence(cacheKey));
+                            });
+                });
+    }
+
+    private Mono<Void> createUserAndProfile(UUID userId, String username) {
+        log.info("Création locale de l'utilisateur {}", userId);
+
+        User newUser = User.create(
+                userId,
+                username,
+                null,
+                username
+        );
+
+        Profile newProfile = new Profile(
+                UUID.randomUUID(),
+                userId,
+                null,
+                "", // FirstName (pas dans le token)
+                "", // LastName (pas dans le token)
+                null, null, null, null,
+                Instant.now(),
+                Instant.now()
+        );
+
+        return userRepository.save(newUser)
+                .then(profileRepository.save(newProfile))
+                .doOnSuccess(p -> log.info("Utilisateur {} synchronisé.", userId))
+                .onErrorResume(DuplicateKeyException.class, e -> {
+                    log.warn("Utilisateur {} déjà existant (Concurrence).", userId);
+                    return Mono.empty();
+                })
+                .then();
+    }
+
+    private Mono<Void> cacheUserExistence(String key) {
+        return redisTemplate.opsForValue()
+                .set(key, new ExternalUserInfo(null, null, null, null, null, null, null), USER_EXISTENCE_CACHE_TTL)
+                .then();
+    }
+}
 ```
 
-*Lignes: 5*
+*Lignes: 86*
 
 ---
 
@@ -1044,6 +1132,7 @@ public class ComplianceService {
 package com.yowyob.ugate_service.application.service.content;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.yowyob.ugate_service.domain.model.CommentModel;
@@ -1066,51 +1155,64 @@ public class CommentService {
   private final UserGatewayPort userGatewayPort;
 
   public Mono<Void> createComment(UUID authorId, UUID publicationId, UUID parentId, String ImageUrl, String content) {
-    return this.mediaPersistencePort.saveImage(ImageUrl, "alt text")
-        .flatMap(imageModel -> {
-          CommentModel comment = new CommentModel();
-          comment.setAuthorId(authorId);
-          comment.setPublicationId(publicationId);
-          comment.setParentId(parentId);
-          comment.setImageId(imageModel.getId());
-          comment.setContent(content);
-          comment.setCreatedAt(Instant.now());
 
-          return this.commentPersistencePort.saveComment(comment);
-        });
+    CommentModel comment = new CommentModel();
+    comment.setAuthorId(authorId);
+    comment.setPublicationId(publicationId);
+    comment.setParentId(parentId);
+    comment.setContent(content);
+    comment.setCreatedAt(Instant.now());
+
+    if (ImageUrl == null) {
+      return this.commentPersistencePort.saveComment(comment);
+    } else {
+      return this.mediaPersistencePort.saveImage(ImageUrl, "alt text")
+          .flatMap(imageModel -> {
+            comment.setImageId(imageModel.getId());
+
+            return this.commentPersistencePort.saveComment(comment);
+          });
+    }
+
   }
 
   public Flux<CommentResponseDto> getCommentsByPublicationId(UUID publicationId) {
-    return this.commentPersistencePort.findCommentsByPublicationId(publicationId).flatMap(
-        commentModel -> {
-          Mono<ExternalUserInfo> authorMono = userGatewayPort
-              .findById(commentModel.getAuthorId());
-          Mono<ImageModel> commentImage = this.mediaPersistencePort.getImageById(commentModel.getImageId());
+    return commentPersistencePort.findCommentsByPublicationId(publicationId)
+        .flatMap(commentModel -> {
 
-          return Mono.zip(authorMono, commentImage).map(tuple -> {
-            ExternalUserInfo author = tuple.getT1();
-            ImageModel imageModel = tuple.getT2();
+          Mono<ExternalUserInfo> authorMono = userGatewayPort.findById(commentModel.getAuthorId());
 
-            CommentResponseDto commentResponseDto = new CommentResponseDto();
-            commentResponseDto.setAuthorFullName(author.firstName() + author.lastName());
-            commentResponseDto.setAuthorId(author.id());
-            commentResponseDto.setContent(commentModel.getContent());
-            commentResponseDto.setCreatedAt(commentModel.getCreatedAt());
-            commentResponseDto.setId(commentModel.getId());
-            commentResponseDto.setImageUrl(imageModel.getUrl());
-            commentResponseDto.setParentId(commentModel.getParentId());
-            commentResponseDto.setPublicationId(commentModel.getPublicationId());
+          Mono<Optional<ImageModel>> imageMono = Mono.justOrEmpty(commentModel.getImageId())
+              .flatMap(mediaPersistencePort::getImageById)
+              .map(Optional::of)
+              .defaultIfEmpty(Optional.empty());
 
-            return commentResponseDto;
+          return authorMono.zipWith(imageMono)
+              .map(tuple -> {
+                ExternalUserInfo author = tuple.getT1();
+                Optional<ImageModel> imageOpt = tuple.getT2();
 
-          });
+                CommentResponseDto dto = new CommentResponseDto();
+                dto.setAuthorFullName(author.firstName() + " " + author.lastName());
+                dto.setAuthorId(author.id());
+                dto.setContent(commentModel.getContent());
+                dto.setCreatedAt(commentModel.getCreatedAt());
+                dto.setId(commentModel.getId());
+                dto.setParentId(commentModel.getParentId());
+                dto.setPublicationId(commentModel.getPublicationId());
+
+                imageOpt.ifPresent(img -> dto.setImageUrl(img.getUrl()));
+
+                return dto;
+              });
         });
   }
+
 }
 
 ```
 
-*Lignes: 67*
+*Lignes: 81*
 
 ---
 
@@ -1119,6 +1221,7 @@ public class CommentService {
 ```java
 package com.yowyob.ugate_service.application.service.content;
 
+import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.model.UserEventModel;
 import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetEventParticipantsUseCase;
@@ -1139,10 +1242,12 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 @AllArgsConstructor
-public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEventsByBranchUseCase, GetEventParticipantsUseCase, LeaveEventUseCase {
+public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEventsByBranchUseCase,
+        GetEventParticipantsUseCase, LeaveEventUseCase {
 
     private final EventPersistencePort eventPersistencePort;
     private final MediaPersistencePort mediaPersistencePort;
@@ -1170,7 +1275,7 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
                     Mono<Void> imagesMono = Mono.empty();
                     if (imagesUrls != null) {
                         imagesMono = Flux.fromArray(imagesUrls)
-                                .flatMap(imageUrl -> mediaPersistencePort.saveImageMedia(imageUrl, "altText",
+                                .flatMap(imageUrl -> mediaPersistencePort.saveEventMedia(imageUrl, "altText",
                                         savedEvent.getId()))
                                 .then();
                     }
@@ -1197,7 +1302,8 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
 
     @Override
     public Mono<Void> joinEvent(UUID userId, UUID eventId) {
-        // Here you might add logic to check if the event and user exist before creating the link
+        // Here you might add logic to check if the event and user exist before creating
+        // the link
         UserEventModel userEventModel = new UserEventModel();
         userEventModel.setUserId(userId);
         userEventModel.setEventId(eventId);
@@ -1208,23 +1314,29 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
     @Override
     public Flux<EventResponseDTO> getEventsByBranch(UUID branchId) {
         return eventPersistencePort.findByBranchId(branchId)
-                .flatMap(eventModel ->
-                    userEventPersistencePort.countByEventId(eventModel.getId())
-                        .map(count -> new EventResponseDTO(
-                            eventModel.getId(),
-                            eventModel.getCreatorId(),
-                            eventModel.getBranchId(),
-                            eventModel.getTitle(),
-                            eventModel.getDescription(),
-                            eventModel.getLocation(),
-                            eventModel.getDate(),
-                            eventModel.getStartTime(),
-                            eventModel.getEndTime(),
-                            eventModel.getCreatedAt(),
-                            eventModel.getUpdatedAt(),
-                            count
-                        ))
-                );
+                .flatMap(eventModel -> {
+                    Mono<Long> participantCountMono = userEventPersistencePort.countByEventId(eventModel.getId());
+                    Mono<List<String>> imageUrlsMono = mediaPersistencePort.getImagesByEventId(eventModel.getId())
+                            .map(ImageModel::getUrl)
+                            .collectList();
+
+                    return Mono.zip(participantCountMono, imageUrlsMono)
+                            .map(tuple -> new EventResponseDTO(
+                                    eventModel.getId(),
+                                    eventModel.getCreatorId(),
+                                    eventModel.getBranchId(),
+                                    eventModel.getTitle(),
+                                    eventModel.getDescription(),
+                                    eventModel.getLocation(),
+                                    eventModel.getDate(),
+                                    eventModel.getStartTime(),
+                                    eventModel.getEndTime(),
+                                    eventModel.getCreatedAt(),
+                                    eventModel.getUpdatedAt(),
+                                    tuple.getT1(), // participant count
+                                    tuple.getT2()  // image urls
+                            ));
+                });
     }
 
     @Override
@@ -1241,7 +1353,7 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
 }
 ```
 
-*Lignes: 122*
+*Lignes: 132*
 
 ---
 
@@ -1480,6 +1592,7 @@ package com.yowyob.ugate_service.application.service.content;
 
 import java.util.UUID;
 
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.ReactionPersistencePort;
 
 import lombok.AllArgsConstructor;
@@ -1492,7 +1605,7 @@ public class ReactionService {
   private final PublicationService publicationService;
   private final ReactionPersistencePort reactionPersistencePort;
 
-  public Mono<Void> addReactionToPublication(UUID publicationId, UUID userId, String reactionType) {
+  public Mono<Void> addReactionToPublication(UUID publicationId, UUID userId, ReactionTypeEnum reactionType) {
     return reactionPersistencePort.saveReaction(publicationId, reactionType, userId)
         .then(publicationService.incrementLikes(publicationId));
   }
@@ -1500,7 +1613,7 @@ public class ReactionService {
 
 ```
 
-*Lignes: 22*
+*Lignes: 23*
 
 ---
 
@@ -1746,12 +1859,108 @@ public class NotificationService {
 ```java
 package com.yowyob.ugate_service.application.service.syndicate;
 
-public class BranchManagementService {
-}
+import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort; // Import du port Média
+import com.yowyob.ugate_service.domain.ports.out.syndicate.BranchPersistencePort;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateBranchRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateBranchRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BranchResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Agency;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Branch;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.AgencyRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
+import com.yowyob.ugate_service.infrastructure.mappers.syndicate.BranchMapper;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.errors.ResourceNotFoundException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
+import java.time.Instant;
+import java.util.UUID;
+
+@Slf4j
+@Service
+@AllArgsConstructor
+public class BranchManagementService {
+
+    private final BranchPersistencePort branchPersistencePort;
+    private final FileStoragePort fileStoragePort;
+    private final BranchMapper branchMapper;
+    private final AgencyRepository agencyRepository;
+    private final SyndicatRepository syndicatRepository;
+
+
+
+
+
+    @Transactional
+    public Mono<BranchResponse> createBranch(UUID syndicatId, CreateBranchRequest request) {
+        return syndicatRepository.findById(syndicatId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable : " + syndicatId)))
+                .flatMap(syndicat -> {
+                    Mono<String> bannerUrlMono;
+                    if (request.getBanner() != null && !request.getBanner().filename().isBlank()) {
+                        bannerUrlMono = fileStoragePort.uploadFile(request.getBanner(), "branches");
+                    } else {
+                        bannerUrlMono = Mono.justOrEmpty(null);
+                    }
+
+                    return bannerUrlMono.flatMap(bannerUrl -> {
+                        UUID sharedId = UUID.randomUUID();
+
+
+                        Agency newAgency = Agency.createNew(
+                                sharedId,
+                                syndicat.organizationId(),
+                                request.getName()
+                        );
+
+                        // 4. Création de la Branch
+                        Branch newBranch = Branch.createNew(
+                                sharedId,
+                                syndicatId,
+                                request.getName(),
+                                request.getLocation(),
+                                request.getContact(),
+                                bannerUrl
+                        );
+
+                        return agencyRepository.save(newAgency)
+                                .then(branchPersistencePort.save(newBranch));
+                    });
+                })
+                .map(branchMapper::toResponse)
+                .doOnSuccess(b -> log.info("Branche créée avec succès : {}", b.id()));
+    }
+
+    public Flux<BranchResponse> getSyndicateBranches(UUID syndicatId) {
+        return branchPersistencePort.findBySyndicatId(syndicatId)
+                .map(branchMapper::toResponse);
+    }
+
+    @Transactional
+    public Mono<BranchResponse> updateBranch(UUID branchId, UpdateBranchRequest request) {
+
+        return branchPersistencePort.findById(branchId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable : " + branchId)))
+                .flatMap(existingBranch -> {
+                    String newName = request.name() != null ? request.name() : existingBranch.name();
+                    String newLocation = request.location() != null ? request.location() : existingBranch.location();
+                    String newContact = request.contact() != null ? request.contact() : existingBranch.contact();
+
+                    Branch updatedBranch = existingBranch.withInfo(newName, newLocation, newContact, existingBranch.bannerUrl());
+                    return branchPersistencePort.save(updatedBranch);
+                })
+                .map(branchMapper::toResponse);
+    }
+}
 ```
 
-*Lignes: 5*
+*Lignes: 101*
 
 ---
 
@@ -1942,6 +2151,7 @@ import com.yowyob.ugate_service.infrastructure.mappers.syndicate.SyndicateMapper
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.codec.multipart.FilePart;
@@ -2034,13 +2244,17 @@ public class SyndicatManagementService {
         UUID orgId = UUID.randomUUID();
         UUID syndicatId = UUID.randomUUID();
 
+        Mono<BusinessActor> businessActorMono = businessActorRepository.findById(creatorId)
+                .switchIfEmpty(Mono.defer(() -> {
+                    BusinessActor newActor = createBusinessActor(creatorId, name);
+                    return businessActorRepository.save(newActor);
+                }));
 
-        BusinessActor actor = createBusinessActor(creatorId, name);
         Organization organization = createOrganization(orgId, creatorId, name);
         Syndicat syndicat = createSyndicat(syndicatId, orgId, creatorId, name, description, domain, urls);
         SyndicatMember adminMember = SyndicatMember.create(syndicatId, creatorId, RoleTypeEnum.ADMIN);
 
-        return businessActorRepository.save(actor)
+        return businessActorMono
                 .then(organizationRepository.save(organization))
                 .then(syndicatRepository.save(syndicat))
                 .then(syndicatMemberRepository.save(adminMember))
@@ -2096,7 +2310,7 @@ public class SyndicatManagementService {
         return updateState(id, s -> s.withActive(false), "Désactivation");
     }
 
-    // Dans SyndicatManagementService.java
+
 
     private Mono<UUID> ensureUserExistsLocally(UUID userId) {
         return userRepository.existsById(userId)
@@ -2107,16 +2321,24 @@ public class SyndicatManagementService {
                     return userGatewayPort.findById(userId)
                             .switchIfEmpty(Mono.error(new RuntimeException("Utilisateur introuvable sur TraMaSys")))
                             .flatMap(extUser -> {
-                                String fullName = extUser.firstName() + " " + extUser.lastName();
-                                User newUser = new User(
-                                        extUser.id(),
-                                        fullName,
-                                        extUser.phone(),
-                                        extUser.email()
-                                );
-                                return userRepository.save(newUser);
-                            })
-                            .thenReturn(userId);
+                                return userRepository.findByEmail(extUser.email())
+                                        .flatMap(existingUser -> {
+                                            log.info("Utilisateur existant trouvé par email: {}", existingUser.getId());
+
+                                            return Mono.just(existingUser.getId());
+                                        })
+                                        .switchIfEmpty(Mono.defer(() -> {
+
+                                            String fullName = extUser.firstName() + " " + extUser.lastName();
+                                            User newUser = new User(
+                                                    extUser.id(),
+                                                    fullName,
+                                                    extUser.phone(),
+                                                    extUser.email()
+                                            );
+                                            return userRepository.save(newUser).map(User::getId);
+                                        }));
+                            });
                 });
     }
 
@@ -2131,7 +2353,22 @@ public class SyndicatManagementService {
 }
 ```
 
-*Lignes: 200*
+*Lignes: 213*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\domain\enumeration\ReactionTypeEnum.java
+
+```java
+package com.yowyob.ugate_service.domain.enumeration;
+
+public enum ReactionTypeEnum {
+   LIKE, LOVE, HAHA, WOW, SAD, ANGRY
+}
+
+```
+
+*Lignes: 6*
 
 ---
 
@@ -2922,14 +3159,20 @@ public interface NotificationPort {
 ```java
 package com.yowyob.ugate_service.domain.ports.out.syndicate;
 
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Branch;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 public interface BranchPersistencePort {
+    Mono<Branch> save(Branch branch);
+    Mono<Branch> findById(UUID id);
+    Flux<Branch> findBySyndicatId(UUID syndicatId);
 }
-
 ```
 
-*Lignes: 7*
+*Lignes: 13*
 
 ---
 
@@ -3080,11 +3323,15 @@ public interface MediaPersistencePort {
   Mono<ImageModel> saveImage(String audioUrl, String altext);
 
   Mono<ImageModel> getImageById(UUID imageId);
+
+  Mono<Void> saveEventMedia(String imageUrl, String altText, UUID eventId);
+
+  Flux<ImageModel> getImagesByEventId(UUID eventId);
 }
 
 ```
 
-*Lignes: 24*
+*Lignes: 28*
 
 ---
 
@@ -3143,15 +3390,17 @@ package com.yowyob.ugate_service.domain.ports.out.syndicate;
 
 import java.util.UUID;
 
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
+
 import reactor.core.publisher.Mono;
 
 public interface ReactionPersistencePort {
-  Mono<Void> saveReaction(UUID publicationId, String reactionType, UUID userId);
+  Mono<Void> saveReaction(UUID publicationId, ReactionTypeEnum reactionType, UUID userId);
 }
 
 ```
 
-*Lignes: 10*
+*Lignes: 12*
 
 ---
 
@@ -3345,6 +3594,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 import com.yowyob.ugate_service.application.service.content.CommentService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.CommentResponseDto;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateCommentRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -3353,13 +3603,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -3370,49 +3623,66 @@ import org.springframework.security.oauth2.jwt.Jwt;
 @Tag(name = "Comments", description = "API for managing comments on publications")
 public class CommentController {
 
-    private final CommentService commentService;
+        private final CommentService commentService;
+        private final MediaService mediaService;
 
-    @Operation(summary = "Create a new comment", description = "Add a comment to a specific publication.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Comment created successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid input provided"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized access")
-    })
-    @PostMapping
+        @Operation(summary = "Create a new comment", description = "Add a comment to a specific publication.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Comment created successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid input provided"),
+                        @ApiResponse(responseCode = "401", description = "Unauthorized access")
+        })
+        @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public Mono<ResponseEntity<Void>> createComment(
+                        @Parameter(description = "UUID of the publication") @PathVariable UUID publicationId,
+                        @Parameter(description = "Content of the comment") @RequestPart(name = "content") Mono<String> content,
+                        @Parameter(description = "Image file for the comment") @RequestPart(name = "image", required = false) Mono<FilePart> image,
+                        @Parameter(description = "Parent comment ID") @RequestPart(name = "parentId", required = false) Mono<String> parentId) {
 
-    public Mono<ResponseEntity<Void>> createComment(
-            @Parameter(description = "UUID of the publication") @PathVariable UUID publicationId,
-            @RequestBody CreateCommentRequest request) {
-        return ReactiveSecurityContextHolder.getContext()
-                .map(SecurityContext::getAuthentication)
-                .map(authentication -> {
-                    Jwt jwt = (Jwt) authentication.getPrincipal();
-                    return UUID.fromString(jwt.getSubject());
-                })
-                .flatMap(authorId -> commentService.createComment(
-                        authorId,
-                        publicationId,
-                        request.getParentId(),
-                        request.getImageUrl(),
-                        request.getContent()))
-                .map(v -> ResponseEntity.ok().build());
-    }
+                Mono<String> imageUrlMono = mediaService.uploadImage(image == null ? Flux.empty() : image.flux())
+                                .map(list -> list.isEmpty() ? "" : list.get(0));
 
-    @Operation(summary = "Get comments for a publication", description = "Retrieve a list of comments associated with a publication.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved comments", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CommentResponseDto.class))),
-            @ApiResponse(responseCode = "404", description = "Publication not found")
-    })
-    @GetMapping
-    public Flux<CommentResponseDto> getComments(
-            @Parameter(description = "UUID of the publication") @PathVariable UUID publicationId) {
-        return commentService.getCommentsByPublicationId(publicationId);
-    }
+                return ReactiveSecurityContextHolder.getContext()
+                                .map(SecurityContext::getAuthentication)
+                                .map(authentication -> {
+                                        Jwt jwt = (Jwt) authentication.getPrincipal();
+                                        return UUID.fromString(jwt.getSubject());
+                                })
+                                .flatMap(authorId -> Mono.zip(content, imageUrlMono, parentId.defaultIfEmpty(""))
+                                                .flatMap(tuple -> {
+                                                        String contentVal = tuple.getT1();
+                                                        String imageUrlVal = tuple.getT2().isEmpty() ? null
+                                                                        : tuple.getT2();
+                                                        String parentIdStr = tuple.getT3();
+                                                        UUID parentUuid = (parentIdStr == null || parentIdStr.isEmpty())
+                                                                        ? null
+                                                                        : UUID.fromString(parentIdStr);
+
+                                                        return commentService.createComment(
+                                                                        authorId,
+                                                                        publicationId,
+                                                                        parentUuid,
+                                                                        imageUrlVal,
+                                                                        contentVal);
+                                                }))
+                                .map(v -> ResponseEntity.ok().build());
+        }
+
+        @Operation(summary = "Get comments for a publication", description = "Retrieve a list of comments associated with a publication.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Successfully retrieved comments", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CommentResponseDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Publication not found")
+        })
+        @GetMapping
+        public Flux<CommentResponseDto> getComments(
+                        @Parameter(description = "UUID of the publication") @PathVariable UUID publicationId) {
+                return commentService.getCommentsByPublicationId(publicationId);
+        }
 }
 
 ```
 
-*Lignes: 70*
+*Lignes: 91*
 
 ---
 
@@ -3422,7 +3692,6 @@ public class CommentController {
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
 import com.yowyob.ugate_service.domain.ports.in.content.*;
-import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateEventRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ParticipantDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
@@ -3444,7 +3713,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import org.springframework.http.codec.multipart.FilePart; // Added import
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -3469,27 +3741,50 @@ public class EventController {
         })
         @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public Mono<ResponseEntity<Void>> createEvent(
-                        @Parameter(description = "Event request data including creator, branch, title, description, date, time, location, and optional media files", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE, schema = @Schema(implementation = CreateEventRequest.class))) @Valid @ModelAttribute CreateEventRequest request) {
+                        @Parameter(description = "Creator ID") @RequestPart("creatorId") Mono<String> creatorId,
+                        @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
+                        @Parameter(description = "Title") @RequestPart("title") Mono<String> title,
+                        @Parameter(description = "Description") @RequestPart("description") Mono<String> description,
+                        @Parameter(description = "Event Date (YYYY-MM-DD)") @RequestPart("eventDate") Mono<String> eventDate,
+                        @Parameter(description = "Location") @RequestPart("location") Mono<String> location,
+                        @Parameter(description = "Start Time (HH:MM)") @RequestPart("startTime") Mono<String> startTime,
+                        @Parameter(description = "End Time (HH:MM)") @RequestPart("endTime") Mono<String> endTime,
+                        @Parameter(description = "Optional image files to be attached") @RequestPart(name = "images", required = false) Flux<FilePart> images,
+                        @Parameter(description = "Optional video files to be attached") @RequestPart(name = "videos", required = false) Flux<FilePart> videos,
+                        @Parameter(description = "Optional general files to be attached") @RequestPart(name = "files", required = false) Flux<FilePart> files) {
 
-                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(request.getImages());
-                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(request.getVideos());
-                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(request.getFiles());
+                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(images == null ? Flux.empty() : images);
+                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videos == null ? Flux.empty() : videos);
+                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(files == null ? Flux.empty() : files);
 
-                return Mono.zip(imagesUrlsMono, videosUrlsMono, filesUrlsMono)
+                return Mono.zip(creatorId, branchId, title, description, eventDate, location, startTime, endTime)
+                                .zipWith(Mono.zip(imagesUrlsMono, videosUrlsMono, filesUrlsMono))
                                 .flatMap(tuple -> {
-                                        List<String> imageUrls = tuple.getT1();
-                                        List<String> videoUrls = tuple.getT2();
-                                        List<String> fileUrls = tuple.getT3();
+                                        var fields = tuple.getT1();
+                                        var media = tuple.getT2();
+
+                                        UUID creatorIdVal = UUID.fromString(fields.getT1());
+                                        UUID branchIdVal = UUID.fromString(fields.getT2());
+                                        String titleVal = fields.getT3();
+                                        String descriptionVal = fields.getT4();
+                                        LocalDate eventDateVal = LocalDate.parse(fields.getT5());
+                                        String locationVal = fields.getT6();
+                                        LocalTime startTimeVal = LocalTime.parse(fields.getT7());
+                                        LocalTime endTimeVal = LocalTime.parse(fields.getT8());
+
+                                        List<String> imageUrls = media.getT1();
+                                        List<String> videoUrls = media.getT2();
+                                        List<String> fileUrls = media.getT3();
 
                                         return createEventUseCase.createEvent(
-                                                        request.getCreatorId(),
-                                                        request.getBranchId(),
-                                                        request.getTitle(),
-                                                        request.getDescription(),
-                                                        request.getEventDate(),
-                                                        request.getLocation(),
-                                                        request.getStartTime(),
-                                                        request.getEndTime(),
+                                                        creatorIdVal,
+                                                        branchIdVal,
+                                                        titleVal,
+                                                        descriptionVal,
+                                                        eventDateVal,
+                                                        locationVal,
+                                                        startTimeVal,
+                                                        endTimeVal,
                                                         imageUrls.toArray(new String[0]),
                                                         videoUrls.toArray(new String[0]),
                                                         fileUrls.toArray(new String[0]));
@@ -3514,8 +3809,8 @@ public class EventController {
 
         @Operation(summary = "Get events by branch", description = "Retrieves a list of events for a specific branch, including participant counts.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Events retrieved successfully"),
-                        @ApiResponse(responseCode = "404", description = "Branch not found")
+                        @ApiResponse(responseCode = "200", description = "Events retrieved successfully", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = EventResponseDTO.class))),
+                        @ApiResponse(responseCode = "404", description = "Branch not found", content = @Content(schema = @Schema(hidden = true)))
         })
         @GetMapping("/branch/{branchId}")
         public Flux<EventResponseDTO> getEventsByBranch(
@@ -3552,7 +3847,7 @@ public class EventController {
 
 ```
 
-*Lignes: 131*
+*Lignes: 156*
 
 ---
 
@@ -3561,8 +3856,6 @@ public class EventController {
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
-import com.yowyob.ugate_service.application.service.content.PublicationService;
-import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreatePublicationRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -3571,25 +3864,25 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-
-import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
-import org.springframework.web.bind.annotation.GetMapping;
 import reactor.core.publisher.Flux;
+import org.springframework.http.codec.multipart.FilePart;
+
+import com.yowyob.ugate_service.application.service.content.PublicationService;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
 
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/publications")
-@RequiredArgsConstructor
+@AllArgsConstructor
 @Validated
 @Tag(name = "Publications", description = "API for managing publications")
 public class PublicationController {
@@ -3604,22 +3897,30 @@ public class PublicationController {
         })
         @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public Mono<ResponseEntity<Void>> createPublication(
-                        @Parameter(description = "Publication request data including content, author, branch, and optional media files", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE, schema = @Schema(implementation = CreatePublicationRequest.class))) @Valid @ModelAttribute CreatePublicationRequest request) {
+                        @Parameter(description = "Content of the publication") @RequestPart("content") Mono<String> content,
+                        @Parameter(description = "Author ID of the publication") @RequestPart("authorId") Mono<String> authorId,
+                        @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
+                        @Parameter(description = "Optional image files to be attached") @RequestPart(name = "images", required = false) Flux<FilePart> images,
+                        @Parameter(description = "Optional video files to be attached") @RequestPart(name = "videos", required = false) Flux<FilePart> videos,
+                        @Parameter(description = "Optional general files to be attached") @RequestPart(name = "files", required = false) Flux<FilePart> files) {
 
-                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(request.getImages());
-                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(request.getVideos());
-                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(request.getFiles());
+                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(images == null ? Flux.empty() : images);
+                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videos == null ? Flux.empty() : videos);
+                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(files == null ? Flux.empty() : files);
 
-                return Mono.zip(imagesUrlsMono, videosUrlsMono, filesUrlsMono)
+                return Mono.zip(content, authorId, branchId, imagesUrlsMono, videosUrlsMono, filesUrlsMono)
                                 .flatMap(tuple -> {
-                                        List<String> imageUrls = tuple.getT1();
-                                        List<String> videoUrls = tuple.getT2();
-                                        List<String> fileUrls = tuple.getT3();
+                                        String contentValue = tuple.getT1();
+                                        UUID authorIdValue = UUID.fromString(tuple.getT2());
+                                        UUID branchIdValue = UUID.fromString(tuple.getT3());
+                                        List<String> imageUrls = tuple.getT4();
+                                        List<String> videoUrls = tuple.getT5();
+                                        List<String> fileUrls = tuple.getT6();
 
                                         return publicationService.createPublication(
-                                                        request.getAuthorId(),
-                                                        request.getBranchId(),
-                                                        request.getContent(),
+                                                        authorIdValue,
+                                                        branchIdValue,
+                                                        contentValue,
                                                         imageUrls.toArray(new String[0]),
                                                         videoUrls.toArray(new String[0]),
                                                         fileUrls.toArray(new String[0]));
@@ -3642,7 +3943,7 @@ public class PublicationController {
 
 ```
 
-*Lignes: 81*
+*Lignes: 87*
 
 ---
 
@@ -3827,6 +4128,40 @@ public class CastVoteRequest {
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\CreateBranchRequest.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+import org.springframework.http.codec.multipart.FilePart;
+
+@Data
+public class CreateBranchRequest {
+
+        @Schema(description = "Nom de la branche", example = "Agence Centrale")
+        @NotBlank(message = "Le nom est obligatoire")
+        private String name;
+
+        @Schema(description = "Ville ou quartier", example = "Douala")
+        @NotBlank(message = "La localisation est obligatoire")
+        private String location;
+
+        @Schema(description = "Numéro de téléphone ou email", example = "+237 699999999")
+        private String contact;
+
+
+        @Schema(description = "Image de la bannière (JPG/PNG)", type = "string", format = "binary")
+        private FilePart banner;
+}
+```
+
+*Lignes: 25*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\CreateCommentRequest.java
 
 ```java
@@ -3846,117 +4181,6 @@ public class CreateCommentRequest {
 ```
 
 *Lignes: 13*
-
----
-
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\CreateEventRequest.java
-
-```java
-package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request;
-
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-import org.springframework.http.codec.multipart.FilePart;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.UUID;
-
-@Data
-@Schema(name = "CreateEventRequest", description = "Request DTO for creating a new event")
-public class CreateEventRequest {
-    @NotNull(message = "Creator ID cannot be null")
-    @Schema(description = "The unique identifier of the user creating the event", example = "a1b2c3d4-e5f6-7890-1234-567890abcdef")
-    private UUID creatorId;
-
-    @NotNull(message = "Branch ID cannot be null")
-    @Schema(description = "The unique identifier of the branch to which the event belongs", example = "f1e2d3c4-b5a6-9876-5432-10fedcba9876")
-    private UUID branchId;
-
-    @NotBlank(message = "Title cannot be blank")
-    @Schema(description = "The title of the event", example = "Community Meetup")
-    private String title;
-
-    @NotBlank(message = "Description cannot be blank")
-    @Schema(description = "A detailed description of the event", example = "A gathering to discuss local initiatives.")
-    private String description;
-
-    @NotNull(message = "Event date cannot be null")
-    @Schema(description = "The date on which the event will take place (YYYY-MM-DD)", example = "2026-03-15")
-    private LocalDate eventDate;
-
-    @NotBlank(message = "Location cannot be blank")
-    @Schema(description = "The location where the event will be held", example = "Community Hall")
-    private String location;
-
-    @NotNull(message = "Start time cannot be null")
-    @Schema(description = "The start time of the event (HH:MM)", example = "10:00")
-    private LocalTime startTime;
-
-    @NotNull(message = "End time cannot be null")
-    @Schema(description = "The end time of the event (HH:MM)", example = "12:00")
-    private LocalTime endTime;
-
-    @Schema(description = "An array of image files to be attached to the event")
-    private FilePart[] images;
-
-    @Schema(description = "An array of video files to be attached to the event")
-    private FilePart[] videos;
-
-    @Schema(description = "An array of general files to be attached to the event")
-    private FilePart[] files;
-}
-
-```
-
-*Lignes: 57*
-
----
-
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\CreatePublicationRequest.java
-
-```java
-package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request;
-
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-
-import java.util.UUID;
-
-import org.springframework.http.codec.multipart.FilePart;
-
-@Data
-@Schema(name = "CreatePublicationRequest", description = "Request DTO for creating a new publication")
-public class CreatePublicationRequest {
-    @NotBlank(message = "Content cannot be blank")
-    @Schema(description = "The main textual content of the publication", example = "This is a new post about my day.")
-    private String content;
-
-    @NotNull(message = "Author ID cannot be null")
-    @Schema(description = "The unique identifier of the author of the publication", example = "a1b2c3d4-e5f6-7890-1234-567890abcdef")
-    private UUID authorId;
-
-    @NotNull(message = "Branch ID cannot be null")
-    @Schema(description = "The unique identifier of the branch to which the publication belongs", example = "f1e2d3c4-b5a6-9876-5432-10fedcba9876")
-    private UUID branchId;
-
-    @Schema(description = "An array of image files to be attached to the publication")
-    private FilePart[] images;
-
-    @Schema(description = "An array of video files to be attached to the publication")
-    private FilePart[] videos;
-
-    @Schema(description = "An array of general files to be attached to the publication")
-    private FilePart[] files;
-}
-
-```
-
-*Lignes: 36*
 
 ---
 
@@ -4012,6 +4236,8 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.reques
 
 import java.util.UUID;
 
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -4023,12 +4249,12 @@ public class CreateReactionRequest {
     private UUID userId;
 
     @Schema(description = "The type of the reaction", example = "LIKE")
-    private String reactionType;
+    private ReactionTypeEnum reactionType;
 }
 
 ```
 
-*Lignes: 18*
+*Lignes: 20*
 
 ---
 
@@ -4202,6 +4428,23 @@ public record ServiceOfferingRequest(
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\UpdateBranchRequest.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request;
+
+
+public record UpdateBranchRequest(
+        String name,
+        String location,
+        String contact
+) {}
+```
+
+*Lignes: 8*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\WebhookStatusChangeRequest.java
 
 ```java
@@ -4249,6 +4492,30 @@ public record BatchComplianceResponse(
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\BranchResponse.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public record BranchResponse(
+        UUID id,
+        UUID syndicatId,
+        String name,
+        String location,
+        String contact,
+        String bannerUrl,
+        Instant createdAt,
+        Instant updatedAt
+) {}
+```
+
+*Lignes: 15*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\ComplianceResponse.java
 
 ```java
@@ -4291,6 +4558,7 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -4309,11 +4577,12 @@ public class EventResponseDTO {
     private Instant createdAt;
     private Instant updatedAt;
     private long participantCount;
+    private List<String> imageUrls;
 }
 
 ```
 
-*Lignes: 29*
+*Lignes: 31*
 
 ---
 
@@ -5014,6 +5283,89 @@ public class SyndicateSuperAdminController {
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\syndicate\BranchController.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.syndicate;
+
+import com.yowyob.ugate_service.application.service.syndicate.BranchManagementService;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateBranchRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateBranchRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BranchResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+@RestController
+@RequiredArgsConstructor
+@Tag(name = "Branches", description = "Gestion des branches (agences) des syndicats")
+public class BranchController {
+
+    private final BranchManagementService branchService;
+
+    @Operation(
+            summary = "Créer une branche pour un syndicat",
+            description = "Permet de créer une branche avec une bannière optionnelle.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(
+                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                            schema = @Schema(implementation = CreateBranchRequest.class)
+                    )
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Branche créée"),
+            @ApiResponse(responseCode = "400", description = "Données invalides")
+    })
+    @PostMapping(
+            value = "/syndicates/{syndicatId}/branches",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<BranchResponse> createBranch(
+            @Parameter(description = "ID du syndicat", required = true)
+            @PathVariable UUID syndicatId,
+            @Parameter(hidden = true)
+            @Valid @ModelAttribute CreateBranchRequest request) {
+
+        return branchService.createBranch(syndicatId, request);
+    }
+
+    @Operation(summary = "Lister les branches d'un syndicat", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/syndicates/{syndicatId}/branches")
+    public Flux<BranchResponse> getBranchesBySyndicate(@PathVariable UUID syndicatId) {
+        return branchService.getSyndicateBranches(syndicatId);
+    }
+
+    @Operation(summary = "Mettre à jour une branche", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/branches/{branchId}")
+    public Mono<BranchResponse> updateBranch(
+            @PathVariable UUID branchId,
+            @RequestBody UpdateBranchRequest request) {
+        return branchService.updateBranch(branchId, request);
+    }
+}
+```
+
+*Lignes: 74*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\syndicate\SyndicateController.java
 
 ```java
@@ -5443,12 +5795,14 @@ package com.yowyob.ugate_service.infrastructure.adapters.outbound.external.clien
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux; // Added import for Flux
 
 import java.util.List;
 
@@ -5456,56 +5810,68 @@ import java.util.List;
 @Service
 public class MediaService {
 
-  @Value("${spring.application.name}")
-  private String serviceName;
-
-  @Value("${application.external.media-service-url}")
-  private String mediaServiceUrl;
+  private final String serviceName;
+  private final String mediaServiceUrl;
+  private final WebClient webClient;
 
   private String imagesFolder = "images";
   private String videosFolder = "videos";
   private String filesFolder = "files";
 
-  private final WebClient webClient;
-
-  public MediaService(WebClient.Builder webClientBuilder) {
-    // Initialisation du WebClient avec la base URL du service média
+  public MediaService(WebClient.Builder webClientBuilder,
+      @Value("${application.external.media-service-name}") String serviceName,
+      @Value("${application.external.media-service-url}") String mediaServiceUrl) {
+    this.serviceName = serviceName;
+    this.mediaServiceUrl = mediaServiceUrl;
     this.webClient = webClientBuilder.baseUrl(mediaServiceUrl).build();
   }
 
-  public Mono<List<String>> uploadImage(FilePart[] imageData) {
+  public Mono<List<String>> uploadImage(Flux<FilePart> imageData) { // Changed input type
     return uploadToMediaService(imageData, imagesFolder);
   }
 
-  public Mono<List<String>> uploadVideo(FilePart[] videoData) {
+  public Mono<List<String>> uploadVideo(Flux<FilePart> videoData) { // Changed input type
     return uploadToMediaService(videoData, videosFolder);
   }
 
-  public Mono<List<String>> uploadFiles(FilePart[] filesData) {
+  public Mono<List<String>> uploadFiles(Flux<FilePart> filesData) { // Changed input type
     return uploadToMediaService(filesData, filesFolder);
   }
 
-  private Mono<List<String>> uploadToMediaService(FilePart[] parts, String location) {
-    if (parts == null || parts.length == 0) {
-      return Mono.just(List.of());
-    }
+  private Mono<List<String>> uploadToMediaService(Flux<FilePart> parts, String location) { // Changed input type
+    return parts.collectList().flatMap(collectedParts -> {
+      if (collectedParts.isEmpty()) {
+        return Mono.just(List.of());
+      }
 
-    MultipartBodyBuilder builder = new MultipartBodyBuilder();
-    builder.part("service", serviceName);
-    builder.part("location", location);
+      MultipartBodyBuilder builder = new MultipartBodyBuilder();
+      builder.part("service", serviceName);
+      builder.part("location", location);
 
-    for (FilePart filePart : parts) {
-      builder.asyncPart("files", Mono.just(filePart), FilePart.class);
-    }
+      for (FilePart filePart : collectedParts) {
+        MediaType contentType = filePart.headers().getContentType();
+        if (contentType == null)
+          contentType = MediaType.APPLICATION_OCTET_STREAM;
 
-    return webClient.post()
-        .uri("/media/upload-multiple")
-        .contentType(MediaType.MULTIPART_FORM_DATA)
-        .body(BodyInserters.fromMultipartData(builder.build()))
-        .retrieve()
-        .bodyToFlux(MediaDto.class) // Désérialise le flux de MediaDto retourné
-        .map(dto -> String.format("%s/media/%s", mediaServiceUrl, dto.getId()))
-        .collectList(); // On collecte tout dans une liste pour respecter votre besoin
+        builder.asyncPart("files", filePart.content(), DataBuffer.class)
+            .filename(filePart.filename())
+            .contentType(contentType);
+      }
+
+      return webClient.post()
+          .uri("/media/upload-multiple")
+          .contentType(MediaType.MULTIPART_FORM_DATA)
+          .body(BodyInserters.fromMultipartData(builder.build()))
+          .retrieve()
+          .bodyToFlux(MediaDto.class) // Désérialise le flux de MediaDto retourné
+          .map(dto -> {
+            // Gestion propre du slash pour éviter les doubles slashs
+            String baseUrl = mediaServiceUrl.endsWith("/") ? mediaServiceUrl.substring(0, mediaServiceUrl.length() - 1)
+                : mediaServiceUrl;
+            return String.format("%s/media/%s", baseUrl, dto.getId());
+          })
+          .collectList(); // On collecte tout dans une liste pour respecter votre besoin
+    });
   }
 
   @Data
@@ -5519,7 +5885,7 @@ public class MediaService {
 }
 ```
 
-*Lignes: 79*
+*Lignes: 93*
 
 ---
 
@@ -5590,6 +5956,48 @@ public class HttpNotificationAdapter implements NotificationPort {
 ```
 
 *Lignes: 61*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\adapters\BranchPersistenceAdapter.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.adapters;
+
+import com.yowyob.ugate_service.domain.ports.out.syndicate.BranchPersistencePort;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Branch;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.BranchRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component; // Très important !
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+@Component
+@RequiredArgsConstructor
+public class BranchPersistenceAdapter implements BranchPersistencePort {
+
+    private final BranchRepository branchRepository;
+
+    @Override
+    public Mono<Branch> save(Branch branch) {
+        return branchRepository.save(branch);
+    }
+
+    @Override
+    public Mono<Branch> findById(UUID id) {
+        return branchRepository.findById(id);
+    }
+
+    @Override
+    public Flux<Branch> findBySyndicatId(UUID syndicatId) {
+        return branchRepository.findBySyndicatId(syndicatId);
+    }
+}
+```
+
+*Lignes: 33*
 
 ---
 
@@ -5688,8 +6096,10 @@ package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.ad
 import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.model.MediaInfo;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.EventImages;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Image;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.PublicationImage;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.EventImagesRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ImageRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationImageRepository;
 import com.yowyob.ugate_service.infrastructure.mappers.ImageMapper;
@@ -5707,6 +6117,7 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
 
     private final ImageRepository imageRepository;
     private final PublicationImageRepository publicationImageRepository;
+    private final EventImagesRepository eventImagesRepository;
     private final ImageMapper imageMapper;
 
     @Override
@@ -5718,6 +6129,18 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
                     PublicationImage publicationImage = new PublicationImage(publicationId, savedImage.id(),
                             Instant.now(), Instant.now());
                     return publicationImageRepository.save(publicationImage);
+                }).then();
+    }
+
+    @Override
+    public Mono<Void> saveEventMedia(String imageUrl, String altText, UUID eventId) {
+        Image image = new Image(null, imageUrl, altText, Instant.now());
+
+        return imageRepository.save(image)
+                .flatMap(savedImage -> {
+                    EventImages eventImage = new EventImages(eventId, savedImage.id(),
+                            Instant.now(), Instant.now());
+                    return eventImagesRepository.save(eventImage);
                 }).then();
     }
 
@@ -5760,10 +6183,17 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
         return imageRepository.findById(imageId)
                 .map(imageMapper::toModel);
     }
+
+    @Override
+    public Flux<ImageModel> getImagesByEventId(UUID eventId) {
+        return eventImagesRepository.findByEventId(eventId)
+                .flatMap(eventImage -> imageRepository.findById(eventImage.imageId()))
+                .map(imageMapper::toModel);
+    }
 }
 ```
 
-*Lignes: 78*
+*Lignes: 100*
 
 ---
 
@@ -5891,6 +6321,7 @@ public class PublicationVotePersistenceAdapter implements PublicationVotePersist
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.adapters;
 
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.ReactionPersistencePort;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Reaction;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ReactionRepository;
@@ -5907,15 +6338,19 @@ public class ReactionPersistenceAdapter implements ReactionPersistencePort {
     private final ReactionRepository reactionRepository;
 
     @Override
-    public Mono<Void> saveReaction(UUID publicationId, String reactionType, UUID userId) {
+    public Mono<Void> saveReaction(UUID publicationId, ReactionTypeEnum reactionType, UUID userId) {
         Reaction reaction = new Reaction(publicationId, userId, reactionType);
-        return reactionRepository.save(reaction).then();
+        return reactionRepository.insertReaction(
+                reaction.publicationId(),
+                reaction.userId(),
+                reaction.type().name(),
+                reaction.reactedAt()).then();
     }
 }
 
 ```
 
-*Lignes: 24*
+*Lignes: 29*
 
 ---
 
@@ -6044,6 +6479,72 @@ public record AbstractProduct(
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\Agency.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
+
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.PersistenceCreator;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Table("agencies")
+public record Agency(
+        @Id
+        UUID id,
+
+        @Column("organization_id")
+        UUID organizationId,
+
+        String name,
+
+        @CreatedDate
+        @Column("created_at")
+        Instant createdAt,
+
+        @LastModifiedDate
+        @Column("updated_at")
+        Instant updatedAt,
+
+        @Transient
+        boolean isNewRecord
+) implements Persistable<UUID> {
+
+    @PersistenceCreator
+    public Agency(UUID id, UUID organizationId, String name, Instant createdAt, Instant updatedAt) {
+        this(id, organizationId, name, createdAt, updatedAt, false);
+    }
+
+
+    public static Agency createNew(UUID id, UUID organizationId, String name) {
+        return new Agency(id, organizationId, name, Instant.now(), Instant.now(), true);
+    }
+
+    @Override
+    public UUID getId() {
+        return id;
+    }
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return isNewRecord;
+    }
+}
+```
+
+*Lignes: 57*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\Avis.java
 
 ```java
@@ -6094,26 +6595,30 @@ public record Avis(
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
 import java.util.UUID;
-
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.PersistenceCreator; // Import
+import org.springframework.data.annotation.Transient;         // Import
+import org.springframework.data.domain.Persistable;           // Import
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
-
 import java.time.Instant;
 
 @Table("branches")
 public record Branch(
         @Id
-        UUID id, // FK vers Agency.id selon le schéma
+        UUID id,
 
         @Column("syndicat_id")
-        UUID syndicatId, // FK vers Syndicat
+        UUID syndicatId,
 
         String name,
         String location,
         String contact,
+
+        @Column("banner_url")
+        String bannerUrl,
 
         @CreatedDate
         @Column("created_at")
@@ -6121,19 +6626,56 @@ public record Branch(
 
         @LastModifiedDate
         @Column("updated_at")
-        Instant updatedAt
-) {
-    // Exemple de wither pour mise à jour simple
-    public Branch withContactInfo(String name, String location, String contact) {
+        Instant updatedAt,
+
+        @Transient
+        boolean isNewRecord
+
+) implements Persistable<UUID> {
+
+
+    @PersistenceCreator
+    public Branch(UUID id, UUID syndicatId, String name, String location, String contact, String bannerUrl, Instant createdAt, Instant updatedAt) {
+        this(id, syndicatId, name, location, contact, bannerUrl, createdAt, updatedAt, false);
+    }
+
+
+    public static Branch createNew(UUID id, UUID syndicatId, String name, String location, String contact, String bannerUrl) {
         return new Branch(
-                this.id, this.syndicatId, name, location, contact,
-                this.createdAt, null // null déclenchera la mise à jour de @LastModifiedDate
+                id,
+                syndicatId,
+                name,
+                location,
+                contact,
+                bannerUrl,
+                Instant.now(),
+                Instant.now(),
+                true
         );
+    }
+
+    public Branch withInfo(String name, String location, String contact, String bannerUrl) {
+        return new Branch(
+                this.id, this.syndicatId, name, location, contact, bannerUrl,
+                this.createdAt, null,
+                false
+        );
+    }
+
+    @Override
+    public UUID getId() {
+        return id;
+    }
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return isNewRecord;
     }
 }
 ```
 
-*Lignes: 40*
+*Lignes: 81*
 
 ---
 
@@ -6143,6 +6685,7 @@ public record Branch(
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.PersistenceCreator; // Import Important
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
@@ -6153,7 +6696,7 @@ import java.util.UUID;
 @Table("business_actors")
 public record BusinessActor(
         @Id
-        UUID id, // PK et FK vers User.id
+        UUID id,
 
         String name,
 
@@ -6169,11 +6712,14 @@ public record BusinessActor(
 
 ) implements Persistable<UUID> {
 
+    @PersistenceCreator
+    public BusinessActor(UUID id, String name, String phoneNumber, String emailAddress) {
+        this(id, name, phoneNumber, emailAddress, false);
+    }
 
     public static BusinessActor createNew(UUID userId, String name, String phone, String email) {
         return new BusinessActor(userId, name, phone, email, true);
     }
-
 
     public static BusinessActor existing(UUID userId, String name, String phone, String email) {
         return new BusinessActor(userId, name, phone, email, false);
@@ -6192,7 +6738,7 @@ public record BusinessActor(
 }
 ```
 
-*Lignes: 50*
+*Lignes: 54*
 
 ---
 
@@ -6455,7 +7001,7 @@ public record Event(
         @Column("updated_at") Instant updatedAt) {
 
     public Event(UUID creatorId, UUID branchId, String title, String description, String location,
-                 LocalDate date, LocalTime startTime, LocalTime endTime, Instant createdAt, Instant updatedAt) {
+            LocalDate date, LocalTime startTime, LocalTime endTime, Instant createdAt, Instant updatedAt) {
         this(null, creatorId, branchId, title, description, location, date, startTime, endTime, createdAt, updatedAt);
     }
 }
@@ -6618,101 +7164,70 @@ public record Organization(
 
 ---
 
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\Product.java
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\ProductEntity.java
 
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Table;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.Builder;
+
+import lombok.NoArgsConstructor;
+
+import org.springframework.data.annotation.Transient;
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.UUID;
 
-@Table("abstract_products")
-public record Product(
-        // Cet ID doit correspondre à celui de abstract_product correspondant
-        @Id
-        UUID id,
+@Table("syndicat_products")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ProductEntity implements Persistable<UUID> {
 
-        @Column("organization_id")
-        UUID organizationId, // FK -> Organization
+                
+                @Id
+                private UUID id;
+        
+                private UUID syndicatId;
 
-        // Certains champs semblent redondants avec AbstractProduct (name, description)
-        // Je les inclus car ils sont dans le schéma spécifique de Product
-        String name,
-        String description,
+                private String name;
 
-        @Column("is_active")
-        Boolean isActive,
+                private String description;
 
-        @Column("standard_price")
-        BigDecimal standardPrice,
+                private BigDecimal price;
 
-        @Column("departure_location")
-        String departureLocation,
+                private String sku;
 
-        @Column("arrival_location")
-        String arrivalLocation,
+                private String category;
 
-        @Column("start_date")
-        LocalDate startDate,
+                private Integer stock;
 
-        @Column("start_time")
-        LocalTime startTime,
+                private String imageUrl;
 
-        @Column("end_date")
-        LocalDate endDate,
+                private Boolean isActive;
 
-        @Column("end_time")
-        LocalTime endTime,
+                @Transient
+                private boolean isNew = false;
 
-        @Column("baggage_info")
-        String baggageInfo,
+                
+                @Override
+                public boolean isNew() {
+                    // Si isNew est true OU si l'id est null, Spring fera un INSERT
+                    return isNew || id == null;
+                }
 
-        @Column("is_negotiable")
-        Boolean isNegotiable,
-
-        @Column("payment_method")
-        String paymentMethod,
-
-        String title,
-        String status,
-
-        // URLs : Souvent stocké en JSON ou tableau de texte dans Postgres
-        // Ici mappé en String (JSON brut) pour simplifier
-        @Column("product_urls")
-        String productUrls,
-
-        @Column("regular_amount")
-        BigDecimal regularAmount,
-
-        @Column("discount_percentage")
-        Double discountPercentage, // Pourcentage peut être Double ou BigDecimal
-
-        @Column("discounted_amount")
-        BigDecimal discountedAmount,
-
-        // Metadata : JSONB dans Postgres
-        String metadata,
-
-        @CreatedDate
-        @Column("created_at")
-        Instant createdAt,
-
-        @LastModifiedDate
-        @Column("updated_at")
-        Instant updatedAt
-) {}
+} 
 ```
 
-*Lignes: 89*
+*Lignes: 58*
 
 ---
 
@@ -6776,7 +7291,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("publication")
+@Table("publications")
 public record Publication(
         @Id UUID id,
 
@@ -6796,10 +7311,9 @@ public record Publication(
     }
 }
 
-
 ```
 
-*Lignes: 30*
+*Lignes: 29*
 
 ---
 
@@ -6817,25 +7331,19 @@ import java.util.UUID;
 
 @Table("publication_images")
 public record PublicationImage(
-        // Pas de @Id unique ici car c'est une clé composite (publication_id + image_id)
+                // Pas de @Id unique ici car c'est une clé composite (publication_id + image_id)
 
-        @Column("publication_id")
-        UUID publicationId,
+                @Column("publication_id") UUID publicationId,
 
-        @Column("image_id")
-        UUID imageId,
+                @Column("image_id") UUID imageId,
 
-        @CreatedDate
-        @Column("created_at")
-        Instant createdAt,
+                @CreatedDate @Column("created_at") Instant createdAt,
 
-        @LastModifiedDate
-        @Column("updated_at")
-        Instant updatedAt
-) {}
+                @LastModifiedDate @Column("updated_at") Instant updatedAt) {
+}
 ```
 
-*Lignes: 27*
+*Lignes: 21*
 
 ---
 
@@ -6880,129 +7388,91 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
+
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
+
 import java.time.Instant;
 import java.util.UUID;
 
 @Table("reactions")
 public record Reaction(
-        @Id
-        UUID id,
+        @Id UUID id,
 
-        @Column("publication_id")
-        UUID publicationId, // FK -> Publication
+        @Column("publication_id") UUID publicationId, // FK -> Publication
 
-        @Column("user_id")
-        UUID userId,        // FK -> User
+        @Column("user_id") UUID userId, // FK -> User
 
-        String type,        // "LIKE", "LOVE", etc.
+        ReactionTypeEnum type, // "LIKE", "LOVE", etc.
 
-        @CreatedDate
-        @Column("reacted_at")
-        Instant reactedAt
-) {
-    public Reaction(UUID publicationId, UUID userId, String type) {
+        @CreatedDate @Column("reacted_at") Instant reactedAt) {
+    public Reaction(UUID publicationId, UUID userId, ReactionTypeEnum type) {
         this(null, publicationId, userId, type, Instant.now());
     }
 }
 ```
 
-*Lignes: 30*
+*Lignes: 27*
 
 ---
 
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\Service.java
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\ServiceEntity.java
 
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
-import org.springframework.data.annotation.CreatedDate;
+
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Table;
+import org.springframework.data.annotation.Transient;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
+
+import java.util.List;
 import java.util.UUID;
 
-@Table("services") // Nom de table au singulier pour cohérence
-public record Service(
-        @Id
-        UUID id,
 
-        @Column("organization_id")
-        UUID organizationId, // FK -> Organization
+@Table("syndicat_services") 
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class ServiceEntity implements Persistable<UUID>{
+    @Id
+    private UUID id;
+    
+    private String title;
 
-        // Certains champs semblent redondants avec AbstractProduct (name, description)
-        // Je les inclus car ils sont dans le schéma spécifique de Product
-        String name,
-        String description,
+    private String description;
 
-        @Column("is_active")
-        Boolean isActive,
+    private BigDecimal price;
+   
+    private List<String> features;
 
-        @Column("standard_price")
-        BigDecimal standardPrice,
+    private Boolean isActive;
 
-        @Column("departure_location")
-        String departureLocation,
+    @Transient
+    private boolean isNew = false;
 
-        @Column("arrival_location")
-        String arrivalLocation,
 
-        @Column("start_date")
-        LocalDate startDate,
 
-        @Column("start_time")
-        LocalTime startTime,
-
-        @Column("end_date")
-        LocalDate endDate,
-
-        @Column("end_time")
-        LocalTime endTime,
-
-        @Column("baggage_info")
-        String baggageInfo,
-
-        @Column("is_negotiable")
-        Boolean isNegotiable,
-
-        @Column("payment_method")
-        String paymentMethod,
-
-        String title,
-        String status,
-
-        // URLs : Souvent stocké en JSON ou tableau de texte dans Postgres
-        // Ici mappé en String (JSON brut) pour simplifier
-        @Column("product_urls")
-        String productUrls,
-
-        @Column("regular_amount")
-        BigDecimal regularAmount,
-
-        @Column("discount_percentage")
-        Double discountPercentage, // Pourcentage peut être Double ou BigDecimal
-
-        @Column("discounted_amount")
-        BigDecimal discountedAmount,
-
-        // Metadata : JSONB dans Postgres
-        String metadata,
-
-        @CreatedDate
-        @Column("created_at")
-        Instant createdAt,
-
-        @LastModifiedDate
-        @Column("updated_at")
-        Instant updatedAt
-) {}
+    // 4. C'est ici que la magie opère
+    @Override
+    public boolean isNew() {
+        // Si isNew est true OU si l'id est null, Spring fera un INSERT
+        return isNew || id == null;
+    }
+}
 ```
 
-*Lignes: 87*
+*Lignes: 52*
 
 ---
 
@@ -7195,69 +7665,6 @@ public record SyndicatMember(
 
 ---
 
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\SyndicatProductEntity.java
-
-```java
-package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
-
-import java.util.UUID;
-
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Table;
-
-import lombok.Getter;
-import lombok.Setter;
-
-
-@Table("syndicat_products")
-@Getter
-@Setter
-public class SyndicatProductEntity{
-    @Id
-    UUID productId;
-    String sku;
-    String category;
-    Integer stock;
-}
-
-```
-
-*Lignes: 22*
-
----
-
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\SyndicatServiceEntity.java
-
-```java
-package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.UUID;
-
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Table;
-
-import lombok.Getter;
-import lombok.Setter;
-
-
-@Table("syndicat_services")
-@Getter
-@Setter
-public class SyndicatServiceEntity {
-    @Id
-    private UUID serviceId;
-    private BigDecimal price;
-    private List<String> features;
-}
-
-```
-
-*Lignes: 23*
-
----
-
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\entity\User.java
 
 ```java
@@ -7382,14 +7789,16 @@ public record Vote(
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence;
 
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import com.yowyob.ugate_service.domain.model.Product;
 import com.yowyob.ugate_service.domain.ports.out.marketplace.ProductRepositoryPort;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatProductRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatProductRow;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.ProductEntity;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ProductRepository;
+
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -7398,94 +7807,96 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class PostgresSyndicatProductAdapter implements ProductRepositoryPort {
 
-    private final SyndicatProductRepository syndicatProductRepository;
-    private final DatabaseClient databaseClient;
+    private final ProductRepository syndicatProductRepository;
 
     @Override
     public Mono<Product> findById(UUID id) {
-        return syndicatProductRepository.findFullById(id)
+        return syndicatProductRepository.findById(id)
                 .map(this::mapToDomain);
     }
 
     @Override
     public Flux<Product> findBySyndicatId(UUID syndicatId) {
-        return syndicatProductRepository.findFullBySyndicatId(syndicatId)
+        return syndicatProductRepository.findBySyndicatId(syndicatId)
                 .map(this::mapToDomain);
     }
 
     @Override
-    @Transactional // Transactionnel car on touche à deux tables
     public Mono<Product> saveProduct(Product product) {
-        // 1. On insère/update dans la table commune (abstract_products)
-        return databaseClient.sql("""
-                INSERT INTO abstract_products (id, organization_id, name, description, is_active, standard_price)
-                VALUES (:id, :orgId, :name, :desc, :active, :price)
-                ON CONFLICT (id) DO UPDATE SET 
-                    name = EXCLUDED.name, 
-                    description = EXCLUDED.description,
-                    standard_price = EXCLUDED.standard_price
-                """)
-                .bind("id", product.id())
-                .bind("orgId", product.syndicatId())
-                .bind("name", product.name())
-                .bind("desc", product.description())
-                .bind("active", product.isActive())
-                .bind("price", product.price())
-                .then()
-                // 2. On insère/update dans TA table spécifique (syndicat_products)
-                .then(databaseClient.sql("""
-                    INSERT INTO syndicat_products (product_id, sku, category, stock)
-                    VALUES (:id, :sku, :cat, :stock)
-                    ON CONFLICT (product_id) DO UPDATE SET 
-                        sku = EXCLUDED.sku, 
-                        category = EXCLUDED.category, 
-                        stock = EXCLUDED.stock
-                    """)
-                    .bind("id", product.id())
-                    .bind("sku", product.sku())
-                    .bind("cat", product.category())
-                    .bind("stock", product.stock())
-                    .then())
-                .thenReturn(product);
+       
+        ProductEntity entity = new ProductEntity(
+            product.id(),
+            product.syndicatId(),
+            product.name(),
+            product.description(),
+            product.price(),
+            product.sku(),
+            product.category(),
+            product.stock(),
+            product.imageUrl(),
+            product.isActive(),
+            true
+        );
+        return syndicatProductRepository.save(entity)
+                .map(this::mapToDomain);
     }
 
     @Override
     public Mono<Product> updateProduct(Product product) {
-        // En PostgreSQL, l'UPSERT (ON CONFLICT) gère l'update de la même manière que le save
-        return saveProduct(product);
+        return syndicatProductRepository.findById(product.id())
+        .switchIfEmpty(Mono.error(new RuntimeException("product not found")))
+
+        .map(entity -> {
+
+            Optional.ofNullable(product.syndicatId()).ifPresent(entity::setSyndicatId);
+            Optional.ofNullable(product.name()).ifPresent(entity::setName);
+            Optional.ofNullable(product.description()).ifPresent(entity::setDescription);
+            Optional.ofNullable(product.price()).ifPresent(entity::setPrice);
+            Optional.ofNullable(product.sku()).ifPresent(entity::setSku);
+            Optional.ofNullable(product.category()).ifPresent(entity::setCategory);
+            Optional.ofNullable(product.stock()).ifPresent(entity::setStock);
+            Optional.ofNullable(product.imageUrl()).ifPresent(entity::setImageUrl);
+            Optional.ofNullable(product.isActive()).ifPresent(entity::setIsActive);
+            entity.setNew(false);
+        
+            return entity;
+        })
+        
+        .flatMap(syndicatProductRepository::save)
+        .map(this::mapToDomain);
+        
+
     }
 
     @Override
     @Transactional
     public Mono<Void> deleteById(UUID id) {
-        // On supprime d'abord l'extension pour respecter les FK, puis le parent
-        return databaseClient.sql("DELETE FROM syndicat_products WHERE product_id = :id")
-                .bind("id", id)
-                .then()
-                .then(databaseClient.sql("DELETE FROM abstract_products WHERE id = :id")
-                        .bind("id", id)
-                        .then());
+
+        syndicatProductRepository.findById(id)
+        .switchIfEmpty(Mono.error(new RuntimeException("Product not found")));
+
+        return syndicatProductRepository.deleteById(id);
     }
 
     // --- MAPPER INTERNE (PROPRE À L'INFRA) ---
-    private Product mapToDomain(SyndicatProductRow row) {
+    private Product mapToDomain(ProductEntity row) {
         return new Product(
-            row.id(),
-            row.organizationId(),
-            row.name(),
-            row.description(),
-            row.standardPrice(),
-            row.sku(),
-            row.category(),
-            row.stock(),
-            row.productUrls(), // mappé sur imageUrl dans le domaine
-            row.isActive()
+            row.getId(),
+            row.getSyndicatId(),
+            row.getName(),
+            row.getDescription(),
+            row.getPrice(),
+            row.getSku(),
+            row.getCategory(),
+            row.getStock(),
+            row.getImageUrl(),
+            row.getIsActive()
         );
     }
 }
 ```
 
-*Lignes: 103*
+*Lignes: 107*
 
 ---
 
@@ -7494,18 +7905,18 @@ public class PostgresSyndicatProductAdapter implements ProductRepositoryPort {
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.r2dbc.core.DatabaseClient;
+
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.yowyob.ugate_service.domain.model.SyndicatService;
 import com.yowyob.ugate_service.domain.ports.out.marketplace.ServiceOfferingRepositoryPort;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatServiceRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatServiceRow;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.ServiceEntity;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ServiceRepository;
 
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
@@ -7515,90 +7926,101 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepositoryPort {
 
-    private final SyndicatServiceRepository syndicatServiceRepository;
-    private final DatabaseClient databaseClient;
+    private final ServiceRepository syndicatServiceRepository;
 
     @Override
     public Mono<SyndicatService> findServiceById(UUID id) {
-        return syndicatServiceRepository.findFullById(id)
+        return syndicatServiceRepository.findById(id)
                 .map(this::mapToDomain);
     }
 
     @Override
     public Flux<SyndicatService> findAllActiveServices() {
-        return syndicatServiceRepository.findAllActiveFull()
+        return syndicatServiceRepository.findAll()
                 .map(this::mapToDomain);
     }
 
     @Override
     @Transactional
     public Mono<SyndicatService> save(SyndicatService service) {
-        // 1. Insertion dans la table commune 'services'
-        return databaseClient.sql("""
-                INSERT INTO services (id, title, description, is_active)
-                VALUES (:id, :title, :description, :isActive)
-                ON CONFLICT (id) DO UPDATE SET 
-                    title = EXCLUDED.title, 
-                    description = EXCLUDED.description,
-                    is_active = EXCLUDED.is_active
-                """)
-                .bind("id", service.id())
-                .bind("title", service.title())
-                .bind("description", service.description())
-                .bind("isActive", service.isActive())
-                .then()
-                // 2. Insertion dans la table d'extension 'syndicat_services'
-                .then(databaseClient.sql("""
-                    INSERT INTO syndicat_services (service_id, price, features)
-                    VALUES (:id, :price, :features)
-                    ON CONFLICT (service_id) DO UPDATE SET 
-                        price = EXCLUDED.price, 
-                        features = EXCLUDED.features
-                    """)
-                    .bind("id", service.id())
-                    .bind("price", service.price())
-                    // Conversion de List<String> en tableau String[] pour Postgres
-                    .bind("features", service.features().toArray(new String[0]))
-                    .then())
-                .thenReturn(service);
+        ServiceEntity entity = new ServiceEntity(
+            service.id(),
+            service.title(),
+            service.description(),
+            service.price(),
+            service.features(),
+            service.isActive(),
+            true
+        );
+        return syndicatServiceRepository.save(entity)
+               .map(this::mapToDomain);
     }
 
     @Override
-    @Transactional
     public Mono<SyndicatService> updateService(SyndicatService service) {
-        return save(service); // L'UPSERT gère l'update
+        return syndicatServiceRepository.findById(service.id())
+        .switchIfEmpty(Mono.error(new RuntimeException("Service not found")))
+        .map(entity -> {
+
+            Optional.ofNullable(service.title()).ifPresent(entity::setTitle);
+            Optional.ofNullable(service.description()).ifPresent(entity::setDescription);
+            Optional.ofNullable(service.price()).ifPresent(entity::setPrice);
+            Optional.ofNullable(service.features()).ifPresent(entity::setFeatures);
+            Optional.ofNullable(service.isActive()).ifPresent(entity::setIsActive);
+            entity.setNew(false);
+        
+            return entity;
+        })
+        
+        .flatMap(syndicatServiceRepository::save)
+        .map(this::mapToDomain);
     }
 
     @Override
-    @Transactional
     public Mono<Void> deleteService(UUID id) {
-        return databaseClient.sql("DELETE FROM syndicat_services WHERE service_id = :id")
-                .bind("id", id)
-                .then()
-                .then(databaseClient.sql("DELETE FROM services WHERE id = :id")
-                        .bind("id", id)
-                        .then());
+        syndicatServiceRepository.findById(id)
+        .switchIfEmpty(Mono.error(new RuntimeException("Service not found")));
+
+
+        return syndicatServiceRepository.deleteById(id);
     }
 
     // --- MAPPER ---
-    private SyndicatService mapToDomain(SyndicatServiceRow row) {
-        List<String> featuresList = row.features() != null 
-                ? Arrays.asList(row.features()) 
+    private SyndicatService mapToDomain(ServiceEntity row) {
+        List<String> featuresList = row.getFeatures() != null 
+                ? row.getFeatures() 
                 : List.of();
 
         return new SyndicatService(
-            row.id(),
-            row.title(),
-            row.description(),
-            row.price(),
+            row.getId(),
+            row.getTitle(),
+            row.getDescription(),
+            row.getPrice(),
             featuresList,
-            row.isActive()
+            row.getIsActive()
         );
     }
 }
 ```
 
-*Lignes: 104*
+*Lignes: 98*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\repository\AgencyRepository.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository;
+
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Agency;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import java.util.UUID;
+
+public interface AgencyRepository extends R2dbcRepository<Agency, UUID> {
+}
+```
+
+*Lignes: 8*
 
 ---
 
@@ -7706,6 +8128,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.re
 
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.EventImages;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -7718,11 +8141,13 @@ public interface EventImagesRepository extends R2dbcRepository<EventImages, UUID
     // or use specific methods that take eventId and imageId.
 
     Mono<EventImages> findByEventIdAndImageId(UUID eventId, UUID imageId);
+
+    Flux<EventImages> findByEventId(UUID eventId);
 }
 
 ```
 
-*Lignes: 18*
+*Lignes: 21*
 
 ---
 
@@ -7840,24 +8265,21 @@ public interface OrganisationRepository extends R2dbcRepository<Organization, UU
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository;
 
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Product;
-import org.springframework.data.r2dbc.repository.Modifying;
-import org.springframework.data.r2dbc.repository.Query;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.ProductEntity;
+
+import reactor.core.publisher.Flux;
+
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
-import reactor.core.publisher.Mono;
 import java.util.UUID;
 
-public interface ProductRepository extends R2dbcRepository<Product, UUID> {
+public interface ProductRepository extends R2dbcRepository<ProductEntity, UUID> {
+    Flux<ProductEntity> findBySyndicatId(UUID syndicatId);
 
-    @Modifying
-    // Correction : table "product" et champ "standardPrice" (ou regularAmount selon votre logique métier)
-    @Query("INSERT INTO product (id, standard_price) VALUES (:#{#p.id}, :#{#p.standardPrice})")
-    Mono<Void> insert(@org.springframework.data.repository.query.Param("p") Product produit);
 }
 
 ```
 
-*Lignes: 17*
+*Lignes: 14*
 
 ---
 
@@ -7949,18 +8371,59 @@ public interface PublicationVoteRepository extends R2dbcRepository<PublicationVo
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Reaction;
+
+import reactor.core.publisher.Mono;
+
+import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Repository
 public interface ReactionRepository extends ReactiveCrudRepository<Reaction, UUID> {
+
+  @Query("""
+      INSERT INTO reactions (publication_id, user_id, type, reacted_at)
+      VALUES (:publicationId, :userId, CAST(:type AS reaction_type_enum), :reactedAt)
+      """)
+  Mono<Void> insertReaction(
+      UUID publicationId,
+      UUID userId,
+      String type,
+      Instant reactedAt);
+
 }
 
 ```
 
-*Lignes: 12*
+*Lignes: 28*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\repository\ServiceRepository.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository;
+
+import java.util.UUID;
+
+
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+
+
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.ServiceEntity;
+
+
+
+public interface ServiceRepository extends R2dbcRepository<ServiceEntity, UUID> {
+
+
+} 
+```
+
+*Lignes: 16*
 
 ---
 
@@ -8012,75 +8475,6 @@ public interface SyndicatMemberRepository extends ReactiveCrudRepository<Syndica
 
 ---
 
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\repository\SyndicatProductRepository.java
-
-```java
-package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository;
-
-import java.math.BigDecimal;
-import java.util.UUID;
-
-import org.springframework.data.r2dbc.repository.Query;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
-
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatProductEntity;
-
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-
-public interface SyndicatProductRepository extends R2dbcRepository<SyndicatProductEntity, UUID> {
-    
-    @Query("""
-        SELECT p.id, p.organization_id, p.name, p.description, p.product_urls, 
-               p.is_active, p.standard_price, e.sku, e.category, e.stock 
-        FROM abstract_products p 
-        INNER JOIN syndicat_products e ON p.id = e.product_id 
-        WHERE p.id = :id
-    """)
-    Mono<SyndicatProductRow> findFullById(UUID id);
-
-    @Query("""
-        SELECT p.id, p.organization_id, p.name, p.description, p.product_urls, 
-               p.is_active, p.standard_price, e.sku, e.category, e.stock 
-        FROM abstract_products p 
-        INNER JOIN syndicat_products e ON p.id = e.product_id 
-        WHERE p.organization_id = :syndicatId
-    """)
-    Flux<SyndicatProductRow> findFullBySyndicatId(UUID syndicatId);
-}
-```
-
-*Lignes: 33*
-
----
-
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\repository\SyndicatProductRow.java
-
-```java
-package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository;
-
-import java.math.BigDecimal;
-import java.util.UUID;
-
-// Ce record sert uniquement à la lecture (JOIN) dans la couche Infra
-public record SyndicatProductRow(
-    UUID id,
-    UUID organizationId,
-    String name,
-    String description,
-    String productUrls,
-    Boolean isActive,
-    BigDecimal standardPrice,
-    String sku,
-    String category,
-    Integer stock
-) {}
-```
-
-*Lignes: 18*
-
----
-
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\repository\SyndicatRepository.java
 
 ```java
@@ -8126,69 +8520,6 @@ public interface SyndicatRepository extends R2dbcRepository<Syndicat, UUID> {
 
 ---
 
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\repository\SyndicatServiceRepository.java
-
-```java
-package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository;
-
-import java.util.UUID;
-
-import org.springframework.data.r2dbc.repository.Query;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
-
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatServiceEntity;
-
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-
-public interface SyndicatServiceRepository extends R2dbcRepository<SyndicatServiceEntity, UUID> {
-
-    @Query("""
-        SELECT s.id, s.title, s.description, s.is_active, 
-               e.price, e.features 
-        FROM services s 
-        INNER JOIN syndicat_services e ON s.id = e.service_id 
-        WHERE s.id = :id
-    """)
-    Mono<SyndicatServiceRow> findFullById(UUID id);
-
-    @Query("""
-        SELECT s.id, s.title, s.description, s.is_active, 
-               e.price, e.features 
-        FROM services s 
-        INNER JOIN syndicat_services e ON s.id = e.service_id 
-        WHERE s.is_active = true
-    """)
-    Flux<SyndicatServiceRow> findAllActiveFull();
-} 
-```
-
-*Lignes: 32*
-
----
-
-### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\repository\SyndicatServiceRow.java
-
-```java
-package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository;
-
-import java.math.BigDecimal;
-import java.util.UUID;
-
-public record SyndicatServiceRow(
-    UUID id,
-    String title,
-    String description,
-    BigDecimal price, // Vient de syndicat_services
-    String[] features, // Tableau natif Postgres
-    Boolean isActive
-) {}
-```
-
-*Lignes: 13*
-
----
-
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\repository\UserEventRepository.java
 
 ```java
@@ -8224,12 +8555,11 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 public interface UserRepository extends R2dbcRepository<User, UUID> {
-
-
+    Mono<User> findByEmail(String email);
 }
 ```
 
-*Lignes: 11*
+*Lignes: 10*
 
 ---
 
@@ -8412,106 +8742,72 @@ public class RedisConfig {
 ```java
 package com.yowyob.ugate_service.infrastructure.config;
 
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import reactor.core.publisher.Mono;
 
-import java.time.Instant;
-import java.util.Collections;
-import java.util.HashMap;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 
 @Configuration
 public class SecurityConfig {
 
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
     @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http, UserSyncWebFilter userSyncWebFilter) {
         http
-                // 1. On applique la configuration CORS ici
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // 2. On désactive CSRF (standard pour les API REST sans état)
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
-
-                // 3. On définit les règles d'autorisation
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**", "/actuator/**").permitAll()
                         .anyExchange().authenticated()
                 )
-
-                // 4. On configure le serveur de ressources JWT
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtDecoder(unsafeJwtDecoder())) // Votre décodeur de dev
-                );
+                        .jwt(jwt -> jwt.jwtDecoder(jwtDecoder()))
+                )
+                .addFilterAfter(userSyncWebFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
         return http.build();
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
+    public ReactiveJwtDecoder jwtDecoder() {
+        // Conversion de la chaîne HEX en bytes
+        byte[] secretKeyBytes = HexFormat.of().parseHex(jwtSecret);
 
-        configuration.setAllowedOrigins(List.of("*"));
+        SecretKeySpec secretKey = new SecretKeySpec(secretKeyBytes, "HmacSHA256");
 
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-        // Headers autorisés
-        configuration.setAllowedHeaders(List.of("*"));
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-
-        return source;
+        return NimbusReactiveJwtDecoder.withSecretKey(secretKey)
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
     }
 
-    /**
-     * Méthode passoire temporaire qu'on va rétirer plutard, c'est pour faire face au
-     * probleme d'authentifications en attendant d'avoir la clé utilisé par le service d'authentification
-     * pour signer ses tokens
-     */
     @Bean
-    public ReactiveJwtDecoder unsafeJwtDecoder() {
-        return token -> Mono.fromCallable(() -> {
-            try {
-                // On parse le token brut
-                SignedJWT parsedToken = SignedJWT.parse(token);
-                JWTClaimsSet claims = parsedToken.getJWTClaimsSet();
-
-                // On construit l'objet JWT Spring Security manuellement
-                Map<String, Object> headers = new HashMap<>(parsedToken.getHeader().toJSONObject());
-                Map<String, Object> claimsMap = new HashMap<>(claims.getClaims());
-
-
-                Instant issuedAt = claims.getIssueTime() != null ? claims.getIssueTime().toInstant() : Instant.now();
-                Instant expiresAt = claims.getExpirationTime() != null ? claims.getExpirationTime().toInstant() : Instant.now().plusSeconds(3600);
-
-                return new Jwt(
-                        token,
-                        issuedAt,
-                        expiresAt,
-                        headers,
-                        claimsMap
-                );
-            } catch (Exception e) {
-                throw new JwtException("Impossible de parser le token : " + e.getMessage());
-            }
-        });
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("*"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(List.of("*"));
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
 ```
 
-*Lignes: 99*
+*Lignes: 65*
 
 ---
 
@@ -8570,6 +8866,71 @@ public class ServiceConfig {
 ```
 
 *Lignes: 49*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\config\UserSyncWebFilter.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.config;
+
+import com.yowyob.ugate_service.application.service.auth.UserManagementService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class UserSyncWebFilter implements WebFilter {
+
+    private final UserManagementService userManagementService;
+
+    @Override
+    @NonNull
+    public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
+
+        return ReactiveSecurityContextHolder.getContext()
+                .map(securityContext -> securityContext.getAuthentication().getPrincipal())
+                .filter(principal -> principal instanceof Jwt)
+                .cast(Jwt.class)
+                .flatMap(jwt -> {
+                    try {
+                        // Extraction ID (sub)
+                        String sub = jwt.getSubject();
+                        UUID userId = UUID.fromString(sub);
+
+                        String username = jwt.getClaimAsString("username");
+                        if (username == null) {
+                            username = "unknown_user";
+                        }
+
+                        return userManagementService.synchronizeUser(userId, username);
+
+                    } catch (IllegalArgumentException e) {
+                        log.warn("UUID malformé dans le token : {}", e.getMessage());
+                        return Mono.empty();
+                    } catch (Exception e) {
+                        log.error("Erreur synchro user", e);
+                        return Mono.empty();
+                    }
+                })
+                // On continue toujours la chaîne, même si pas de token ou erreur
+                .then(chain.filter(exchange));
+    }
+}
+```
+
+*Lignes: 56*
 
 ---
 
@@ -8753,6 +9114,27 @@ public interface ServiceOfferingMapper {
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\mappers\syndicate\BranchMapper.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.mappers.syndicate;
+
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BranchResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Branch;
+import org.mapstruct.Mapper;
+
+@Mapper(componentModel = "spring")
+public interface BranchMapper {
+
+    // MapStruct mappe automatiquement id, name, bannerUrl, etc.
+    BranchResponse toResponse(Branch entity);
+}
+```
+
+*Lignes: 12*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\mappers\syndicate\SyndicateMapper.java
 
 ```java
@@ -8872,11 +9254,15 @@ server.port=8091
 spring.docker.compose.enabled=false
 springdoc.swagger-ui.path=/swagger-ui.html
 springdoc.api-docs.path=/v3/api-docs
+server.forward-headers-strategy=framework
+logging.level.org.springframework.security=DEBUG
 
 # POSTGRESQL (R2DBC) 
 spring.r2dbc.url=r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:newdb2}
 spring.r2dbc.username=${DB_USERNAME:postgres}
 spring.r2dbc.password=${DB_PASSWORD:postgres}
+# spring.r2dbc.username=master
+# spring.r2dbc.password=Azerty1234
 # Nombre de connexions ouvertes au démarrage
 spring.r2dbc.pool.initial-size=1
 # MAX connexions simultanées vers PostgreSQL
@@ -8900,6 +9286,8 @@ spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.xml
 spring.liquibase.url=jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:newdb2}
 spring.liquibase.user=${DB_USERNAME:postgres}
 spring.liquibase.password=${DB_PASSWORD:postgres}
+#  spring.liquibase.user=master
+#  spring.liquibase.password=Azerty1234
 
 # REDIS
 spring.data.redis.host=${REDIS_HOST:168.119.122.86}
@@ -8936,9 +9324,11 @@ resilience4j.circuitbreaker.instances.stock-service.slidingWindowSize=5
 # API Externe
 
 #Media Service
-spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://api.tramasys.com/.well-known/jwks.json
 application.external.media-service-url=https://media-service.pynfi.com
+
+# Authentication Service
 application.external.auth-service-url=https://auth-service.pynfi.com/
+jwt.secret=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
 
 #Notification Service
 application.external.notification-service-url=https://notification-service.pynfi.com
@@ -8946,7 +9336,7 @@ application.external.notification-service-token=VOTRE_TOKEN_ICI
 application.external.notification-invite-template-id=123
 ```
 
-*Lignes: 81*
+*Lignes: 89*
 
 ---
 
@@ -9187,22 +9577,195 @@ application.external.notification-invite-template-id=123
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
          http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
-    <changeSet id="v1.4-1" author="gemini-agent">
-        <createTable tableName="vote">
-            <column name="id" type="UUID">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="user_id" type="UUID"/>
-            <column name="publication_vote_id" type="UUID"/>
-            <column name="label" type="VARCHAR(255)"/>
-        </createTable>
+    <changeSet id="v1.5-add-branch-banner" author="yowyob">
+        <addColumn tableName="branches">
+            <column name="banner_url" type="VARCHAR(1024)"/>
+        </addColumn>
     </changeSet>
 
 </databaseChangeLog>
 
 ```
 
-*Lignes: 20*
+*Lignes: 15*
+
+---
+
+### 📄 src\main\resources\db\changelog\changes\v1.5-add-branch-banner.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+
+    <changeSet id="v1.5-add-branch-banner" author="yowyob">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="branches" columnName="banner_url"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="branches">
+            <column name="banner_url" type="VARCHAR(1024)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
+```
+
+*Lignes: 21*
+
+---
+
+### 📄 src\main\resources\db\changelog\changes\v1.6-auto-uuid-comments.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- 1. S’assurer que l’extension pgcrypto est présente -->
+    <changeSet id="001-enable-pgcrypto" author="daniel">
+        <sql>CREATE EXTENSION IF NOT EXISTS "pgcrypto";</sql>
+    </changeSet>
+
+    <!-- 2. Définir UUID automatique pour la colonne id -->
+    <changeSet id="002-auto-uuid-event" author="daniel">
+        <addDefaultValue
+            tableName="event"
+            columnName="id"
+            defaultValueComputed="gen_random_uuid()"/>
+    </changeSet>
+</databaseChangeLog>
+
+```
+
+*Lignes: 22*
+
+---
+
+### 📄 src\main\resources\db\changelog\changes\v1.7-create-event-images-table.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="v1.7-2-fix-event-fk" author="gemini-agent-fix">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="event_images"/>
+        </preConditions>
+        <comment>Modify event_images table to correct the foreign key reference from 'events' to 'event' table</comment>
+        
+        <sql>
+            ALTER TABLE event_images DROP CONSTRAINT IF EXISTS event_images_event_id_fkey;
+            ALTER TABLE event_images DROP CONSTRAINT IF EXISTS fk_event_images_event;
+        </sql>
+
+        <addForeignKeyConstraint baseTableName="event_images"
+                                 baseColumnNames="event_id"
+                                 constraintName="fk_event_images_event"
+                                 referencedTableName="event"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>
+```
+
+*Lignes: 27*
+
+---
+
+### 📄 src\main\resources\db\changelog\changes\v1.8-create-user-events-table.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="v1.8-1-create-user-events" author="gemini-agent">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="user_events"/>
+            </not>
+        </preConditions>
+        <createTable tableName="user_events">
+            <column name="user_event_id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="timestamp" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.8-2-add-fk-user-events-to-event" author="gemini-agent">
+        <addForeignKeyConstraint baseTableName="user_events"
+                                 baseColumnNames="event_id"
+                                 constraintName="fk_user_events_event"
+                                 referencedTableName="event"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>
+
+```
+
+*Lignes: 38*
+
+---
+
+### 📄 src\main\resources\db\changelog\changes\v1.9-alter-user-events-table.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="v1.9-1-drop-fk-user-events-event" author="gemini-agent">
+        <preConditions onFail="MARK_RAN">
+            <foreignKeyConstraintExists foreignKeyTableName="user_events" foreignKeyName="fk_user_events_event"/>
+        </preConditions>
+        <dropForeignKeyConstraint baseTableName="user_events"
+                                 constraintName="fk_user_events_event"/>
+    </changeSet>
+    
+    <changeSet id="v1.9-2-alter-user-events-event_id-type" author="gemini-agent">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="user_events" columnName="event_id"/>
+        </preConditions>
+        <modifyDataType tableName="user_events"
+                        columnName="event_id"
+                        newDataType="VARCHAR(36)"/>
+    </changeSet>
+
+</databaseChangeLog>
+```
+
+*Lignes: 25*
 
 ---
 
@@ -9220,10 +9783,15 @@ application.external.notification-invite-template-id=123
     <include file="classpath:db/changelog/changes/v1.2-create-event-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.3-create-publication-vote-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.4-create-vote-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.5-add-branch-banner.xml"/>
+    <include file="classpath:db/changelog/changes/v1.6-auto-uuid-comments.xml"/>
+    <include file="classpath:db/changelog/changes/v1.7-create-event-images-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.8-create-user-events-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.9-alter-user-events-table.xml"/>
 </databaseChangeLog>
 ```
 
-*Lignes: 12*
+*Lignes: 17*
 
 ---
 
@@ -9330,8 +9898,8 @@ public class CommentControllerTests {
                 testSyndicat = syndicatRepository.save(new Syndicat(null, testUser.id(), "Test Syndicat", "description",
                                 "domain", "logo", "status"))
                                 .block();
-                testBranch = branchRepository.save(new Branch(null, testSyndicat.id(), "Test Branch", "location",
-                                "contact", Instant.now(), Instant.now())).block();
+                testBranch = branchRepository.save(Branch.createNew(UUID.randomUUID(), testSyndicat.id(), "Test Branch", "location",
+                                "contact","bannerUrl")).block();
                 testPublication = publicationRepository
                                 .save(new Publication(testBranch.id(), testUser.id(), "Test Content", 0L,
                                                 Instant.now()))
@@ -9363,7 +9931,7 @@ public class CommentControllerTests {
                 webTestClient
                                 .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUser.id().toString())))
                                 .post()
-                                .uri("/api/v1/publications/" + testPublication.id() + "/comments")
+                                .uri("/publications/" + testPublication.id() + "/comments")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .bodyValue(request)
                                 .exchange()
@@ -9390,7 +9958,7 @@ public class CommentControllerTests {
                                 .block();
 
                 webTestClient.get()
-                                .uri("/api/v1/publications/" + testPublication.id() + "/comments")
+                                .uri("/publications/{publicationId}/comments", testPublication.id().toString())
                                 .exchange()
                                 .expectStatus().isOk()
                                 .expectBody()
@@ -9410,297 +9978,10 @@ public class CommentControllerTests {
 ### 📄 src\test\java\com\yowyob\ugate_service\EventControllerTests.java
 
 ```java
-package com.yowyob.ugate_service;
 
-import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
-import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
-import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
-import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ParticipantDTO;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Event;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.UserEvent;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.EventImagesRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.EventRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ImageRepository;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.UserEventRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Import;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.reactive.function.BodyInserters;
-import reactor.core.publisher.Mono;
-
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.List;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.springSecurity;
-
-import org.springframework.test.annotation.DirtiesContext;
-
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-@Import(TestSecurityConfig.class)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class EventControllerTests {
-
-    private WebTestClient webTestClient;
-
-    @Autowired
-    private ApplicationContext context;
-
-    @Autowired
-    private EventRepository eventRepository;
-
-    @Autowired
-    private ImageRepository imageRepository;
-
-    @Autowired
-    private EventImagesRepository eventImagesRepository;
-
-    @Autowired
-    private UserEventRepository userEventRepository;
-
-    @MockBean
-    private MediaService mediaService;
-
-    @MockBean
-    private UserGatewayPort userGatewayPort;
-
-    @BeforeEach
-    void setUp() {
-        this.webTestClient = WebTestClient
-                .bindToApplicationContext(this.context)
-                .apply(springSecurity())
-                .configureClient()
-                .build();
-        
-        eventRepository.deleteAll().block();
-        imageRepository.deleteAll().block();
-        eventImagesRepository.deleteAll().block();
-        userEventRepository.deleteAll().block();
-        
-        // Mock the media service to return a dummy URL
-        when(mediaService.uploadImage(any())).thenReturn(Mono.just(List.of("http://localhost:8080/media/test-image.png")));
-        when(mediaService.uploadVideo(any())).thenReturn(Mono.just(List.of()));
-        when(mediaService.uploadFiles(any())).thenReturn(Mono.just(List.of()));
-    }
-
-    @Test
-    void testCreateEventWithImage() {
-        MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
-        bodyBuilder.part("creatorId", UUID.randomUUID().toString());
-        bodyBuilder.part("branchId", UUID.randomUUID().toString());
-        bodyBuilder.part("title", "Community BBQ");
-        bodyBuilder.part("description", "Annual community barbecue event.");
-        bodyBuilder.part("eventDate", "2026-07-20");
-        bodyBuilder.part("location", "Central Park");
-        bodyBuilder.part("startTime", "12:00");
-        bodyBuilder.part("endTime", "16:00");
-        bodyBuilder.part("images", new ClassPathResource("test-image.png")).contentType(MediaType.IMAGE_PNG);
-
-        webTestClient.post()
-                .uri("/events")
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
-                .exchange()
-                .expectStatus().isCreated();
-
-        // Verify the event was saved to the database
-        Event event = eventRepository.findAll().blockFirst();
-        assertNotNull(event);
-        assertEquals("Community BBQ", event.title());
-        assertEquals(LocalDate.parse("2026-07-20"), event.date());
-        assertEquals(LocalTime.parse("12:00"), event.startTime());
-    }
-
-    @Test
-    void testCreateEventWithoutMedia() {
-        MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
-        bodyBuilder.part("creatorId", UUID.randomUUID().toString());
-        bodyBuilder.part("branchId", UUID.randomUUID().toString());
-        bodyBuilder.part("title", "Team Meeting");
-        bodyBuilder.part("description", "Weekly team sync meeting.");
-        bodyBuilder.part("eventDate", "2026-01-12");
-        bodyBuilder.part("location", "Office Conference Room");
-        bodyBuilder.part("startTime", "10:00");
-        bodyBuilder.part("endTime", "11:00");
-
-        webTestClient.post()
-                .uri("/events")
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
-                .exchange()
-                .expectStatus().isCreated();
-
-        Event event = eventRepository.findAll().blockFirst();
-        assertNotNull(event);
-        assertEquals("Team Meeting", event.title());
-    }
-
-    @Test
-    void testCreateEventWithInvalidInput() {
-        MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
-        bodyBuilder.part("creatorId", UUID.randomUUID().toString());
-        bodyBuilder.part("branchId", UUID.randomUUID().toString());
-        bodyBuilder.part("title", ""); // Invalid: empty title
-        bodyBuilder.part("description", "A description without a title.");
-        bodyBuilder.part("eventDate", "2026-02-10");
-        bodyBuilder.part("location", "A Location");
-        bodyBuilder.part("startTime", "09:00");
-        bodyBuilder.part("endTime", "10:00");
-
-        webTestClient.post()
-                .uri("/events")
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
-                .exchange()
-                .expectStatus().isBadRequest();
-    }
-
-    @Test
-    void testJoinEvent_Success() {
-        // 1. Create a test event
-        Event testEvent = new Event(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            "Test Event for Joining",
-            "Description",
-            "Online",
-            LocalDate.now().plusDays(10),
-            LocalTime.of(18, 0),
-            LocalTime.of(20, 0),
-            Instant.now(),
-            Instant.now()
-        );
-        Event savedEvent = eventRepository.save(testEvent).block();
-        assertNotNull(savedEvent);
-
-        // 2. Create a test user UUID
-        UUID testUserId = UUID.randomUUID();
-
-        // 3. Perform authenticated POST request
-        webTestClient
-            .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
-            .post()
-            .uri("/events/{eventId}/join", savedEvent.id())
-            .exchange()
-            .expectStatus().isOk();
-
-        // 4. Verify that the user-event link was created
-        UserEvent userEvent = userEventRepository.findAll().blockFirst();
-        assertNotNull(userEvent);
-        assertEquals(testUserId.toString(), userEvent.userId());
-        assertEquals(savedEvent.id().toString(), userEvent.eventId());
-    }
-
-    @Test
-    void testGetEventsByBranch_Success() {
-        // 1. Create test data
-        UUID branchId = UUID.randomUUID();
-        Event event1 = new Event(UUID.randomUUID(), branchId, "Event 1", "Desc 1", "Loc 1", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
-        Event event2 = new Event(UUID.randomUUID(), branchId, "Event 2", "Desc 2", "Loc 2", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
-        Event savedEvent1 = eventRepository.save(event1).block();
-        Event savedEvent2 = eventRepository.save(event2).block();
-        assertNotNull(savedEvent1);
-        assertNotNull(savedEvent2);
-
-        // 2. Simulate users joining event1 (2 participants)
-        userEventRepository.save(new UserEvent(null, UUID.randomUUID().toString(), savedEvent1.id().toString(), Instant.now())).block();
-        userEventRepository.save(new UserEvent(null, UUID.randomUUID().toString(), savedEvent1.id().toString(), Instant.now())).block();
-
-        // 3. Perform GET request
-        webTestClient.get()
-            .uri("/events/branch/{branchId}", branchId)
-            .exchange()
-            .expectStatus().isOk()
-            .expectBodyList(EventResponseDTO.class)
-            .hasSize(2)
-            .value(events -> {
-                EventResponseDTO dto1 = events.stream().filter(e -> e.getId().equals(savedEvent1.id())).findFirst().orElseThrow();
-                assertEquals(2, dto1.getParticipantCount());
-                assertEquals("Event 1", dto1.getTitle());
-
-                EventResponseDTO dto2 = events.stream().filter(e -> e.getId().equals(savedEvent2.id())).findFirst().orElseThrow();
-                assertEquals(0, dto2.getParticipantCount());
-                assertEquals("Event 2", dto2.getTitle());
-            });
-    }
-
-    @Test
-    void testGetEventParticipants_Success() {
-        // 1. Create test data
-        Event testEvent = new Event(UUID.randomUUID(), UUID.randomUUID(), "Event With Participants", "Desc", "Loc", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
-        Event savedEvent = eventRepository.save(testEvent).block();
-        assertNotNull(savedEvent);
-
-        UUID userId1 = UUID.randomUUID();
-        UUID userId2 = UUID.randomUUID();
-        userEventRepository.save(new UserEvent(null, userId1.toString(), savedEvent.id().toString(), Instant.now())).block();
-        userEventRepository.save(new UserEvent(null, userId2.toString(), savedEvent.id().toString(), Instant.now())).block();
-
-        // 2. Mock the UserGatewayPort
-        when(userGatewayPort.findById(userId1)).thenReturn(Mono.just(new ExternalUserInfo(userId1, "John", "Doe", "j.doe@mail.com", "123", null, null)));
-        when(userGatewayPort.findById(userId2)).thenReturn(Mono.just(new ExternalUserInfo(userId2, "Jane", "Smith", "j.smith@mail.com", "456", null, null)));
-
-        // 3. Perform GET request
-        webTestClient.get()
-            .uri("/events/{eventId}/participants", savedEvent.id())
-            .exchange()
-            .expectStatus().isOk()
-            .expectBodyList(ParticipantDTO.class)
-            .hasSize(2)
-            .value(participants -> {
-                ParticipantDTO p1 = participants.stream().filter(p -> p.getUserId().equals(userId1)).findFirst().orElseThrow();
-                assertEquals("John Doe", p1.getFullName());
-
-                ParticipantDTO p2 = participants.stream().filter(p -> p.getUserId().equals(userId2)).findFirst().orElseThrow();
-                assertEquals("Jane Smith", p2.getFullName());
-            });
-    }
-
-    @Test
-    void testLeaveEvent_Success() {
-        // 1. Create a test event and a user who has joined it
-        Event testEvent = new Event(UUID.randomUUID(), UUID.randomUUID(), "Event to Leave", "Desc", "Loc", LocalDate.now(), LocalTime.now(), LocalTime.now(), Instant.now(), Instant.now());
-        Event savedEvent = eventRepository.save(testEvent).block();
-        assertNotNull(savedEvent);
-
-        UUID testUserId = UUID.randomUUID();
-        UserEvent userEvent = new UserEvent(null, testUserId.toString(), savedEvent.id().toString(), Instant.now());
-        userEventRepository.save(userEvent).block();
-        assertEquals(1, userEventRepository.count().block());
-
-        // 2. Perform authenticated DELETE request
-        webTestClient
-            .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
-            .delete()
-            .uri("/events/{eventId}/leave", savedEvent.id())
-            .exchange()
-            .expectStatus().isNoContent();
-
-        // 3. Verify that the user-event link has been deleted
-        assertEquals(0, userEventRepository.count().block());
-    }
-}
 ```
 
-*Lignes: 288*
+*Lignes: 1*
 
 ---
 
@@ -9830,7 +10111,7 @@ class PublicationControllerTests {
                 .contentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA)
                 .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
                 .exchange()
-                .expectStatus().isBadRequest();
+                .expectStatus().isCreated();
     }
 
     @Test
@@ -9976,9 +10257,8 @@ class PublicationVoteControllerTests {
 
     @Test
     void testCastVote_Success() {
-        // 1. Create a poll that is currently open
         PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
-                Instant.now().plus(1, ChronoUnit.HOURS), "SINGLE");
+                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
         PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
         assertNotNull(savedPoll);
 
@@ -10030,7 +10310,7 @@ class PublicationVoteControllerTests {
     void testGetVoteResults_Success() {
         // 1. Create a poll
         PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
-                Instant.now().plus(1, ChronoUnit.HOURS), "SINGLE");
+                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
         PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
         assertNotNull(savedPoll);
 
@@ -10067,7 +10347,7 @@ class PublicationVoteControllerTests {
     void testGetVoteResults_UserHasNotVoted() {
         // 1. Create a poll
         PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Animal", "desc",
-                Instant.now().plus(1, ChronoUnit.HOURS), "SINGLE");
+                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
         PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
         assertNotNull(savedPoll);
 
@@ -10094,7 +10374,7 @@ class PublicationVoteControllerTests {
 
 ```
 
-*Lignes: 197*
+*Lignes: 196*
 
 ---
 
@@ -10103,6 +10383,7 @@ class PublicationVoteControllerTests {
 ```java
 package com.yowyob.ugate_service;
 
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateReactionRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Publication;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationRepository;
@@ -10157,14 +10438,14 @@ class ReactionControllerTests {
 
         // Prepare the reaction request
         UUID userId = UUID.randomUUID();
-        String reactionType = "LIKE";
+        ReactionTypeEnum reactionType = ReactionTypeEnum.LIKE;
         CreateReactionRequest request = new CreateReactionRequest();
         request.setUserId(userId);
         request.setReactionType(reactionType);
 
         // Act: Call the endpoint to add a reaction
         webTestClient.post()
-                .uri("/api/v1/publications/{publicationId}/reactions", savedPublication.id())
+                .uri("/publications/{publicationId}/reactions", savedPublication.id())
                 .bodyValue(request)
                 .exchange()
                 .expectStatus().isOk();
@@ -10190,7 +10471,7 @@ class ReactionControllerTests {
 
 ```
 
-*Lignes: 87*
+*Lignes: 88*
 
 ---
 
@@ -10267,6 +10548,9 @@ spring.sql.init.schema-locations=classpath:schema.sql
 ### 📄 src\test\resources\schema.sql
 
 ```sql
+CREATE DOMAIN IF NOT EXISTS reaction_type_enum AS VARCHAR(255);
+CREATE DOMAIN IF NOT EXISTS role_type_enum AS VARCHAR(255);
+
 CREATE TABLE users (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     name VARCHAR(255),
@@ -10299,12 +10583,13 @@ CREATE TABLE branches (
     name VARCHAR(255),
     location VARCHAR(255),
     contact VARCHAR(255),
+    banner_url VARCHAR(255),
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
 
 
-CREATE TABLE publication (
+CREATE TABLE publications (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     branch_id UUID,
     author_id UUID,
@@ -10328,7 +10613,7 @@ CREATE TABLE publication_images (
     PRIMARY KEY (publication_id, image_id)
 );
 
-CREATE TABLE comment (
+CREATE TABLE comments (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     author_id UUID,
     publication_id UUID,
@@ -10346,7 +10631,7 @@ CREATE TABLE reactions (
     reacted_at TIMESTAMP
 );
 
-CREATE TABLE event (
+CREATE TABLE events (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     creator_id UUID,
     branch_id UUID,
@@ -10392,20 +10677,20 @@ CREATE TABLE vote (
 );
 ```
 
-*Lignes: 123*
+*Lignes: 127*
 
 ---
 
 ## Statistiques
 
-- **Total de fichiers analysés:** 205
-- **Total de lignes de code:** 8 232
+- **Total de fichiers analysés:** 213
+- **Total de lignes de code:** 8 437
 - **Moyenne de lignes par fichier:** 40
 
 ### Répartition par type de fichier
 
-- **.java:** 193 fichiers
-- **.xml:** 6 fichiers
+- **.java:** 196 fichiers
+- **.xml:** 11 fichiers
 - **.properties:** 2 fichiers
 - **.yml:** 1 fichier
 - **.yaml:** 1 fichier
