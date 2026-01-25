@@ -17,6 +17,9 @@ public record SyndicatMember(
         @Column("user_id")
         UUID userId,     // FK -> AppUser
 
+        @Column("branch_id")
+        UUID branchId,
+
         @CreatedDate     // Rempli automatiquement si l'auditing est activé
         @Column("joined_at")
         Instant joinedAt,
@@ -26,10 +29,28 @@ public record SyndicatMember(
 
         @Column("role") RoleTypeEnum role   // MEMBER, MODERATOR, ADMIN
 ) {
-    // Constructeur utilitaire pour une adhésion par défaut
-    public static SyndicatMember create(UUID syndicatId, UUID userId, RoleTypeEnum role) {
-        return new SyndicatMember(syndicatId, userId, null, true, role);
+
+    public static SyndicatMember createLocal(UUID syndicatId, UUID branchId, UUID userId, RoleTypeEnum role) {
+        if (branchId == null) {
+            throw new IllegalArgumentException("Un membre local doit avoir une branche (branchId ne peut pas être null)");
+        }
+        return new SyndicatMember(syndicatId, userId, branchId, Instant.now(), true, role);
     }
+
+
+    public static SyndicatMember createGlobalAdmin(UUID syndicatId, UUID userId) {
+        return new SyndicatMember(syndicatId, userId, null, Instant.now(), true, RoleTypeEnum.ADMIN);
+    }
+
+    public SyndicatMember withRole(RoleTypeEnum newRole) {
+        return new SyndicatMember(syndicatId, userId, branchId, joinedAt, isActive, newRole);
+    }
+
+    public boolean isGlobalAdmin() {
+        return RoleTypeEnum.ADMIN.equals(this.role) && this.branchId == null;
+    }
+
+
 
     public boolean isStatusActive() {
         return Boolean.TRUE.equals(isActive);

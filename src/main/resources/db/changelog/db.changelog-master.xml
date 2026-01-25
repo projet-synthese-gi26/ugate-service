@@ -14,4 +14,6 @@
     <include file="classpath:db/changelog/changes/v1.7-create-event-images-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.8-create-user-events-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.9-alter-user-events-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.10-make-branch-nullable.xml"/>
+
 </databaseChangeLog>

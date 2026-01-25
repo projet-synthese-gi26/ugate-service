@@ -31,8 +31,29 @@ public interface SyndicatMemberRepository extends ReactiveCrudRepository<Syndica
     @Query("SELECT * FROM syndicat_members WHERE user_id = :userId")
     Mono<SyndicatMember> findByUserId(UUID userId);
 
-    @Query("SELECT * FROM syndicat_members WHERE user_id = :userId")
-    Flux<SyndicatMember> findAllByUserId(UUID userId);
 
     Mono<Long> countByIsActiveTrue();
+
+    Mono<SyndicatMember> findBySyndicatIdAndBranchIdAndUserId(UUID syndicatId, UUID branchId, UUID userId);
+
+
+    Flux<SyndicatMember> findBySyndicatId(UUID syndicatId);
+
+
+    Flux<SyndicatMember> findByBranchId(UUID branchId);
+
+
+    Mono<Long> countBySyndicatIdAndIsActiveTrue(UUID syndicatId);
+
+
+    Mono<Long> countByBranchIdAndIsActiveTrue(UUID branchId);
+
+    Flux<SyndicatMember> findAllByUserId(UUID userId);
+
+
+    Mono<SyndicatMember> findBySyndicatIdAndUserId(UUID syndicatId, UUID userId);
+
+
+    Mono<Boolean> existsBySyndicatIdAndUserId(UUID syndicatId, UUID userId);
+
 }
