@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="v1.9-1-drop-fk-user-events-event" author="gemini-agent">
+        <preConditions onFail="MARK_RAN">
+            <foreignKeyConstraintExists foreignKeyTableName="user_events" foreignKeyName="fk_user_events_event"/>
+        </preConditions>
+        <dropForeignKeyConstraint baseTableName="user_events"
+                                 constraintName="fk_user_events_event"/>
+    </changeSet>
+    
+    <changeSet id="v1.9-2-alter-user-events-event_id-type" author="gemini-agent">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="user_events" columnName="event_id"/>
+        </preConditions>
+        <modifyDataType tableName="user_events"
+                        columnName="event_id"
+                        newDataType="VARCHAR(36)"/>
+    </changeSet>
+
+</databaseChangeLog>

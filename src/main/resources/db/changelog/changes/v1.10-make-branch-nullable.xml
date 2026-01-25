@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="v1.10-add-branch-to-member" author="yowyob">
+        <comment>Migration vers le modèle hiérarchique : branch_id nullable hors PK</comment>
+
+        <addColumn tableName="syndicat_members">
+            <column name="branch_id" type="UUID">
+                <constraints foreignKeyName="fk_member_branch"
+                             referencedTableName="branches"
+                             referencedColumnNames="id"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

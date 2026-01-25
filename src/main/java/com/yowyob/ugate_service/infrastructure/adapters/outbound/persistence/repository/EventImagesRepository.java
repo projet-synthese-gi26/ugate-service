@@ -2,6 +2,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.re
 
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.EventImages;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -14,4 +15,6 @@ public interface EventImagesRepository extends R2dbcRepository<EventImages, UUID
     // or use specific methods that take eventId and imageId.
 
     Mono<EventImages> findByEventIdAndImageId(UUID eventId, UUID imageId);
+
+    Flux<EventImages> findByEventId(UUID eventId);
 }

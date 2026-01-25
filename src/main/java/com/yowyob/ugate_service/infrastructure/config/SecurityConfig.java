@@ -1,98 +1,88 @@
 package com.yowyob.ugate_service.infrastructure.config;
 
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import reactor.core.publisher.Mono;
+import org.springframework.security.oauth2.jwt.*;
 
-import java.time.Instant;
-import java.util.HashMap;
+import javax.crypto.spec.SecretKeySpec;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 
 @Configuration
 public class SecurityConfig {
 
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
     @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http, UserSyncWebFilter userSyncWebFilter) {
         http
-                // 1. On applique la configuration CORS ici
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // 2. On désactive CSRF (standard pour les API REST sans état)
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
-
-                // 3. On définit les règles d'autorisation
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**", "/actuator/**").permitAll()
                         .anyExchange().authenticated()
                 )
-
-                // 4. On configure le serveur de ressources JWT
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtDecoder(unsafeJwtDecoder())) // Votre décodeur de dev
-                );
+                        .jwt(jwt -> jwt.jwtDecoder(jwtDecoder()))
+                )
+                .addFilterAfter(userSyncWebFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
         return http.build();
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
+    public ReactiveJwtDecoder jwtDecoder() {
+        byte[] secretKeyBytes = jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        SecretKeySpec secretKey = new SecretKeySpec(secretKeyBytes, "HmacSHA256");
 
-        configuration.setAllowedOrigins(List.of("*"));
+        NimbusReactiveJwtDecoder jwtDecoder = NimbusReactiveJwtDecoder.withSecretKey(secretKey)
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
 
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
+        validators.add(new JwtTimestampValidator(Duration.ofSeconds(60)));
 
-        // Headers autorisés
-        configuration.setAllowedHeaders(List.of("*"));
+        validators.add(token -> {
+            String issuer = token.getClaimAsString("iss");
+            if ("auth-service".equals(issuer)) {
+                return OAuth2TokenValidatorResult.success();
+            }
+            return OAuth2TokenValidatorResult.failure(
+                    new OAuth2Error("invalid_issuer", "L'émetteur " + issuer + " n'est pas valide", null)
+            );
+        });
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-
-        return source;
+        jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
+        return jwtDecoder;
     }
 
-    /**
-     * Méthode passoire temporaire qu'on va rétirer plutard, c'est pour faire face au
-     * probleme d'authentifications en attendant d'avoir la clé utilisé par le service d'authentification
-     * pour signer ses tokens
-     */
     @Bean
-    public ReactiveJwtDecoder unsafeJwtDecoder() {
-        return token -> Mono.fromCallable(() -> {
-            try {
-                // On parse le token brut
-                SignedJWT parsedToken = SignedJWT.parse(token);
-                JWTClaimsSet claims = parsedToken.getJWTClaimsSet();
-
-                // On construit l'objet JWT Spring Security manuellement
-                Map<String, Object> headers = new HashMap<>(parsedToken.getHeader().toJSONObject());
-                Map<String, Object> claimsMap = new HashMap<>(claims.getClaims());
-
-
-                Instant issuedAt = claims.getIssueTime() != null ? claims.getIssueTime().toInstant() : Instant.now();
-                Instant expiresAt = claims.getExpirationTime() != null ? claims.getExpirationTime().toInstant() : Instant.now().plusSeconds(3600);
-
-                return new Jwt(
-                        token,
-                        issuedAt,
-                        expiresAt,
-                        headers,
-                        claimsMap
-                );
-            } catch (Exception e) {
-                throw new JwtException("Impossible de parser le token : " + e.getMessage());
-            }
-        });
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("*"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(List.of("*"));
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

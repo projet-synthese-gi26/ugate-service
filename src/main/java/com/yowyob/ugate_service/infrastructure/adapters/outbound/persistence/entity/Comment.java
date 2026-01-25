@@ -7,7 +7,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("comment")
+@Table("comments")
 public record Comment(
         @Id
         UUID id,

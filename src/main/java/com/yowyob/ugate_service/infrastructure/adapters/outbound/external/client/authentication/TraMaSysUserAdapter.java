@@ -5,6 +5,7 @@ import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -30,8 +31,8 @@ public class TraMaSysUserAdapter implements UserGatewayPort {
 
     @Override
     public Mono<ExternalUserInfo> registerUser(String email, String firstName, String lastName, String password) {
-        var registerRequest = new RegisterRequest(
-                email,      // username = email
+        var registerData = new RegisterRequest(
+                email,
                 password,
                 email,
                 null,
@@ -41,14 +42,23 @@ public class TraMaSysUserAdapter implements UserGatewayPort {
                 List.of("CLIENT")
         );
 
+
+        org.springframework.http.client.MultipartBodyBuilder builder = new org.springframework.http.client.MultipartBodyBuilder();
+        builder.part("data", registerData, org.springframework.http.MediaType.APPLICATION_JSON);
+
         return webClient.post()
                 .uri("/api/auth/register")
-                .bodyValue(registerRequest)
+                .body(org.springframework.web.reactive.function.BodyInserters.fromMultipartData(builder.build()))
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, response ->
+                        response.bodyToMono(String.class).flatMap(body -> {
+                            log.error("Détail erreur TraMaSys : {}", body);
+                            return Mono.error(new RuntimeException("Erreur Auth-Service: " + body));
+                        })
+                )
                 .bodyToMono(AuthResponse.class)
                 .map(response -> mapToDomain(response.user()))
-                .doOnSuccess(user -> log.info("Utilisateur créé sur TraMaSys : {}", user.id()))
-                .doOnError(e -> log.error("Erreur registration TraMaSys : {}", e.getMessage()));
+                .doOnSuccess(user -> log.info("Utilisateur créé avec succès sur TraMaSys : {}", user.id()));
     }
 
     @Override

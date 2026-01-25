@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -25,4 +26,5 @@ public class EventResponseDTO {
     private Instant createdAt;
     private Instant updatedAt;
     private long participantCount;
+    private List<String> imageUrls;
 }

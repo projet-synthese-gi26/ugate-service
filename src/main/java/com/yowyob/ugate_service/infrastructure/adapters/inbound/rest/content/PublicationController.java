@@ -1,7 +1,5 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
-import com.yowyob.ugate_service.application.service.content.PublicationService;
-import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreatePublicationRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -10,25 +8,25 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-
-import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
-import org.springframework.web.bind.annotation.GetMapping;
 import reactor.core.publisher.Flux;
+import org.springframework.http.codec.multipart.FilePart;
+
+import com.yowyob.ugate_service.application.service.content.PublicationService;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
 
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/publications")
-@RequiredArgsConstructor
+@AllArgsConstructor
 @Validated
 @Tag(name = "Publications", description = "API for managing publications")
 public class PublicationController {
@@ -43,22 +41,30 @@ public class PublicationController {
         })
         @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public Mono<ResponseEntity<Void>> createPublication(
-                        @Parameter(description = "Publication request data including content, author, branch, and optional media files", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE, schema = @Schema(implementation = CreatePublicationRequest.class))) @Valid @ModelAttribute CreatePublicationRequest request) {
+                        @Parameter(description = "Content of the publication") @RequestPart("content") Mono<String> content,
+                        @Parameter(description = "Author ID of the publication") @RequestPart("authorId") Mono<String> authorId,
+                        @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
+                        @Parameter(description = "Optional image files to be attached") @RequestPart(name = "images", required = false) Flux<FilePart> images,
+                        @Parameter(description = "Optional video files to be attached") @RequestPart(name = "videos", required = false) Flux<FilePart> videos,
+                        @Parameter(description = "Optional general files to be attached") @RequestPart(name = "files", required = false) Flux<FilePart> files) {
 
-                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(request.getImages());
-                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(request.getVideos());
-                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(request.getFiles());
+                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(images == null ? Flux.empty() : images);
+                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videos == null ? Flux.empty() : videos);
+                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(files == null ? Flux.empty() : files);
 
-                return Mono.zip(imagesUrlsMono, videosUrlsMono, filesUrlsMono)
+                return Mono.zip(content, authorId, branchId, imagesUrlsMono, videosUrlsMono, filesUrlsMono)
                                 .flatMap(tuple -> {
-                                        List<String> imageUrls = tuple.getT1();
-                                        List<String> videoUrls = tuple.getT2();
-                                        List<String> fileUrls = tuple.getT3();
+                                        String contentValue = tuple.getT1();
+                                        UUID authorIdValue = UUID.fromString(tuple.getT2());
+                                        UUID branchIdValue = UUID.fromString(tuple.getT3());
+                                        List<String> imageUrls = tuple.getT4();
+                                        List<String> videoUrls = tuple.getT5();
+                                        List<String> fileUrls = tuple.getT6();
 
                                         return publicationService.createPublication(
-                                                        request.getAuthorId(),
-                                                        request.getBranchId(),
-                                                        request.getContent(),
+                                                        authorIdValue,
+                                                        branchIdValue,
+                                                        contentValue,
                                                         imageUrls.toArray(new String[0]),
                                                         videoUrls.toArray(new String[0]),
                                                         fileUrls.toArray(new String[0]));

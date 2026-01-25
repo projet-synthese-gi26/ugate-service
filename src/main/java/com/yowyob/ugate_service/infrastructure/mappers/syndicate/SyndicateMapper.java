@@ -19,7 +19,8 @@ public class SyndicateMapper {
                 entity.logoUrl(),
                 entity.statusUrl(),
                 entity.creatorId(),
-                entity.createdAt()
+                entity.createdAt(),
+                entity.isActive()
         );
     }
 }

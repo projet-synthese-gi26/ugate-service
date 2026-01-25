@@ -2,6 +2,7 @@ package com.yowyob.ugate_service.application.service.content;
 
 import java.util.UUID;
 
+import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.ReactionPersistencePort;
 
 import lombok.AllArgsConstructor;
@@ -14,7 +15,7 @@ public class ReactionService {
   private final PublicationService publicationService;
   private final ReactionPersistencePort reactionPersistencePort;
 
-  public Mono<Void> addReactionToPublication(UUID publicationId, UUID userId, String reactionType) {
+  public Mono<Void> addReactionToPublication(UUID publicationId, UUID userId, ReactionTypeEnum reactionType) {
     return reactionPersistencePort.saveReaction(publicationId, reactionType, userId)
         .then(publicationService.incrementLikes(publicationId));
   }

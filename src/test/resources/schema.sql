@@ -1,3 +1,6 @@
+CREATE DOMAIN IF NOT EXISTS reaction_type_enum AS VARCHAR(255);
+CREATE DOMAIN IF NOT EXISTS role_type_enum AS VARCHAR(255);
+
 CREATE TABLE users (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     name VARCHAR(255),
@@ -30,12 +33,13 @@ CREATE TABLE branches (
     name VARCHAR(255),
     location VARCHAR(255),
     contact VARCHAR(255),
+    banner_url VARCHAR(255),
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
 
 
-CREATE TABLE publication (
+CREATE TABLE publications (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     branch_id UUID,
     author_id UUID,
@@ -51,7 +55,7 @@ CREATE TABLE images (
     uploaded_at TIMESTAMP
 );
 
-CREATE TABLE publication_image (
+CREATE TABLE publication_images (
     publication_id UUID,
     image_id UUID,
     created_at TIMESTAMP,
@@ -59,7 +63,7 @@ CREATE TABLE publication_image (
     PRIMARY KEY (publication_id, image_id)
 );
 
-CREATE TABLE comment (
+CREATE TABLE comments (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     author_id UUID,
     publication_id UUID,
@@ -69,7 +73,7 @@ CREATE TABLE comment (
     created_at TIMESTAMP
 );
 
-CREATE TABLE reaction (
+CREATE TABLE reactions (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     publication_id UUID,
     user_id UUID,
@@ -77,7 +81,7 @@ CREATE TABLE reaction (
     reacted_at TIMESTAMP
 );
 
-CREATE TABLE event (
+CREATE TABLE events (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     creator_id UUID,
     branch_id UUID,

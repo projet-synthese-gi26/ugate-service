@@ -77,7 +77,7 @@ public class SyndicatManagementService {
                 null,
                 urls.logoUrl(),
                 urls.docUrl(),
-                null, null, null, null, true // isActive
+                null, null, null, null, false // isActive
         );
     }
 
@@ -106,13 +106,22 @@ public class SyndicatManagementService {
 
         Mono<BusinessActor> businessActorMono = businessActorRepository.findById(creatorId)
                 .switchIfEmpty(Mono.defer(() -> {
-                    BusinessActor newActor = createBusinessActor(creatorId, name);
+                    BusinessActor newActor = BusinessActor.createNew(creatorId, name, null, null);
                     return businessActorRepository.save(newActor);
                 }));
 
-        Organization organization = createOrganization(orgId, creatorId, name);
-        Syndicat syndicat = createSyndicat(syndicatId, orgId, creatorId, name, description, domain, urls);
-        SyndicatMember adminMember = SyndicatMember.create(syndicatId, creatorId, RoleTypeEnum.ADMIN);
+        Organization organization = new Organization(orgId, creatorId, name.toUpperCase().replaceAll("\\s+", "_"), null, name, null, true, true);
+
+
+        Syndicat syndicat = new Syndicat(
+                syndicatId, orgId, creatorId, false, name, description, domain, "STANDARD",
+                null, urls.logoUrl(), urls.docUrl(), null, null, null, null, true
+        );
+
+        SyndicatMember adminMember = SyndicatMember.createGlobalAdmin(
+                syndicatId,
+                creatorId
+        );
 
         return businessActorMono
                 .then(organizationRepository.save(organization))

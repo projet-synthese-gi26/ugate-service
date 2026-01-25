@@ -16,4 +16,13 @@ public interface MembershipRequestRepository extends R2dbcRepository<MembershipR
 
 
     Flux<MembershipRequest> findBySyndicatIdAndStatus(UUID syndicatId, MembershipRequest.MembershipStatus status, Pageable pageable);
+
+
+    Flux<MembershipRequest> findBySyndicatIdAndStatus(UUID syndicatId, MembershipRequest.MembershipStatus status);
+
+
+    Flux<MembershipRequest> findByBranchIdAndStatus(UUID branchId, MembershipRequest.MembershipStatus status);
+
+
+    Mono<Long> countBySyndicatIdAndStatus(UUID syndicatId, MembershipRequest.MembershipStatus status);
 }

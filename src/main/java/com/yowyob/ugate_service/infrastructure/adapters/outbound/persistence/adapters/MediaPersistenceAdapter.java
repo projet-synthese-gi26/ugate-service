@@ -3,8 +3,10 @@ package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.ad
 import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.model.MediaInfo;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.EventImages;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Image;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.PublicationImage;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.EventImagesRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ImageRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationImageRepository;
 import com.yowyob.ugate_service.infrastructure.mappers.ImageMapper;
@@ -22,6 +24,7 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
 
     private final ImageRepository imageRepository;
     private final PublicationImageRepository publicationImageRepository;
+    private final EventImagesRepository eventImagesRepository;
     private final ImageMapper imageMapper;
 
     @Override
@@ -33,6 +36,18 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
                     PublicationImage publicationImage = new PublicationImage(publicationId, savedImage.id(),
                             Instant.now(), Instant.now());
                     return publicationImageRepository.save(publicationImage);
+                }).then();
+    }
+
+    @Override
+    public Mono<Void> saveEventMedia(String imageUrl, String altText, UUID eventId) {
+        Image image = new Image(null, imageUrl, altText, Instant.now());
+
+        return imageRepository.save(image)
+                .flatMap(savedImage -> {
+                    EventImages eventImage = new EventImages(eventId, savedImage.id(),
+                            Instant.now(), Instant.now());
+                    return eventImagesRepository.save(eventImage);
                 }).then();
     }
 
@@ -73,6 +88,13 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
             return Mono.empty();
         }
         return imageRepository.findById(imageId)
+                .map(imageMapper::toModel);
+    }
+
+    @Override
+    public Flux<ImageModel> getImagesByEventId(UUID eventId) {
+        return eventImagesRepository.findByEventId(eventId)
+                .flatMap(eventImage -> imageRepository.findById(eventImage.imageId()))
                 .map(imageMapper::toModel);
     }
 }

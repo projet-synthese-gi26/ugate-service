@@ -12,4 +12,10 @@
     <include file="classpath:db/changelog/changes/v1.5-add-branch-banner.xml"/>
     <include file="classpath:db/changelog/changes/v1.6-setup-products.xml"/>
     <include file="classpath:db/changelog/changes/v1.7-setup-services.xml"/>
+    <include file="classpath:db/changelog/changes/v1.6-auto-uuid-comments.xml"/>
+    <include file="classpath:db/changelog/changes/v1.7-create-event-images-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.8-create-user-events-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.9-alter-user-events-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.10-make-branch-nullable.xml"/>
+
 </databaseChangeLog>
