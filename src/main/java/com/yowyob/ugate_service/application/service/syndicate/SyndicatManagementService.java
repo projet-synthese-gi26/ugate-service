@@ -77,7 +77,7 @@ public class SyndicatManagementService {
                 null,
                 urls.logoUrl(),
                 urls.docUrl(),
-                null, null, null, null, true // isActive
+                null, null, null, null, false // isActive
         );
     }
 

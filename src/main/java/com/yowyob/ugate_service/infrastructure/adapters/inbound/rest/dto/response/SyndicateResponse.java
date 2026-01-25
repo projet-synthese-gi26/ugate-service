@@ -12,5 +12,7 @@ public record SyndicateResponse(
         String logoUrl,
         String statusUrl,
         UUID creatorId,
-        Instant createdAt
+        Instant createdAt,
+
+        Boolean isActive
 ) {}
