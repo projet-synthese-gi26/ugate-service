@@ -2,17 +2,11 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.product;
 
 import java.util.UUID;
 
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.web.bind.annotation.*;
 
 
 import com.yowyob.ugate_service.domain.model.Product;
@@ -38,9 +32,10 @@ import reactor.core.publisher.Mono;
 public class ProductController {
     private final ManageProductUseCase productUseCase;
     private final ProductMapper mapper;
+    private final MediaService mediaService;
 
-    
-    @PostMapping()
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
         summary = "Créer un nouveau produit", 
@@ -51,11 +46,29 @@ public class ProductController {
         @ApiResponse(responseCode = "201", description = "Produit créé avec succès"),
         @ApiResponse(responseCode = "400", description = "Requête invalide")
     })
-    public Mono<ProductResponse> createProduct(@RequestBody @Valid Mono<ProductRequest> dto) {
-        return dto
-            .map(mapper::mapToDomain)
-            .flatMap(productUseCase::createProduct)
-            .map(mapper::mapToResponse);
+    public Mono<ProductResponse> createProduct(@ModelAttribute("product") @Valid ProductRequest dto,
+                                               @RequestPart("image") FilePart imageFile) {
+        return mediaService.uploadImage(new FilePart[]{imageFile})
+                .flatMap(urls -> {
+                    String uploadedUrl = urls.isEmpty() ? null : urls.get(0);
+
+                    // 2. On transforme le DTO en objet du Domaine avec l'URL
+                    Product productDomain = new Product(
+                            null,
+                            dto.syndicatId(),
+                            dto.name(),
+                            dto.description(),
+                            dto.price(),
+                            dto.sku(),
+                            dto.category(),
+                            dto.stock(),
+                            uploadedUrl,
+                            dto.isActive()
+                    );
+
+                    return productUseCase.createProduct(productDomain);
+                })
+                .map(mapper::mapToResponse);
     }
 
     @PatchMapping("/{id}/stock")
@@ -96,7 +109,7 @@ public class ProductController {
             dto.sku(),
             dto.category(),
             dto.stock(),
-            dto.imageUrl(),
+            null,
             dto.isActive()
         );
         return productUseCase.updateProduct(product)

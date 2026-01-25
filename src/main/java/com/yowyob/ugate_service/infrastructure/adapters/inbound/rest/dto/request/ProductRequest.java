@@ -11,7 +11,6 @@ public record ProductRequest(
     String sku,
     String category,
     Integer stock,
-    String imageUrl,
     Boolean isActive
 ) {
 

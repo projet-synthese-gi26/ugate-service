@@ -83,7 +83,7 @@ public class ProductManagementService implements ManageProductUseCase {
                     product.sku() == null ? existing.sku() : product.sku(),
                     product.category() == null ? existing.category() : product.category(),
                     existing.stock(),
-                    product.imageUrl() == null ? existing.imageUrl() : product.imageUrl(),
+                    existing.imageUrl(),
                     existing.isActive()
                 );
                 return productRepositoryPort.updateProduct(productToUpdate);

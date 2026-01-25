@@ -1,5 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
 
+import com.yowyob.ugate_service.domain.model.MediaInfo;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -12,7 +14,7 @@ public record ProductResponse(
     String sku,
     String category,
     Integer stock,
-    String imageUrl,
+    MediaInfo image,
     Boolean isActive
 ) {
 
