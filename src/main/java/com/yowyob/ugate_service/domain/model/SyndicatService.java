@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public record SyndicatService(
     UUID id,
-    // UUID syndicatId,
+    UUID syndicatId,
     String title,
     String description,
     BigDecimal price,

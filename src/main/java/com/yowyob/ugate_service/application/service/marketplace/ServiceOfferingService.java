@@ -25,6 +25,7 @@ public class ServiceOfferingService implements ManageServiceUseCase {
     public Mono<SyndicatService> createService(SyndicatService service) {
         SyndicatService serviceToCreate = new SyndicatService(
             service.id() != null ? service.id() : UUID.randomUUID(),
+            service.syndicatId(),
             service.title(),
             service.description(),
             service.price(),
@@ -41,6 +42,7 @@ public class ServiceOfferingService implements ManageServiceUseCase {
             .flatMap(existing -> {
                 SyndicatService serviceToUpdate = new SyndicatService(
                     existing.id(),
+                    existing.syndicatId(),
                     service.title() != null ? service.title() : existing.title(),
                     service.description() != null ? service.description() : existing.description(),
                     service.price() != null ? service.price() : existing.price(),

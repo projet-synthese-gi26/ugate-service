@@ -70,6 +70,7 @@ public class ServiceOfferingController {
     public Mono<ServiceOfferingResponse> updateServiceOffering(@PathVariable UUID id, @RequestBody @Valid ServiceOfferingRequest dto) {
         SyndicatService serviceToUpdate = new SyndicatService(
             id,
+            null,
             dto.title(),
             dto.description(),
             dto.price(),
