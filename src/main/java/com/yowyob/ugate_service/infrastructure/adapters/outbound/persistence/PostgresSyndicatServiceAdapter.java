@@ -40,6 +40,7 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
     public Mono<SyndicatService> save(SyndicatService service) {
         ServiceEntity entity = new ServiceEntity(
             service.id(),
+            service.syndicatId(),
             service.title(),
             service.description(),
             service.price(),
@@ -88,6 +89,7 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
 
         return new SyndicatService(
             row.getId(),
+            row.getSyndicatId(),
             row.getTitle(),
             row.getDescription(),
             row.getPrice(),

@@ -27,6 +27,8 @@ import java.util.UUID;
 public class ServiceEntity implements Persistable<UUID>{
     @Id
     private UUID id;
+
+    private UUID syndicatId;
     
     private String title;
 

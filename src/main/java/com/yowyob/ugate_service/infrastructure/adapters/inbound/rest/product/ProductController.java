@@ -47,8 +47,8 @@ public class ProductController {
         @ApiResponse(responseCode = "400", description = "Requête invalide")
     })
     public Mono<ProductResponse> createProduct(@ModelAttribute("product") @Valid ProductRequest dto,
-                                               @RequestPart("image") FilePart imageFile) {
-        return mediaService.uploadImage(new FilePart[]{imageFile})
+                                               @RequestPart("image") Flux<FilePart> imageFile) {
+        return mediaService.uploadImage(imageFile)
                 .flatMap(urls -> {
                     String uploadedUrl = urls.isEmpty() ? null : urls.get(0);
 
