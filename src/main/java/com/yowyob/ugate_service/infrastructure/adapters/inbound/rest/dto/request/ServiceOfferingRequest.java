@@ -5,7 +5,7 @@ import java.util.List;
 
 public record ServiceOfferingRequest(
    
-    // UUID syndicatId,
+    UUID syndicatId,
     String title,
     String description,
     BigDecimal price,
