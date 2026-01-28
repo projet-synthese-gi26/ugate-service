@@ -2,6 +2,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.reques
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public record ServiceOfferingRequest(
    
