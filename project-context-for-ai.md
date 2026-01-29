@@ -1,7 +1,7 @@
 # Contexte Complet du Projet
 
 **Projet:** ugate-service  
-**Date de génération:** 28/01/2026 12:12:44  
+**Date de génération:** 28/01/2026 14:38:49  
 **Chemin:** D:\Projets\Scolaire\Reseau\New Version\ugate-service
 
 ---
@@ -289,6 +289,7 @@
 │   │       │       ├── changes
 │   │       │       │   ├── v1.1-sync-java-entities.xml
 │   │       │       │   ├── v1.10-make-branch-nullable.xml
+│   │       │       │   ├── v1.11-create-membership-request-table.xml
 │   │       │       │   ├── v1.2-create-event-table.xml
 │   │       │       │   ├── v1.3-create-publication-vote-table.xml
 │   │       │       │   ├── v1.4-create-vote-table.xml
@@ -4518,6 +4519,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.reques
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public record ServiceOfferingRequest(
    
@@ -4534,7 +4536,7 @@ public record ServiceOfferingRequest(
 
 ```
 
-*Lignes: 18*
+*Lignes: 19*
 
 ---
 
@@ -9914,6 +9916,74 @@ application.external.notification-invite-template-id=123
 
 ---
 
+### 📄 src\main\resources\db\changelog\changes\v1.11-create-membership-request-table.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="v1.12-create-membership-request" author="yowyob">
+        <comment>Création de la table des demandes d'adhésion pour PostgreSQL</comment>
+
+        <createTable tableName="membership_request">
+            <!-- ID de la demande -->
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <!-- ID de l'utilisateur qui demande -->
+            <column name="user_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- ID du syndicat concerné -->
+            <column name="syndicat_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_req_syndicat"
+                             referencedTableName="syndicats"
+                             referencedColumnNames="id"/>
+            </column>
+
+            <!-- ID de la branche -->
+            <column name="branch_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_req_branch"
+                             referencedTableName="branches"
+                             referencedColumnNames="id"/>
+            </column>
+
+            <!-- Statut (PENDING, APPROVED, REJECTED) -->
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="motivation" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="rejection_reason" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+
+            <!-- Dates automatiques -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
+```
+
+*Lignes: 59*
+
+---
+
 ### 📄 src\main\resources\db\changelog\changes\v1.2-create-event-table.xml
 
 ```xml
@@ -10292,11 +10362,12 @@ application.external.notification-invite-template-id=123
     <include file="classpath:db/changelog/changes/v1.8-create-user-events-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.9-alter-user-events-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.10-make-branch-nullable.xml"/>
+    <include file="classpath:db/changelog/changes/v1.11-create-membership-request-table.xml"/>
 
 </databaseChangeLog>
 ```
 
-*Lignes: 21*
+*Lignes: 22*
 
 ---
 
@@ -11188,14 +11259,14 @@ CREATE TABLE vote (
 
 ## Statistiques
 
-- **Total de fichiers analysés:** 218
-- **Total de lignes de code:** 8 892
+- **Total de fichiers analysés:** 219
+- **Total de lignes de code:** 8 953
 - **Moyenne de lignes par fichier:** 41
 
 ### Répartition par type de fichier
 
 - **.java:** 198 fichiers
-- **.xml:** 14 fichiers
+- **.xml:** 15 fichiers
 - **.properties:** 2 fichiers
 - **.yml:** 1 fichier
 - **.yaml:** 1 fichier
