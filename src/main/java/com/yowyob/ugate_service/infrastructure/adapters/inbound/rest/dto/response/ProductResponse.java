@@ -14,7 +14,7 @@ public record ProductResponse(
     String sku,
     String category,
     Integer stock,
-    MediaInfo image,
+    String image,
     Boolean isActive
 ) {
 

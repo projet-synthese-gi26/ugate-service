@@ -46,7 +46,7 @@ public class ProductController {
         @ApiResponse(responseCode = "201", description = "Produit créé avec succès"),
         @ApiResponse(responseCode = "400", description = "Requête invalide")
     })
-    public Mono<ProductResponse> createProduct(@ModelAttribute("product") @Valid ProductRequest dto,
+    public Mono<ProductResponse> createProduct(@RequestPart("product") @Valid ProductRequest dto,
                                                @RequestPart("image") Flux<FilePart> imageFile) {
         return mediaService.uploadImage(imageFile)
                 .flatMap(urls -> {
@@ -54,7 +54,7 @@ public class ProductController {
 
                     // 2. On transforme le DTO en objet du Domaine avec l'URL
                     Product productDomain = new Product(
-                            null,
+                            UUID.randomUUID(),
                             dto.syndicatId(),
                             dto.name(),
                             dto.description(),
@@ -68,7 +68,7 @@ public class ProductController {
 
                     return productUseCase.createProduct(productDomain);
                 })
-                .map(mapper::mapToResponse);
+                .map(this::mapToResponse);
     }
 
     @PatchMapping("/{id}/stock")
@@ -84,7 +84,7 @@ public class ProductController {
     })
     public Mono<ProductResponse> updateStock(@PathVariable UUID id, @RequestBody int quantity) {
         return productUseCase.updateStock(id, quantity)
-            .map(mapper::mapToResponse);
+            .map(this::mapToResponse);
     }
 
 
@@ -113,7 +113,7 @@ public class ProductController {
             dto.isActive()
         );
         return productUseCase.updateProduct(product)
-            .map(mapper::mapToResponse);
+            .map(this::mapToResponse);
     }
 
     @DeleteMapping("/{id}")
@@ -142,7 +142,7 @@ public class ProductController {
     })
     public Mono<ProductResponse> getProductDetails(@PathVariable UUID id) {
         return productUseCase.getProductDetails(id)
-            .map(mapper::mapToResponse);
+            .map(this::mapToResponse);
     }
 
     @GetMapping("/syndicates/{syndicatId}")
@@ -157,6 +157,21 @@ public class ProductController {
     })
     public Flux<ProductResponse> getSyndicatProducts(@PathVariable UUID syndicatId) {
        return productUseCase.getSyndicatProducts(syndicatId)
-            .map(mapper::mapToResponse);
+            .map(this::mapToResponse);
+    }
+
+    public ProductResponse mapToResponse(Product product) {
+        return new ProductResponse(
+                product.id(),
+                product.syndicatId(),
+                product.name(),
+                product.description(),
+                product.price(),
+                product.sku(),
+                product.category(),
+                product.stock(),
+                product.imageUrl(),
+                product.isActive()
+        );
     }
 }

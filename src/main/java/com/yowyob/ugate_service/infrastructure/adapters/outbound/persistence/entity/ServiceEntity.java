@@ -3,6 +3,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.en
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.annotation.Transient;
 
@@ -28,6 +29,7 @@ public class ServiceEntity implements Persistable<UUID>{
     @Id
     private UUID id;
 
+    @Column("syndicat_id")
     private UUID syndicatId;
     
     private String title;
@@ -36,8 +38,9 @@ public class ServiceEntity implements Persistable<UUID>{
 
     private BigDecimal price;
    
-    private List<String> features;
+    private String[] features;
 
+    @Column("is_active")
     private Boolean isActive;
 
     @Transient

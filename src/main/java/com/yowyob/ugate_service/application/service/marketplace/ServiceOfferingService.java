@@ -24,7 +24,7 @@ public class ServiceOfferingService implements ManageServiceUseCase {
     @Override
     public Mono<SyndicatService> createService(SyndicatService service) {
         SyndicatService serviceToCreate = new SyndicatService(
-            service.id() != null ? service.id() : UUID.randomUUID(),
+            UUID.randomUUID(),
             service.syndicatId(),
             service.title(),
             service.description(),

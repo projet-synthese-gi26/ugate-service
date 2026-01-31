@@ -38,16 +38,20 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
     @Override
     @Transactional
     public Mono<SyndicatService> save(SyndicatService service) {
-        ServiceEntity entity = new ServiceEntity(
-            service.id(),
-            service.syndicatId(),
-            service.title(),
-            service.description(),
-            service.price(),
-            service.features(),
-            service.isActive(),
-            true
-        );
+        ServiceEntity entity = ServiceEntity.builder()
+                .id(service.id())
+                .syndicatId(service.syndicatId())
+                .title(service.title())
+                .description(service.description())
+                .price(service.price())
+                // Conversion List -> Array
+                .features(service.features() != null ? service.features().toArray(new String[0]) : null)
+                .isActive(service.isActive())
+                .isNew(true) // FORCE L'INSERTION
+                .build();
+
+        System.out.println("Insertion Service pour Syndicat: " + entity.getSyndicatId());
+
         return syndicatServiceRepository.save(entity)
                .map(this::mapToDomain);
     }
@@ -61,7 +65,9 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
             Optional.ofNullable(service.title()).ifPresent(entity::setTitle);
             Optional.ofNullable(service.description()).ifPresent(entity::setDescription);
             Optional.ofNullable(service.price()).ifPresent(entity::setPrice);
-            Optional.ofNullable(service.features()).ifPresent(entity::setFeatures);
+            if (service.features() != null) {
+                entity.setFeatures(service.features().toArray(new String[0]));
+            }
             Optional.ofNullable(service.isActive()).ifPresent(entity::setIsActive);
             entity.setNew(false);
         
@@ -83,8 +89,8 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
 
     // --- MAPPER ---
     private SyndicatService mapToDomain(ServiceEntity row) {
-        List<String> featuresList = row.getFeatures() != null 
-                ? row.getFeatures() 
+        List<String> featuresList = (row.getFeatures() != null)
+                ? List.of(row.getFeatures())
                 : List.of();
 
         return new SyndicatService(
