@@ -10,6 +10,13 @@ import java.util.UUID;
 
 public interface SyndicatMemberRepository extends ReactiveCrudRepository<SyndicatMember, Void> {
 
+    @Modifying
+    @Query("""
+        INSERT INTO syndicat_members (syndicat_id, user_id, branch_id, joined_at, is_active, role) 
+        VALUES (:syndicatId, :userId, :branchId, NOW(), :isActive, CAST(:role AS role_type_enum))
+    """)
+    Mono<Void> insertMember(UUID syndicatId, UUID userId, UUID branchId, boolean isActive, String role);
+
     // AJOUTER UN MEMBRE
     @Modifying
     @Query("INSERT INTO syndicat_members (syndicat_id, user_id, joined_at, is_active) VALUES (:syndicatId, :userId, NOW(), :isActive)")

@@ -5,7 +5,9 @@ import com.yowyob.ugate_service.application.service.syndicate.MembershipService;
 import com.yowyob.ugate_service.application.service.syndicate.SyndicateMembershipService;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.MembershipApprovalRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateMemberRoleRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.AddUserResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BasicResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.MemberResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateFullStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.MembershipRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,9 +44,9 @@ public class SyndicateMangementController {
             @ApiResponse(responseCode = "404", description = "Syndicat ou Branche introuvable"),
             @ApiResponse(responseCode = "400", description = "Données manquantes")
     })
-    // Nouvelle route incluant le syndicat et la branche
+
     @PostMapping("/{syndicatId}/branches/{branchId}/members/add")
-    public Mono<ResponseEntity<BasicResponse>> addMember(
+    public Mono<ResponseEntity<AddUserResponse>> addMember(
             @Parameter(description = "ID du syndicat", required = true)
             @PathVariable UUID syndicatId,
 
@@ -53,7 +55,8 @@ public class SyndicateMangementController {
 
             @RequestBody AddMemberRequest request) {
 
-        log.info("Admin ajoute membre {} dans la branche {}", request.email(), branchId);
+        log.info("🔵 Admin ajoute membre {} dans la branche {} du syndicat {}",
+                request.email(), branchId, syndicatId);
 
         return membershipService.addMemberByAdmin(
                 syndicatId,
@@ -61,13 +64,13 @@ public class SyndicateMangementController {
                 request.email(),
                 request.firstName(),
                 request.lastName()
-        ).thenReturn(ResponseEntity.ok(new BasicResponse("Membre ajouté et invité avec succès")));
+        ).map(ResponseEntity::ok);
     }
 
-    @Operation(summary = "Lister toutes les demandes d'un syndicat", description = "Retourne toutes les demandes en attente pour toutes les branches du syndicat.", security = @SecurityRequirement(name = "bearerAuth"))
-    @GetMapping("/{syndicatId}/requests")
-    public Flux<MembershipRequest> getSyndicateRequests(@PathVariable UUID syndicatId) {
-        return membershipService.getRequestsBySyndicate(syndicatId);
+    @Operation(summary = "Lister les membres d'un syndicat", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/{syndicatId}/members")
+    public Flux<MemberResponse> getMembers(@PathVariable UUID syndicatId) {
+        return membershipService.getSyndicateMembers(syndicatId);
     }
 
     @Operation(summary = "Lister les demandes d'une branche", description = "Retourne les demandes en attente pour une branche spécifique.", security = @SecurityRequirement(name = "bearerAuth"))

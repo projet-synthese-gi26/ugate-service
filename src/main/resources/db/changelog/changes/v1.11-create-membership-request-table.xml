@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="v1.12-create-membership-request" author="yowyob">
+        <comment>Création de la table des demandes d'adhésion pour PostgreSQL</comment>
+
+        <createTable tableName="membership_request">
+            <!-- ID de la demande -->
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <!-- ID de l'utilisateur qui demande -->
+            <column name="user_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- ID du syndicat concerné -->
+            <column name="syndicat_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_req_syndicat"
+                             referencedTableName="syndicats"
+                             referencedColumnNames="id"/>
+            </column>
+
+            <!-- ID de la branche -->
+            <column name="branch_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_req_branch"
+                             referencedTableName="branches"
+                             referencedColumnNames="id"/>
+            </column>
+
+            <!-- Statut (PENDING, APPROVED, REJECTED) -->
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="motivation" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="rejection_reason" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+
+            <!-- Dates automatiques -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
