@@ -4,6 +4,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.syndicate;
 import com.yowyob.ugate_service.application.service.syndicate.SyndicatManagementService;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateSyndicateFullRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateDetailsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -138,6 +139,23 @@ public class SyndicateController {
                     );
                     return syndicateService.updateSyndicateFull(id, requesterId, request);
                 });
+    }
+
+
+    @Operation(
+            summary = "Obtenir les détails complets d'un syndicat",
+            description = "Retourne les informations du syndicat, de l'organisation liée, du créateur, les documents et les statistiques.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Détails récupérés avec succès"),
+            @ApiResponse(responseCode = "404", description = "Syndicat introuvable")
+    })
+    @GetMapping("/{id}/details")
+    public Mono<SyndicateDetailsResponse> getSyndicateDetails(
+            @Parameter(description = "UUID du syndicat") @PathVariable UUID id
+    ) {
+        return syndicateService.getSyndicateDetails(id);
     }
 
 

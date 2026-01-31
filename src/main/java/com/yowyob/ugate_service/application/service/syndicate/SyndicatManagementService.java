@@ -4,6 +4,7 @@ import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateSyndicateFullRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateDetailsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.*;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
@@ -41,6 +42,7 @@ public class SyndicatManagementService {
     private final BusinessActorRepository businessActorRepository;
     private final UserRepository userRepository;
     private final UserGatewayPort userGatewayPort;
+    private final BranchRepository branchRepository;
 
     @Transactional
     public Mono<SyndicateResponse> createSyndicate(String name, String description, String domain,
@@ -278,5 +280,75 @@ public class SyndicatManagementService {
                 })
                 .map(syndicateMapper::toResponse)
                 .doOnSuccess(s -> log.info("Syndicat {} mis à jour par {}", syndicatId, requesterId));
+    }
+
+
+    public Mono<SyndicateDetailsResponse> getSyndicateDetails(UUID syndicatId) {
+        return syndicatRepository.findById(syndicatId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable")))
+                .flatMap(syndicat -> {
+
+                    // 1. Récupération de l'Organisation
+                    Mono<Organization> orgMono = organizationRepository.findById(syndicat.organizationId())
+                            // Fallback sur une organisation vide si introuvable (pour éviter de planter tout l'appel)
+                            .defaultIfEmpty(new Organization(null, null, null, null, "N/A", null, false, false));
+
+                    // 2. Récupération du Créateur
+                    Mono<User> creatorMono = userRepository.findById(syndicat.creatorId())
+                            .defaultIfEmpty(new User(syndicat.creatorId(), "Inconnu", "", ""));
+
+                    // 3. Récupération des Stats (Branches)
+                    Mono<Long> branchCountMono = branchRepository.countBySyndicatId(syndicatId)
+                            .defaultIfEmpty(0L);
+
+                    // 4. Récupération des Stats (Membres actifs)
+                    Mono<Long> memberCountMono = syndicatMemberRepository.countBySyndicatIdAndIsActiveTrue(syndicatId)
+                            .defaultIfEmpty(0L);
+
+                    // Exécution en parallèle
+                    return Mono.zip(orgMono, creatorMono, branchCountMono, memberCountMono)
+                            .map(tuple -> {
+                                Organization org = tuple.getT1();
+                                User creator = tuple.getT2();
+                                Long branches = tuple.getT3();
+                                Long members = tuple.getT4();
+
+                                return new SyndicateDetailsResponse(
+                                        syndicat.id(),
+                                        syndicat.name(),
+                                        syndicat.description(),
+                                        syndicat.domain(),
+                                        syndicat.type(),
+                                        syndicat.isApproved(),
+                                        syndicat.isActive(),
+                                        new SyndicateDetailsResponse.SyndicatDocuments(
+                                                syndicat.logoUrl(),
+                                                syndicat.charteUrl(),
+                                                syndicat.statusUrl(),
+                                                syndicat.membersListUrl(),
+                                                syndicat.commitmentCertificateUrl()
+                                        ),
+                                        new SyndicateDetailsResponse.OrganizationInfo(
+                                                "N/A",
+                                                org.shortName(), // On map ce qu'on peut, adapte selon ton entité Organization réelle
+                                                "N/A", // Keywords
+                                                org.email(),
+                                                org.shortName(),
+                                                org.longName()
+                                        ),
+                                        new SyndicateDetailsResponse.CreatorInfo(
+                                                creator.getId(),
+                                                creator.name(),
+                                                creator.email()
+                                        ),
+                                        new SyndicateDetailsResponse.SyndicatStats(
+                                                members,
+                                                branches
+                                        ),
+                                        syndicat.createdAt(),
+                                        syndicat.updatedAt()
+                                );
+                            });
+                });
     }
 }
