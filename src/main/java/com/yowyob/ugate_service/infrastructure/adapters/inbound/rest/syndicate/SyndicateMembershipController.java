@@ -53,7 +53,8 @@ public class SyndicateMembershipController {
     }
 
 
-    @Operation(summary = "Mise à jour complète du profil", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Mise à jour complète du profil de l'utilisateur connecté", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/user")
     @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<MemberResponse> updateMyProfile(
             @AuthenticationPrincipal Jwt jwt,
