@@ -1,7 +1,7 @@
 # Contexte Complet du Projet
 
 **Projet:** ugate-service  
-**Date de génération:** 28/01/2026 14:38:49  
+**Date de génération:** 31/01/2026 16:34:59  
 **Chemin:** D:\Projets\Scolaire\Reseau\New Version\ugate-service
 
 ---
@@ -149,11 +149,13 @@
 │   │   │               │   │   │       │   │   ├── UpdateMemberRoleRequest.java
 │   │   │               │   │   │       │   │   └── WebhookStatusChangeRequest.java
 │   │   │               │   │   │       │   ├── response
+│   │   │               │   │   │       │   │   ├── AddUserResponse.java
 │   │   │               │   │   │       │   │   ├── BasicResponse.java
 │   │   │               │   │   │       │   │   ├── BatchComplianceResponse.java
 │   │   │               │   │   │       │   │   ├── BranchResponse.java
 │   │   │               │   │   │       │   │   ├── ComplianceResponse.java
 │   │   │               │   │   │       │   │   ├── EventResponseDTO.java
+│   │   │               │   │   │       │   │   ├── MemberResponse.java
 │   │   │               │   │   │       │   │   ├── OfficialProfileResponse.java
 │   │   │               │   │   │       │   │   ├── PaginatedResponse.java
 │   │   │               │   │   │       │   │   ├── ParticipantDTO.java
@@ -1758,7 +1760,7 @@ public class ServiceOfferingService implements ManageServiceUseCase {
     @Override
     public Mono<SyndicatService> createService(SyndicatService service) {
         SyndicatService serviceToCreate = new SyndicatService(
-            service.id() != null ? service.id() : UUID.randomUUID(),
+            UUID.randomUUID(),
             service.syndicatId(),
             service.title(),
             service.description(),
@@ -1984,8 +1986,11 @@ public class MembershipService {
 ```java
 package com.yowyob.ugate_service.application.service.syndicate;
 
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.AddUserResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.MemberResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateFullStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.MembershipRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Profile;
@@ -2002,8 +2007,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -2084,8 +2093,13 @@ public class SyndicateMembershipService {
                         );
 
                         return requestRepository.save(approvedRequest)
-                                .then(memberRepository.save(newMember))
-                                .then();
+                                .then(memberRepository.insertMember(
+                                        request.syndicatId(),
+                                        request.userId(),
+                                        request.branchId(),
+                                        true,
+                                        RoleTypeEnum.CLIENT.name()
+                                ));
                     } else {
                         // Rejet
                         if (rejectionReason == null || rejectionReason.isBlank()) {
@@ -2175,53 +2189,234 @@ public class SyndicateMembershipService {
 
 
 
-    /**
-     * Ajouter manuellement un membre (par email) dans une branche spécifique.
-     */
+    
+    //TODO LES Méthodes qui suivent sont à refactoriser
     @Transactional
-    public Mono<Void> addMemberByAdmin(UUID syndicatId, UUID branchId, String email, String firstName, String lastName) {
+    public Mono<AddUserResponse> addMemberByAdmin(UUID syndicatId, UUID branchId,
+                                                  String email, String firstName, String lastName) {
+        log.info("🔵 Début ajout membre - Syndicat: {}, Branche: {}, Email: {}",
+                syndicatId, branchId, email);
+
         return syndicatRepository.findById(syndicatId)
+                .doOnNext(s -> log.debug("✅ Syndicat trouvé: {}", s.name()))
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable")))
                 .zipWith(branchRepository.findById(branchId)
+                        .doOnNext(b -> log.debug("✅ Branche trouvée: {}", branchId))
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable"))))
                 .flatMap(tuple -> {
                     var syndicat = tuple.getT1();
-                    return userRepository.findByEmail(email)
-                            .flatMap(existingUser -> Mono.just(existingUser.getId()))
-                            .switchIfEmpty(
-                                    userGateway.registerUser(email, firstName, lastName, "00000000")
-                                            .flatMap(extUser -> {
-                                                User localUser = new User(
-                                                        extUser.id(),
-                                                        firstName + " " + lastName,
-                                                        null,
-                                                        email
-                                                );
-                                                Profile localProfile = Profile.createNew(extUser.id(), firstName, lastName);
+                    log.debug("📋 Vérification existence utilisateur: {}", email);
 
-                                                return userRepository.save(localUser)
-                                                        .then(profileRepository.save(localProfile))
-                                                        .thenReturn(extUser.id());
-                                            })
-                            )
-                            .flatMap(userId -> {
-                                return memberRepository.existsBySyndicatIdAndUserId(syndicatId, userId)
-                                        .flatMap(isMember -> {
-                                            if (isMember) return Mono.error(new IllegalStateException("Déjà membre"));
+                    // Mono<Tuple2<User, Boolean>> où Boolean indique si c'est un nouvel user
+                    Mono<Tuple2<User, Boolean>> userMono = userRepository.findByEmail(email)
+                            .doOnNext(u -> log.info("✅ Utilisateur existant trouvé: {} (ID: {})",
+                                    email, u.getId()))
+                            .map(user -> Tuples.of(user, false)) // Utilisateur existant
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.info("🆕 Utilisateur inexistant, création externe + locale pour: {}", email);
 
-                                            SyndicatMember member = SyndicatMember.createLocal(syndicatId, branchId, userId, RoleTypeEnum.CLIENT);
-                                            return memberRepository.save(member)
-                                                    .then(
-                                                            notificationPort.sendSyndicateInvitation(email, syndicat.name(), firstName)
-                                                                    .onErrorResume(e -> {
-                                                                        log.error("⚠️ ÉCHEC NOTIFICATION : Le membre {} a été ajouté mais l'invitation n'a pas pu être envoyée. Erreur: {}", email, e.getMessage());
-                                                                        return Mono.empty();
-                                                                    })
-                                                    );
+                                return userGateway.registerUser(email, firstName, lastName, "00000000")
+                                        .doOnNext(extUser -> log.info(
+                                                "✅ Utilisateur créé dans système externe - ID: {}, Email: {}",
+                                                extUser.id(), email))
+                                        .doOnError(e -> log.error(
+                                                "❌ ERREUR création utilisateur externe pour {}: {}",
+                                                email, e.getMessage(), e))
+                                        .flatMap(extUser -> {
+                                            User localUser = new User(
+                                                    extUser.id(),
+                                                    firstName + " " + lastName,
+                                                    null,
+                                                    email
+                                            );
+                                            Profile localProfile = Profile.createNew(
+                                                    extUser.id(), firstName, lastName);
+
+                                            log.debug("💾 Sauvegarde utilisateur local + profil - ID: {}", extUser.id());
+
+                                            return userRepository.save(localUser)
+                                                    .doOnSuccess(u -> log.info("✅ User local sauvegardé: {} - {}",
+                                                            u.getId(), u.email()))
+                                                    .doOnError(e -> log.error(
+                                                            "❌ ERREUR sauvegarde user local (ID: {}): {} - " +
+                                                                    "ATTENTION: User externe créé mais pas en local!",
+                                                            extUser.id(), e.getMessage(), e))
+                                                    .zipWith(profileRepository.save(localProfile)
+                                                            .doOnSuccess(p -> log.debug("✅ Profil sauvegardé: {}", p.userId()))
+                                                            .doOnError(e -> log.error(
+                                                                    "❌ ERREUR sauvegarde profil (ID: {}): {} - " +
+                                                                            "ATTENTION: User externe créé, user local sauvegardé mais pas le profil!",
+                                                                    extUser.id(), e.getMessage(), e)))
+                                                    .map(userAndProfile -> Tuples.of(userAndProfile.getT1(), true)) // Nouvel utilisateur
+                                                    .onErrorResume(e -> {
+                                                        log.error(
+                                                                "🔴 ROLLBACK NÉCESSAIRE - Échec sauvegarde locale " +
+                                                                        "mais user externe créé (ID: {}, Email: {}). " +
+                                                                        "Action requise: Nettoyer user externe ou réessayer sync.",
+                                                                extUser.id(), email, e);
+
+                                                        return Mono.error(new IllegalStateException(
+                                                                "Échec synchronisation user local/externe pour " + email, e));
+                                                    });
                                         });
+                            }));
+
+                    return userMono.flatMap(userTuple -> {
+                        User user = userTuple.getT1();
+                        boolean isNewUser = userTuple.getT2();
+                        UUID userId = user.getId();
+
+                        log.debug("🔍 Vérification si déjà membre - User: {}, Syndicat: {}",
+                                userId, syndicatId);
+
+                        return memberRepository.existsBySyndicatIdAndUserId(syndicatId, userId)
+                                .doOnNext(exists -> log.debug("Résultat vérification membre: {}", exists))
+                                .flatMap(isMember -> {
+                                    if (isMember) {
+                                        log.warn("⚠️ Utilisateur {} déjà membre du syndicat {}",
+                                                userId, syndicatId);
+                                        return Mono.error(new IllegalStateException("Déjà membre"));
+                                    }
+
+                                    log.info("➕ Insertion nouveau membre - User: {}, Syndicat: {}, Branche: {}",
+                                            userId, syndicatId, branchId);
+
+                                    SyndicatMember member = SyndicatMember.createLocal(
+                                            syndicatId, branchId, userId, RoleTypeEnum.CLIENT);
+
+                                    return memberRepository.insertMember(
+                                                    syndicatId,
+                                                    userId,
+                                                    branchId,
+                                                    true,
+                                                    RoleTypeEnum.CLIENT.name()
+                                            )
+                                            .doOnSuccess(v -> log.info(
+                                                    "✅ Membre inséré avec succès - User: {}, Syndicat: {}",
+                                                    userId, syndicatId))
+                                            .doOnError(e -> log.error(
+                                                    "❌ ERREUR insertion membre - User: {}, Syndicat: {}: {}",
+                                                    userId, syndicatId, e.getMessage(), e))
+                                            .thenReturn(Tuples.of(user, member, syndicat.name(), isNewUser));
+                                });
+                    });
+                })
+                // Construction de la réponse avec notification APRÈS le commit
+                .flatMap(resultTuple -> {
+                    User user = resultTuple.getT1();
+                    SyndicatMember member = resultTuple.getT2();
+                    String syndicatName = resultTuple.getT3();
+                    boolean isNewUser = resultTuple.getT4();
+
+                    log.info("📧 Tentative envoi notification invitation - Email: {}", email);
+
+                    // Créer l'objet de données pour la réponse
+                    Map<String, Object> responseData = Map.of(
+                            "user", user,
+                            "member", member,
+                            "isNewUser", isNewUser
+                    );
+
+                    return notificationPort.sendSyndicateInvitation(email, syndicatName, firstName)
+                            .doOnSuccess(v -> log.info("✅ Notification envoyée avec succès à {}", email))
+                            .doOnError(e -> log.error(
+                                    "⚠️ ÉCHEC NOTIFICATION (membre ajouté mais email non envoyé) - " +
+                                            "Email: {}, Syndicat: {}, Erreur: {}",
+                                    email, syndicatName, e.getMessage()))
+                            .onErrorResume(e -> {
+                                log.warn("♻️ Erreur notification ignorée (membre déjà en DB)");
+                                return Mono.empty();
+                            })
+                            .thenReturn(new AddUserResponse(
+                                    "Membre ajouté avec succès" + (isNewUser ? " (nouvel utilisateur créé)" : ""),
+                                    responseData
+                            ));
+                })
+                .doOnSuccess(response -> log.info(
+                        "🎉 Ajout membre terminé avec succès - Email: {}, Syndicat: {}, Data: {}",
+                        email, syndicatId, response.data()))
+                .doOnError(e -> log.error(
+                        "❌ ÉCHEC GLOBAL ajout membre - Email: {}, Syndicat: {}, Erreur: {}",
+                        email, syndicatId, e.getMessage()));
+    }
+
+    public Flux<MemberResponse> getSyndicateMembers(UUID syndicatId) {
+        log.info("🔍 Récupération membres du syndicat: {}", syndicatId);
+
+        return memberRepository.findBySyndicatId(syndicatId)
+                .doOnNext(member -> log.debug("👤 Membre trouvé - UserID: {}, Role: {}, BranchID: {}",
+                        member.userId(), member.role(), member.branchId()))
+                .flatMap(member -> {
+                    log.debug("🔎 Recherche infos utilisateur - ID: {}", member.userId());
+
+                    return userGateway.findById(member.userId())
+                            .doOnNext(extUser -> log.debug(
+                                    "✅ User trouvé dans gateway externe: {} {} ({})",
+                                    extUser.firstName(), extUser.lastName(), extUser.email()))
+                            .doOnError(e -> log.warn(
+                                    "⚠️ Erreur gateway externe pour user {}: {}, tentative fallback local",
+                                    member.userId(), e.getMessage()))
+                            .onErrorResume(e -> {
+                                // ✅ Fallback aussi sur erreur, pas seulement sur empty
+                                log.debug("♻️ Fallback vers repository local pour user {}", member.userId());
+                                return Mono.empty();
+                            })
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.debug("🔄 Gateway vide, recherche user {} dans repository local",
+                                        member.userId());
+
+                                return userRepository.findById(member.userId())
+                                        .doOnNext(localUser -> log.debug(
+                                                "✅ User trouvé en local: {} ({})",
+                                                localUser.name(), localUser.email()))
+                                        .map(localUser -> {
+                                            // ✅ Parsing robuste avec limit
+                                            String[] parts = localUser.name().split(" ", 2);
+                                            String firstName = parts[0];
+                                            String lastName = parts.length > 1 ? parts[1] : "";
+
+                                            log.debug("📝 Parsing nom local: '{}' → Prénom: '{}', Nom: '{}'",
+                                                    localUser.name(), firstName, lastName);
+
+                                            return new ExternalUserInfo(
+                                                    localUser.id(),
+                                                    firstName,
+                                                    lastName,
+                                                    localUser.email(),
+                                                    localUser.phoneNumber(),
+                                                    List.of(),
+                                                    List.of()
+                                            );
+                                        })
+                                        .switchIfEmpty(Mono.defer(() -> {
+                                            log.error(
+                                                    "❌ DONNÉE INCOHÉRENTE - User {} (membre du syndicat {}) " +
+                                                            "introuvable ni dans gateway ni dans repo local!",
+                                                    member.userId(), syndicatId);
+                                            return Mono.empty();
+                                        }));
+                            }))
+                            .map(userInfo -> {
+                                log.debug("✅ MemberResponse créé pour user: {} {} ({})",
+                                        userInfo.firstName(), userInfo.lastName(), userInfo.email());
+
+                                return new MemberResponse(
+                                        userInfo.id(),
+                                        userInfo.firstName(),
+                                        userInfo.lastName(),
+                                        userInfo.email(),
+                                        null, // Avatar URL - TODO: récupérer depuis ProfileRepository si nécessaire
+                                        member.role(),
+                                        member.branchId(),
+                                        member.joinedAt()
+                                );
                             });
                 })
-                .then();
+                .doOnComplete(() -> log.info("✅ Récupération membres terminée pour syndicat {}",
+                        syndicatId))
+                .doOnError(e -> log.error(
+                        "❌ Erreur récupération membres syndicat {}: {}",
+                        syndicatId, e.getMessage(), e));
     }
 
     private Mono<UUID> getCurrentUserId() {
@@ -2231,7 +2426,7 @@ public class SyndicateMembershipService {
 }
 ```
 
-*Lignes: 247*
+*Lignes: 440*
 
 ---
 
@@ -4590,6 +4785,23 @@ public record WebhookStatusChangeRequest(
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\AddUserResponse.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
+
+public record AddUserResponse(
+        String message,
+        Object data
+) {
+}
+
+```
+
+*Lignes: 8*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\BasicResponse.java
 
 ```java
@@ -4714,6 +4926,31 @@ public class EventResponseDTO {
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\MemberResponse.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
+
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
+import java.time.Instant;
+import java.util.UUID;
+
+public record MemberResponse(
+        UUID userId,
+        String firstName,
+        String lastName,
+        String email,
+        String profileImageUrl,
+        RoleTypeEnum role,
+        UUID branchId,
+        Instant joinedAt
+) {}
+```
+
+*Lignes: 16*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\OfficialProfileResponse.java
 
 ```java
@@ -4814,7 +5051,7 @@ public record ProductResponse(
     String sku,
     String category,
     Integer stock,
-    MediaInfo image,
+    String image,
     Boolean isActive
 ) {
 
@@ -4997,9 +5234,11 @@ public class VoteResultDTO {
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.product;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
+import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
@@ -5034,38 +5273,47 @@ public class ProductController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(
-        summary = "Créer un nouveau produit", 
-        description = "Permet de créer un nouveau produit dans le marketplace.",
-        security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Produit créé avec succès"),
-        @ApiResponse(responseCode = "400", description = "Requête invalide")
-    })
-    public Mono<ProductResponse> createProduct(@ModelAttribute("product") @Valid ProductRequest dto,
-                                               @RequestPart("image") Flux<FilePart> imageFile) {
-        return mediaService.uploadImage(imageFile)
-                .flatMap(urls -> {
-                    String uploadedUrl = urls.isEmpty() ? null : urls.get(0);
+    @Operation(summary = "Créer un nouveau produit", description = "Permet de créer un nouveau produit avec ses champs individuels.")
+    public Mono<ProductResponse> createProduct(
+            @Parameter(description = "ID du syndicat") @RequestPart("syndicatId") Mono<String> syndicatId,
+            @Parameter(description = "Nom du produit") @RequestPart("name") Mono<String> name,
+            @Parameter(description = "Description") @RequestPart("description") Mono<String> description,
+            @Parameter(description = "Prix") @RequestPart("price") Mono<String> price,
+            @Parameter(description = "SKU") @RequestPart("sku") Mono<String> sku,
+            @Parameter(description = "Catégorie") @RequestPart("category") Mono<String> category,
+            @Parameter(description = "Stock initial") @RequestPart("stock") Mono<String> stock,
+            @Parameter(description = "Est actif") @RequestPart("isActive") Mono<String> isActive,
+            @Parameter(description = "Fichier image") @RequestPart(name = "image", required = false) Flux<FilePart> imageFile
+    ) {
+        // 1. Gérer l'upload de l'image de manière asynchrone
+        Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(imageFile != null ? imageFile : Flux.empty());
 
-                    // 2. On transforme le DTO en objet du Domaine avec l'URL
+        // 2. Combiner tous les champs Mono
+        return Mono.zip(syndicatId, name, description, price, sku, category, stock, isActive)
+                .zipWith(imagesUrlsMono)
+                .flatMap(tuple -> {
+                    var fields = tuple.getT1(); // Contient les 8 premiers champs
+                    List<String> imageUrls = tuple.getT2(); // Contient l'URL de l'image
+
+                    String uploadedUrl = imageUrls.isEmpty() ? null : imageUrls.get(0);
+
+                    // 3. Conversion manuelle des types (String -> UUID, BigDecimal, Integer, Boolean)
                     Product productDomain = new Product(
-                            null,
-                            dto.syndicatId(),
-                            dto.name(),
-                            dto.description(),
-                            dto.price(),
-                            dto.sku(),
-                            dto.category(),
-                            dto.stock(),
+                            UUID.randomUUID(), // On génère l'ID ici pour l'insertion
+                            UUID.fromString(fields.getT1()),      // syndicatId
+                            fields.getT2(),                       // name
+                            fields.getT3(),                       // description
+                            new java.math.BigDecimal(fields.getT4()), // price
+                            fields.getT5(),                       // sku
+                            fields.getT6(),                       // category
+                            Integer.parseInt(fields.getT7()),     // stock
                             uploadedUrl,
-                            dto.isActive()
+                            Boolean.parseBoolean(fields.getT8())  // isActive
                     );
 
                     return productUseCase.createProduct(productDomain);
                 })
-                .map(mapper::mapToResponse);
+                .map(this::mapToResponse);
     }
 
     @PatchMapping("/{id}/stock")
@@ -5081,7 +5329,7 @@ public class ProductController {
     })
     public Mono<ProductResponse> updateStock(@PathVariable UUID id, @RequestBody int quantity) {
         return productUseCase.updateStock(id, quantity)
-            .map(mapper::mapToResponse);
+            .map(this::mapToResponse);
     }
 
 
@@ -5110,7 +5358,7 @@ public class ProductController {
             dto.isActive()
         );
         return productUseCase.updateProduct(product)
-            .map(mapper::mapToResponse);
+            .map(this::mapToResponse);
     }
 
     @DeleteMapping("/{id}")
@@ -5139,7 +5387,7 @@ public class ProductController {
     })
     public Mono<ProductResponse> getProductDetails(@PathVariable UUID id) {
         return productUseCase.getProductDetails(id)
-            .map(mapper::mapToResponse);
+            .map(this::mapToResponse);
     }
 
     @GetMapping("/syndicates/{syndicatId}")
@@ -5154,13 +5402,28 @@ public class ProductController {
     })
     public Flux<ProductResponse> getSyndicatProducts(@PathVariable UUID syndicatId) {
        return productUseCase.getSyndicatProducts(syndicatId)
-            .map(mapper::mapToResponse);
+            .map(this::mapToResponse);
+    }
+
+    public ProductResponse mapToResponse(Product product) {
+        return new ProductResponse(
+                product.id(),
+                product.syndicatId(),
+                product.name(),
+                product.description(),
+                product.price(),
+                product.sku(),
+                product.category(),
+                product.stock(),
+                product.imageUrl(),
+                product.isActive()
+        );
     }
 }
 
 ```
 
-*Lignes: 163*
+*Lignes: 189*
 
 ---
 
@@ -5666,7 +5929,9 @@ import com.yowyob.ugate_service.application.service.syndicate.MembershipService;
 import com.yowyob.ugate_service.application.service.syndicate.SyndicateMembershipService;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.MembershipApprovalRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateMemberRoleRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.AddUserResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BasicResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.MemberResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateFullStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.MembershipRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -5703,9 +5968,9 @@ public class SyndicateMangementController {
             @ApiResponse(responseCode = "404", description = "Syndicat ou Branche introuvable"),
             @ApiResponse(responseCode = "400", description = "Données manquantes")
     })
-    // Nouvelle route incluant le syndicat et la branche
+
     @PostMapping("/{syndicatId}/branches/{branchId}/members/add")
-    public Mono<ResponseEntity<BasicResponse>> addMember(
+    public Mono<ResponseEntity<AddUserResponse>> addMember(
             @Parameter(description = "ID du syndicat", required = true)
             @PathVariable UUID syndicatId,
 
@@ -5714,7 +5979,8 @@ public class SyndicateMangementController {
 
             @RequestBody AddMemberRequest request) {
 
-        log.info("Admin ajoute membre {} dans la branche {}", request.email(), branchId);
+        log.info("🔵 Admin ajoute membre {} dans la branche {} du syndicat {}",
+                request.email(), branchId, syndicatId);
 
         return membershipService.addMemberByAdmin(
                 syndicatId,
@@ -5722,13 +5988,13 @@ public class SyndicateMangementController {
                 request.email(),
                 request.firstName(),
                 request.lastName()
-        ).thenReturn(ResponseEntity.ok(new BasicResponse("Membre ajouté et invité avec succès")));
+        ).map(ResponseEntity::ok);
     }
 
-    @Operation(summary = "Lister toutes les demandes d'un syndicat", description = "Retourne toutes les demandes en attente pour toutes les branches du syndicat.", security = @SecurityRequirement(name = "bearerAuth"))
-    @GetMapping("/{syndicatId}/requests")
-    public Flux<MembershipRequest> getSyndicateRequests(@PathVariable UUID syndicatId) {
-        return membershipService.getRequestsBySyndicate(syndicatId);
+    @Operation(summary = "Lister les membres d'un syndicat", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/{syndicatId}/members")
+    public Flux<MemberResponse> getMembers(@PathVariable UUID syndicatId) {
+        return membershipService.getSyndicateMembers(syndicatId);
     }
 
     @Operation(summary = "Lister les demandes d'une branche", description = "Retourne les demandes en attente pour une branche spécifique.", security = @SecurityRequirement(name = "bearerAuth"))
@@ -5787,7 +6053,7 @@ public class SyndicateMangementController {
 
 ```
 
-*Lignes: 126*
+*Lignes: 129*
 
 ---
 
@@ -7729,6 +7995,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.en
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.annotation.Transient;
 
@@ -7754,6 +8021,7 @@ public class ServiceEntity implements Persistable<UUID>{
     @Id
     private UUID id;
 
+    @Column("syndicat_id")
     private UUID syndicatId;
     
     private String title;
@@ -7762,8 +8030,9 @@ public class ServiceEntity implements Persistable<UUID>{
 
     private BigDecimal price;
    
-    private List<String> features;
+    private String[] features;
 
+    @Column("is_active")
     private Boolean isActive;
 
     @Transient
@@ -7780,7 +8049,7 @@ public class ServiceEntity implements Persistable<UUID>{
 }
 ```
 
-*Lignes: 54*
+*Lignes: 57*
 
 ---
 
@@ -8272,16 +8541,20 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
     @Override
     @Transactional
     public Mono<SyndicatService> save(SyndicatService service) {
-        ServiceEntity entity = new ServiceEntity(
-            service.id(),
-            service.syndicatId(),
-            service.title(),
-            service.description(),
-            service.price(),
-            service.features(),
-            service.isActive(),
-            true
-        );
+        ServiceEntity entity = ServiceEntity.builder()
+                .id(service.id())
+                .syndicatId(service.syndicatId())
+                .title(service.title())
+                .description(service.description())
+                .price(service.price())
+                // Conversion List -> Array
+                .features(service.features() != null ? service.features().toArray(new String[0]) : null)
+                .isActive(service.isActive())
+                .isNew(true) // FORCE L'INSERTION
+                .build();
+
+        System.out.println("Insertion Service pour Syndicat: " + entity.getSyndicatId());
+
         return syndicatServiceRepository.save(entity)
                .map(this::mapToDomain);
     }
@@ -8295,7 +8568,9 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
             Optional.ofNullable(service.title()).ifPresent(entity::setTitle);
             Optional.ofNullable(service.description()).ifPresent(entity::setDescription);
             Optional.ofNullable(service.price()).ifPresent(entity::setPrice);
-            Optional.ofNullable(service.features()).ifPresent(entity::setFeatures);
+            if (service.features() != null) {
+                entity.setFeatures(service.features().toArray(new String[0]));
+            }
             Optional.ofNullable(service.isActive()).ifPresent(entity::setIsActive);
             entity.setNew(false);
         
@@ -8317,8 +8592,8 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
 
     // --- MAPPER ---
     private SyndicatService mapToDomain(ServiceEntity row) {
-        List<String> featuresList = row.getFeatures() != null 
-                ? row.getFeatures() 
+        List<String> featuresList = (row.getFeatures() != null)
+                ? List.of(row.getFeatures())
                 : List.of();
 
         return new SyndicatService(
@@ -8334,7 +8609,7 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
 }
 ```
 
-*Lignes: 100*
+*Lignes: 106*
 
 ---
 
@@ -8796,6 +9071,13 @@ import java.util.UUID;
 
 public interface SyndicatMemberRepository extends ReactiveCrudRepository<SyndicatMember, Void> {
 
+    @Modifying
+    @Query("""
+        INSERT INTO syndicat_members (syndicat_id, user_id, branch_id, joined_at, is_active, role) 
+        VALUES (:syndicatId, :userId, :branchId, NOW(), :isActive, CAST(:role AS role_type_enum))
+    """)
+    Mono<Void> insertMember(UUID syndicatId, UUID userId, UUID branchId, boolean isActive, String role);
+
     // AJOUTER UN MEMBRE
     @Modifying
     @Query("INSERT INTO syndicat_members (syndicat_id, user_id, joined_at, is_active) VALUES (:syndicatId, :userId, NOW(), :isActive)")
@@ -8846,7 +9128,7 @@ public interface SyndicatMemberRepository extends ReactiveCrudRepository<Syndica
 
 ```
 
-*Lignes: 60*
+*Lignes: 67*
 
 ---
 
@@ -9155,7 +9437,14 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**", "/actuator/**").permitAll()
+                        .pathMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/webjars/**",
+                                "/actuator/**",
+                                "/syndicates"
+                        ).permitAll()
                         .anyExchange().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -9205,7 +9494,7 @@ public class SecurityConfig {
 }
 ```
 
-*Lignes: 88*
+*Lignes: 95*
 
 ---
 
@@ -9496,10 +9785,12 @@ import org.mapstruct.Mapper;
 import com.yowyob.ugate_service.domain.model.SyndicatService;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.ServiceOfferingRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ServiceOfferingResponse;
+import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface ServiceOfferingMapper {
 
+    @Mapping(target = "syndicatId", source = "syndicatId")
     SyndicatService mapToDomain( ServiceOfferingRequest dto );
     ServiceOfferingResponse mapToResponse( SyndicatService serviceOffering );
     
@@ -9508,7 +9799,7 @@ public interface ServiceOfferingMapper {
 
 ```
 
-*Lignes: 17*
+*Lignes: 19*
 
 ---
 
@@ -11259,13 +11550,13 @@ CREATE TABLE vote (
 
 ## Statistiques
 
-- **Total de fichiers analysés:** 219
-- **Total de lignes de code:** 8 953
-- **Moyenne de lignes par fichier:** 41
+- **Total de fichiers analysés:** 221
+- **Total de lignes de code:** 9 224
+- **Moyenne de lignes par fichier:** 42
 
 ### Répartition par type de fichier
 
-- **.java:** 198 fichiers
+- **.java:** 200 fichiers
 - **.xml:** 15 fichiers
 - **.properties:** 2 fichiers
 - **.yml:** 1 fichier

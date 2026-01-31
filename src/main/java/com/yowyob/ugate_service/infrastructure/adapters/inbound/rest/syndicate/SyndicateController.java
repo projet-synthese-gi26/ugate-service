@@ -2,6 +2,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.syndicate;
 
 
 import com.yowyob.ugate_service.application.service.syndicate.SyndicatManagementService;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateSyndicateFullRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -111,4 +112,33 @@ public class SyndicateController {
                 })
                 .flatMapMany(currentUserId -> syndicateService.getUserSyndicates(currentUserId));
     }
+
+
+    @Operation(
+            summary = "Mise à jour complète d'un syndicat (Créateur uniquement)",
+            description = "Permet de modifier nom, description, domaine et fichiers. Les champs non envoyés restent inchangés.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<SyndicateResponse> updateSyndicate(
+            @Parameter(description = "ID du syndicat") @PathVariable UUID id,
+
+            @RequestPart(value = "name", required = false) String name,
+            @RequestPart(value = "description", required = false) String description,
+            @RequestPart(value = "domain", required = false) String domain,
+            @RequestPart(value = "logo", required = false) FilePart logo,
+            @RequestPart(value = "charte", required = false) FilePart charte,
+            @RequestPart(value = "statusDoc", required = false) FilePart statusDoc
+    ) {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> UUID.fromString(((Jwt) ctx.getAuthentication().getPrincipal()).getSubject()))
+                .flatMap(requesterId -> {
+                    UpdateSyndicateFullRequest request = new UpdateSyndicateFullRequest(
+                            name, description, domain, logo, charte, statusDoc
+                    );
+                    return syndicateService.updateSyndicateFull(id, requesterId, request);
+                });
+    }
+
+
 }

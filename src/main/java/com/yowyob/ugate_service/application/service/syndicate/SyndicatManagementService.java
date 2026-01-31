@@ -2,6 +2,7 @@ package com.yowyob.ugate_service.application.service.syndicate;
 
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateSyndicateFullRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.*;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
@@ -218,5 +220,63 @@ public class SyndicatManagementService {
                 .map(syndicateMapper::toResponse)
                 .doOnSuccess(s -> log.info("{} réussie pour le syndicat ID: {}", actionName, id))
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable avec l'ID: " + id)));
+    }
+
+
+    @Transactional
+    public Mono<SyndicateResponse> updateSyndicateFull(UUID syndicatId, UUID requesterId, UpdateSyndicateFullRequest request) {
+        return syndicatRepository.findById(syndicatId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable")))
+                .flatMap(syndicat -> {
+                    // 1. Vérification de sécurité (Ownership)
+                    if (!syndicat.creatorId().equals(requesterId)) {
+                        return Mono.error(new IllegalStateException("Seul le créateur peut modifier ce syndicat."));
+                    }
+
+                    // 2. Gestion des fichiers en parallèle
+                    Mono<String> logoMono = (request.logo() != null)
+                            ? fileStoragePort.uploadFile(request.logo(), "syndicats/logos")
+                            : Mono.justOrEmpty(syndicat.logoUrl());
+
+                    Mono<String> charteMono = (request.charte() != null)
+                            ? fileStoragePort.uploadFile(request.charte(), "syndicats/chartes")
+                            : Mono.justOrEmpty(syndicat.charteUrl());
+
+                    Mono<String> statusMono = (request.statusDoc() != null)
+                            ? fileStoragePort.uploadFile(request.statusDoc(), "syndicats/statuts")
+                            : Mono.justOrEmpty(syndicat.statusUrl());
+
+                    return Mono.zip(logoMono.defaultIfEmpty(""), charteMono.defaultIfEmpty(""), statusMono.defaultIfEmpty(""))
+                            .flatMap(tuple -> {
+                                String newLogo = tuple.getT1().isEmpty() ? syndicat.logoUrl() : tuple.getT1();
+                                String newCharte = tuple.getT2().isEmpty() ? syndicat.charteUrl() : tuple.getT2();
+                                String newStatus = tuple.getT3().isEmpty() ? syndicat.statusUrl() : tuple.getT3();
+
+                                // 3. Mise à jour de l'entité
+                                // Utilisation du constructeur complet ou d'une méthode with... modifiée
+                                Syndicat updatedSyndicat = new Syndicat(
+                                        syndicat.id(),
+                                        syndicat.organizationId(),
+                                        syndicat.creatorId(),
+                                        syndicat.isApproved(), // On ne change pas l'approbation ici
+                                        request.name() != null ? request.name() : syndicat.name(),
+                                        request.description() != null ? request.description() : syndicat.description(),
+                                        request.domain() != null ? request.domain() : syndicat.domain(),
+                                        syndicat.type(),
+                                        newCharte,
+                                        newLogo,
+                                        newStatus,
+                                        syndicat.membersListUrl(),
+                                        syndicat.commitmentCertificateUrl(),
+                                        syndicat.createdAt(),
+                                        Instant.now(), // UpdatedAt
+                                        syndicat.isActive()
+                                );
+
+                                return syndicatRepository.save(updatedSyndicat);
+                            });
+                })
+                .map(syndicateMapper::toResponse)
+                .doOnSuccess(s -> log.info("Syndicat {} mis à jour par {}", syndicatId, requesterId));
     }
 }
