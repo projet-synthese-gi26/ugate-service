@@ -44,7 +44,8 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/webjars/**",
                                 "/actuator/**",
-                                "/syndicates"
+                                "/syndicates",
+                                "/compliance/**"
                         ).permitAll()
                         .anyExchange().authenticated()
                 )
