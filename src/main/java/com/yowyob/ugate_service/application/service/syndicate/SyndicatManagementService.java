@@ -114,8 +114,7 @@ public class SyndicatManagementService {
                     return businessActorRepository.save(newActor);
                 }));
 
-        Organization organization = new Organization(orgId, creatorId, name.toUpperCase().replaceAll("\\s+", "_"), null, name, null, true, true);
-
+        Organization organization = Organization.createNew(orgId, creatorId, name, null);
 
         Syndicat syndicat = new Syndicat(
                 syndicatId, orgId, creatorId, false, name, description, domain, "STANDARD",
