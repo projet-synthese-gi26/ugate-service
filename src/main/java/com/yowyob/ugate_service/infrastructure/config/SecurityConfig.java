@@ -46,7 +46,8 @@ public class SecurityConfig {
                                 "/actuator/**",
                                 "/syndicates",
                                 "/compliance/**",
-                                "/admin/syndicates/{id}/details"
+                                "/admin/syndicates/*/details",
+                                "/syndicates/*/branches"
                         ).permitAll()
                         .anyExchange().authenticated()
                 )
