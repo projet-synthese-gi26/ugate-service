@@ -1,5 +1,6 @@
 package com.yowyob.ugate_service.domain.ports.out.syndicate;
 
+import java.util.Map;
 import java.util.UUID;
 
 import com.yowyob.ugate_service.domain.model.PublicationModel;
@@ -14,4 +15,6 @@ public interface PublicationPersistencePort {
   Flux<PublicationModel> findByBranchId(UUID branchId);
 
   Mono<Void> incrementLikes(UUID publicationId);
+
+  Flux<PublicationModel> findAllPaginated(int page, int size);
 }

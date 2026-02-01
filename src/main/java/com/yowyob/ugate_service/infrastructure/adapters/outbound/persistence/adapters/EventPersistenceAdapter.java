@@ -31,4 +31,12 @@ public class EventPersistenceAdapter implements EventPersistencePort {
         return eventRepository.findByBranchId(branchId)
                 .map(eventMapper::toModel);
     }
+
+    @Override
+    public Flux<EventModel> findAllPaginated(int page, int size) {
+        // The FeedService will handle the actual pagination after merging and sorting.
+        // This method should return all events for now.
+        return eventRepository.findAll()
+            .map(eventMapper::toModel);
+    }
 }

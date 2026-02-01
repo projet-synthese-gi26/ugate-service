@@ -15,6 +15,8 @@ import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistenceP
 //... (keep existing imports)
 import com.yowyob.ugate_service.application.service.content.EventService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
+import com.yowyob.ugate_service.application.service.content.FeedService;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -44,5 +46,10 @@ public class ServiceConfig {
     @Bean
     public EventService eventService(EventPersistencePort eventPersistencePort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort, UserGatewayPort userGatewayPort) {
         return new EventService(eventPersistencePort, mediaPersistencePort, userEventPersistencePort, userGatewayPort);
+    }
+
+    @Bean
+    public FeedService feedService(PublicationPersistencePort publicationPersistencePort, EventPersistencePort eventPersistencePort, UserGatewayPort userGatewayPort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort) {
+        return new FeedService(publicationPersistencePort, eventPersistencePort, userGatewayPort, mediaPersistencePort, userEventPersistencePort);
     }
 }
