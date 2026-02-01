@@ -63,4 +63,21 @@ public class PublicationPersistenceAdapter implements PublicationPersistencePort
                 })
                 .then();
     }
+
+    @Override
+    public Flux<PublicationModel> findAllPaginated(int page, int size) {
+        // The FeedService will handle the actual pagination after merging and sorting.
+        // This method should return all publications for now.
+        return publicationRepository.findAll()
+                .map(publication -> {
+                    PublicationModel model = new PublicationModel();
+                    model.setId(publication.id());
+                    model.setBranchI(publication.branchId());
+                    model.setAuthorId(publication.authorId());
+                    model.setContent(publication.content());
+                    model.setNLikes(publication.nLikes());
+                    model.setCreatedAt(publication.createdAt());
+                    return model;
+                });
+    }
 }

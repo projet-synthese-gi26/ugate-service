@@ -81,7 +81,7 @@ CREATE TABLE reactions (
     reacted_at TIMESTAMP
 );
 
-CREATE TABLE events (
+CREATE TABLE event (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     creator_id UUID,
     branch_id UUID,
@@ -124,4 +124,18 @@ CREATE TABLE vote (
     user_id UUID,
     publication_vote_id UUID,
     label VARCHAR(255)
+);
+
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY,
+    user_id UUID,
+    profile_image_url VARCHAR(255),
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    birth_date TIMESTAMP,
+    nationality VARCHAR(255),
+    gender VARCHAR(255),
+    language VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
 );
