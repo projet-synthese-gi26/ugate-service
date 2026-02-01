@@ -69,6 +69,12 @@ public class TraMaSysUserAdapter implements UserGatewayPort {
                 .switchIfEmpty(webClient.get()
                         .uri("/api/users/{id}", id)
                         .retrieve()
+                        .onStatus(HttpStatusCode::isError, response ->
+                                response.bodyToMono(String.class).flatMap(body -> {
+                                    log.error("Error fetching user from TraMaSys, id: {}, response: {}", id, body);
+                                    return Mono.empty(); // Return empty instead of an error
+                                })
+                        )
                         .bodyToMono(TraMaSysUserDTO.class)
                         .map(this::mapToDomain)
                         .flatMap(dto -> userRedisTemplate.opsForValue()
