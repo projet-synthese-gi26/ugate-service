@@ -45,7 +45,8 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/actuator/**",
                                 "/syndicates",
-                                "/compliance/**"
+                                "/compliance/**",
+                                "/admin/syndicates/{id}/details"
                         ).permitAll()
                         .anyExchange().authenticated()
                 )
