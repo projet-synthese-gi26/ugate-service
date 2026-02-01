@@ -1,7 +1,7 @@
 # Contexte Complet du Projet
 
 **Projet:** ugate-service  
-**Date de génération:** 31/01/2026 16:34:59  
+**Date de génération:** 31/01/2026 17:34:48  
 **Chemin:** D:\Projets\Scolaire\Reseau\New Version\ugate-service
 
 ---
@@ -146,7 +146,9 @@
 │   │   │               │   │   │       │   │   ├── ProductRequest.java
 │   │   │               │   │   │       │   │   ├── ServiceOfferingRequest.java
 │   │   │               │   │   │       │   │   ├── UpdateBranchRequest.java
+│   │   │               │   │   │       │   │   ├── UpdateFullProfileRequest.java
 │   │   │               │   │   │       │   │   ├── UpdateMemberRoleRequest.java
+│   │   │               │   │   │       │   │   ├── UpdateSyndicateFullRequest.java
 │   │   │               │   │   │       │   │   └── WebhookStatusChangeRequest.java
 │   │   │               │   │   │       │   ├── response
 │   │   │               │   │   │       │   │   ├── AddUserResponse.java
@@ -163,6 +165,7 @@
 │   │   │               │   │   │       │   │   ├── PublicationVoteWithResultsDTO.java
 │   │   │               │   │   │       │   │   ├── ServiceOfferingResponse.java
 │   │   │               │   │   │       │   │   ├── StatsResponse.java
+│   │   │               │   │   │       │   │   ├── SyndicateDetailsResponse.java
 │   │   │               │   │   │       │   │   ├── SyndicateFullStatsResponse.java
 │   │   │               │   │   │       │   │   ├── SyndicateResponse.java
 │   │   │               │   │   │       │   │   └── VoteResultDTO.java
@@ -760,6 +763,11 @@ If you manually switch to a different parent and actually want the inheritance, 
 package com.yowyob.ugate_service.application.service.auth;
 
 import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
+import com.yowyob.ugate_service.domain.model.UserEventModel;
+import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateFullProfileRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.MemberResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Profile;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.User;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ProfileRepository;
@@ -782,6 +790,8 @@ import java.util.UUID;
 public class UserManagementService {
 
     private final UserRepository userRepository;
+    private final UserGatewayPort userGatewayPort;
+    private final FileStoragePort fileStoragePort;
     private final ProfileRepository profileRepository;
     private final ReactiveRedisTemplate<String, ExternalUserInfo> redisTemplate;
 
@@ -835,10 +845,74 @@ public class UserManagementService {
                 .set(key, new ExternalUserInfo(null, null, null, null, null, null, null), USER_EXISTENCE_CACHE_TTL)
                 .then();
     }
+
+    @Transactional
+    public Mono<MemberResponse> updateFullProfile(UUID userId, UpdateFullProfileRequest request) {
+        return userRepository.findById(userId)
+                .switchIfEmpty(Mono.error(new RuntimeException("Utilisateur introuvable")))
+                .flatMap(user ->
+                        profileRepository.findByUserId(userId)
+                                .defaultIfEmpty(Profile.createNew(userId, "", "")) // Fallback si pas de profil
+                                .flatMap(profile -> {
+
+                                    // 1. Gestion de l'image (si fournie)
+                                    Mono<String> imageMono = (request.profileImage() != null)
+                                            ? fileStoragePort.uploadFile(request.profileImage(), "avatars")
+                                            : Mono.justOrEmpty(profile.profilImageUrl());
+
+                                    return imageMono.flatMap(imgUrl -> {
+
+                                        // 2. Mise à jour Entité USER (Base)
+                                        String newFirstName = request.firstName() != null ? request.firstName() : profile.firstName();
+                                        String newLastName = request.lastName() != null ? request.lastName() : profile.lastName();
+                                        String fullName = newFirstName + " " + newLastName;
+                                        String newPhone = request.phoneNumber() != null ? request.phoneNumber() : user.phoneNumber();
+
+                                        User updatedUser = new User(
+                                                user.id(),
+                                                fullName,
+                                                newPhone,
+                                                user.email(),
+                                                false // isNewRecord = false pour UPDATE
+                                        );
+
+                                        // 3. Mise à jour Entité PROFILE (Extended)
+                                        Profile updatedProfile = new Profile(
+                                                profile.id(),
+                                                profile.userId(),
+                                                imgUrl,
+                                                newFirstName,
+                                                newLastName,
+                                                request.birthDate() != null ? request.birthDate() : profile.birth_date(),
+                                                request.nationality() != null ? request.nationality() : profile.nationality(),
+                                                request.gender() != null ? request.gender() : profile.gender(),
+                                                request.language() != null ? request.language() : profile.language(),
+                                                profile.createdAt(),
+                                                Instant.now(), // UpdatedAt
+                                                false
+                                        );
+
+                                        // 4. Sync Externe (Gateway)
+                                        ExternalUserInfo extInfo = new ExternalUserInfo(
+                                                userId, newFirstName, newLastName, user.email(), newPhone, null, null
+                                        );
+
+                                        // 5. Exécution transactionnelle
+                                        return userRepository.save(updatedUser)
+                                                .then(profileRepository.save(updatedProfile))
+                                                .then(userGatewayPort.updateProfile(extInfo)) // Sync best-effort
+                                                .thenReturn(new MemberResponse(
+                                                        userId, newFirstName, newLastName, user.email(),
+                                                        imgUrl, null, null, null
+                                                ));
+                                    });
+                                })
+                );
+    }
 }
 ```
 
-*Lignes: 79*
+*Lignes: 150*
 
 ---
 
@@ -2437,7 +2511,9 @@ package com.yowyob.ugate_service.application.service.syndicate;
 
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateSyndicateFullRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateDetailsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.*;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
@@ -2457,6 +2533,7 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
@@ -2474,6 +2551,7 @@ public class SyndicatManagementService {
     private final BusinessActorRepository businessActorRepository;
     private final UserRepository userRepository;
     private final UserGatewayPort userGatewayPort;
+    private final BranchRepository branchRepository;
 
     @Transactional
     public Mono<SyndicateResponse> createSyndicate(String name, String description, String domain,
@@ -2654,10 +2732,138 @@ public class SyndicatManagementService {
                 .doOnSuccess(s -> log.info("{} réussie pour le syndicat ID: {}", actionName, id))
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable avec l'ID: " + id)));
     }
+
+
+    @Transactional
+    public Mono<SyndicateResponse> updateSyndicateFull(UUID syndicatId, UUID requesterId, UpdateSyndicateFullRequest request) {
+        return syndicatRepository.findById(syndicatId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable")))
+                .flatMap(syndicat -> {
+                    // 1. Vérification de sécurité (Ownership)
+                    if (!syndicat.creatorId().equals(requesterId)) {
+                        return Mono.error(new IllegalStateException("Seul le créateur peut modifier ce syndicat."));
+                    }
+
+                    // 2. Gestion des fichiers en parallèle
+                    Mono<String> logoMono = (request.logo() != null)
+                            ? fileStoragePort.uploadFile(request.logo(), "syndicats/logos")
+                            : Mono.justOrEmpty(syndicat.logoUrl());
+
+                    Mono<String> charteMono = (request.charte() != null)
+                            ? fileStoragePort.uploadFile(request.charte(), "syndicats/chartes")
+                            : Mono.justOrEmpty(syndicat.charteUrl());
+
+                    Mono<String> statusMono = (request.statusDoc() != null)
+                            ? fileStoragePort.uploadFile(request.statusDoc(), "syndicats/statuts")
+                            : Mono.justOrEmpty(syndicat.statusUrl());
+
+                    return Mono.zip(logoMono.defaultIfEmpty(""), charteMono.defaultIfEmpty(""), statusMono.defaultIfEmpty(""))
+                            .flatMap(tuple -> {
+                                String newLogo = tuple.getT1().isEmpty() ? syndicat.logoUrl() : tuple.getT1();
+                                String newCharte = tuple.getT2().isEmpty() ? syndicat.charteUrl() : tuple.getT2();
+                                String newStatus = tuple.getT3().isEmpty() ? syndicat.statusUrl() : tuple.getT3();
+
+                                // 3. Mise à jour de l'entité
+                                // Utilisation du constructeur complet ou d'une méthode with... modifiée
+                                Syndicat updatedSyndicat = new Syndicat(
+                                        syndicat.id(),
+                                        syndicat.organizationId(),
+                                        syndicat.creatorId(),
+                                        syndicat.isApproved(), // On ne change pas l'approbation ici
+                                        request.name() != null ? request.name() : syndicat.name(),
+                                        request.description() != null ? request.description() : syndicat.description(),
+                                        request.domain() != null ? request.domain() : syndicat.domain(),
+                                        syndicat.type(),
+                                        newCharte,
+                                        newLogo,
+                                        newStatus,
+                                        syndicat.membersListUrl(),
+                                        syndicat.commitmentCertificateUrl(),
+                                        syndicat.createdAt(),
+                                        Instant.now(), // UpdatedAt
+                                        syndicat.isActive()
+                                );
+
+                                return syndicatRepository.save(updatedSyndicat);
+                            });
+                })
+                .map(syndicateMapper::toResponse)
+                .doOnSuccess(s -> log.info("Syndicat {} mis à jour par {}", syndicatId, requesterId));
+    }
+
+
+    public Mono<SyndicateDetailsResponse> getSyndicateDetails(UUID syndicatId) {
+        return syndicatRepository.findById(syndicatId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable")))
+                .flatMap(syndicat -> {
+
+                    // 1. Récupération de l'Organisation
+                    Mono<Organization> orgMono = organizationRepository.findById(syndicat.organizationId())
+                            // Fallback sur une organisation vide si introuvable (pour éviter de planter tout l'appel)
+                            .defaultIfEmpty(new Organization(null, null, null, null, "N/A", null, false, false));
+
+                    // 2. Récupération du Créateur
+                    Mono<User> creatorMono = userRepository.findById(syndicat.creatorId())
+                            .defaultIfEmpty(new User(syndicat.creatorId(), "Inconnu", "", ""));
+
+                    // 3. Récupération des Stats (Branches)
+                    Mono<Long> branchCountMono = branchRepository.countBySyndicatId(syndicatId)
+                            .defaultIfEmpty(0L);
+
+                    // 4. Récupération des Stats (Membres actifs)
+                    Mono<Long> memberCountMono = syndicatMemberRepository.countBySyndicatIdAndIsActiveTrue(syndicatId)
+                            .defaultIfEmpty(0L);
+
+                    // Exécution en parallèle
+                    return Mono.zip(orgMono, creatorMono, branchCountMono, memberCountMono)
+                            .map(tuple -> {
+                                Organization org = tuple.getT1();
+                                User creator = tuple.getT2();
+                                Long branches = tuple.getT3();
+                                Long members = tuple.getT4();
+
+                                return new SyndicateDetailsResponse(
+                                        syndicat.id(),
+                                        syndicat.name(),
+                                        syndicat.description(),
+                                        syndicat.domain(),
+                                        syndicat.type(),
+                                        syndicat.isApproved(),
+                                        syndicat.isActive(),
+                                        new SyndicateDetailsResponse.SyndicatDocuments(
+                                                syndicat.logoUrl(),
+                                                syndicat.charteUrl(),
+                                                syndicat.statusUrl(),
+                                                syndicat.membersListUrl(),
+                                                syndicat.commitmentCertificateUrl()
+                                        ),
+                                        new SyndicateDetailsResponse.OrganizationInfo(
+                                                "N/A",
+                                                org.shortName(), // On map ce qu'on peut, adapte selon ton entité Organization réelle
+                                                "N/A", // Keywords
+                                                org.email(),
+                                                org.shortName(),
+                                                org.longName()
+                                        ),
+                                        new SyndicateDetailsResponse.CreatorInfo(
+                                                creator.getId(),
+                                                creator.name(),
+                                                creator.email()
+                                        ),
+                                        new SyndicateDetailsResponse.SyndicatStats(
+                                                members,
+                                                branches
+                                        ),
+                                        syndicat.createdAt(),
+                                        syndicat.updatedAt()
+                                );
+                            });
+                });
+    }
 }
 ```
 
-*Lignes: 222*
+*Lignes: 354*
 
 ---
 
@@ -4752,6 +4958,32 @@ public record UpdateBranchRequest(
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\UpdateFullProfileRequest.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request;
+
+
+
+import java.time.Instant;
+import org.springframework.http.codec.multipart.FilePart;
+
+public record UpdateFullProfileRequest(
+        String firstName,
+        String lastName,
+        String phoneNumber,
+        String nationality,
+        String gender,
+        String language,
+        Instant birthDate,
+        FilePart profileImage // Optionnel : pour mettre à jour la photo
+) {}
+```
+
+*Lignes: 17*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\UpdateMemberRoleRequest.java
 
 ```java
@@ -4765,6 +4997,28 @@ public record UpdateMemberRoleRequest(
 ```
 
 *Lignes: 7*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\request\UpdateSyndicateFullRequest.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request;
+
+import org.springframework.http.codec.multipart.FilePart;
+
+public record UpdateSyndicateFullRequest(
+        String name,
+        String description,
+        String domain,
+        // Fichiers optionnels (s'ils sont null, on garde l'ancien)
+        FilePart logo,
+        FilePart charte,
+        FilePart statusDoc
+) {}
+```
+
+*Lignes: 13*
 
 ---
 
@@ -5155,6 +5409,75 @@ public record StatsResponse(
 ```
 
 *Lignes: 11*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\SyndicateDetailsResponse.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public record SyndicateDetailsResponse(
+        // Infos de base
+        UUID id,
+        String name,
+        String description,
+        String domain,
+        String type,
+        Boolean isApproved,
+        Boolean isActive,
+
+        // Documents et URLs
+        SyndicatDocuments documents,
+
+        // Organisation liée
+        OrganizationInfo organization,
+
+        // Créateur
+        CreatorInfo creator,
+
+        // Statistiques en temps réel
+        SyndicatStats stats,
+
+        // Audit
+        Instant createdAt,
+        Instant updatedAt
+) {
+
+    public record SyndicatDocuments(
+            String logoUrl,
+            String charteUrl,
+            String statusUrl,
+            String membersListUrl,
+            String commitmentCertificateUrl
+    ) {}
+
+    public record OrganizationInfo(
+            String legalForm,
+            String socialNetwork, // JSON ou String brut
+            String keywords,
+            String email,
+            String shortName,
+            String longName
+    ) {}
+
+    public record CreatorInfo(
+            UUID id,
+            String fullName,
+            String email
+    ) {}
+
+    public record SyndicatStats(
+            Long totalMembers,
+            Long totalBranches
+    ) {}
+}
+```
+
+*Lignes: 60*
 
 ---
 
@@ -5803,7 +6126,9 @@ package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.syndicate;
 
 
 import com.yowyob.ugate_service.application.service.syndicate.SyndicatManagementService;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateSyndicateFullRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateDetailsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -5912,10 +6237,56 @@ public class SyndicateController {
                 })
                 .flatMapMany(currentUserId -> syndicateService.getUserSyndicates(currentUserId));
     }
+
+
+    @Operation(
+            summary = "Mise à jour complète d'un syndicat (Créateur uniquement)",
+            description = "Permet de modifier nom, description, domaine et fichiers. Les champs non envoyés restent inchangés.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<SyndicateResponse> updateSyndicate(
+            @Parameter(description = "ID du syndicat") @PathVariable UUID id,
+
+            @RequestPart(value = "name", required = false) String name,
+            @RequestPart(value = "description", required = false) String description,
+            @RequestPart(value = "domain", required = false) String domain,
+            @RequestPart(value = "logo", required = false) FilePart logo,
+            @RequestPart(value = "charte", required = false) FilePart charte,
+            @RequestPart(value = "statusDoc", required = false) FilePart statusDoc
+    ) {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> UUID.fromString(((Jwt) ctx.getAuthentication().getPrincipal()).getSubject()))
+                .flatMap(requesterId -> {
+                    UpdateSyndicateFullRequest request = new UpdateSyndicateFullRequest(
+                            name, description, domain, logo, charte, statusDoc
+                    );
+                    return syndicateService.updateSyndicateFull(id, requesterId, request);
+                });
+    }
+
+
+    @Operation(
+            summary = "Obtenir les détails complets d'un syndicat",
+            description = "Retourne les informations du syndicat, de l'organisation liée, du créateur, les documents et les statistiques.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Détails récupérés avec succès"),
+            @ApiResponse(responseCode = "404", description = "Syndicat introuvable")
+    })
+    @GetMapping("/{id}/details")
+    public Mono<SyndicateDetailsResponse> getSyndicateDetails(
+            @Parameter(description = "UUID du syndicat") @PathVariable UUID id
+    ) {
+        return syndicateService.getSyndicateDetails(id);
+    }
+
+
 }
 ```
 
-*Lignes: 114*
+*Lignes: 162*
 
 ---
 
@@ -6062,10 +6433,13 @@ public class SyndicateMangementController {
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.syndicate;
 
+import com.yowyob.ugate_service.application.service.auth.UserManagementService;
 import com.yowyob.ugate_service.application.service.syndicate.SyndicateMembershipService;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.MembershipApprovalRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.MembershipRequestRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateFullProfileRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateMemberRoleRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.MemberResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateFullStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.MembershipRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -6077,10 +6451,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @RestController
@@ -6090,6 +6469,7 @@ import java.util.UUID;
 public class SyndicateMembershipController {
 
     private final SyndicateMembershipService membershipService;
+    private final UserManagementService userManagementService;
 
 
     @Operation(summary = "Demander à rejoindre un syndicat", description = "Crée une demande d'adhésion pour une branche spécifique.", security = @SecurityRequirement(name = "bearerAuth"))
@@ -6106,10 +6486,36 @@ public class SyndicateMembershipController {
     }
 
 
+    @Operation(summary = "Mise à jour complète du profil de l'utilisateur connecté", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/user")
+    @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<MemberResponse> updateMyProfile(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestPart(value = "firstName", required = false) String firstName,
+            @RequestPart(value = "lastName", required = false) String lastName,
+            @RequestPart(value = "phoneNumber", required = false) String phoneNumber,
+            @RequestPart(value = "nationality", required = false) String nationality,
+            @RequestPart(value = "gender", required = false) String gender,
+            @RequestPart(value = "language", required = false) String language,
+            @RequestPart(value = "birthDate", required = false) String birthDateStr, // Format ISO
+            @RequestPart(value = "image", required = false) FilePart image
+    ) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        Instant birthDate = (birthDateStr != null) ? Instant.parse(birthDateStr) : null;
+
+        UpdateFullProfileRequest request = new UpdateFullProfileRequest(
+                firstName, lastName, phoneNumber, nationality, gender, language, birthDate, image
+        );
+
+        return userManagementService.updateFullProfile(userId, request);
+    }
+
+
 }
 ```
 
-*Lignes: 47*
+*Lignes: 82*
 
 ---
 
@@ -11550,13 +11956,13 @@ CREATE TABLE vote (
 
 ## Statistiques
 
-- **Total de fichiers analysés:** 221
-- **Total de lignes de code:** 9 224
-- **Moyenne de lignes par fichier:** 42
+- **Total de fichiers analysés:** 224
+- **Total de lignes de code:** 9 600
+- **Moyenne de lignes par fichier:** 43
 
 ### Répartition par type de fichier
 
-- **.java:** 200 fichiers
+- **.java:** 203 fichiers
 - **.xml:** 15 fichiers
 - **.properties:** 2 fichiers
 - **.yml:** 1 fichier
