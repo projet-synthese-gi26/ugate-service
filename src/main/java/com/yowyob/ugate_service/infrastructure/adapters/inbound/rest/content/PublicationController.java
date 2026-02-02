@@ -1,5 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
+import com.yowyob.ugate_service.application.service.content.PublicationService;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,14 +14,12 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart; // On garde FilePart pour le service
+import org.springframework.http.codec.multipart.Part;     // On utilise Part pour l'entrée brute
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
-import org.springframework.http.codec.multipart.FilePart;
-
-import com.yowyob.ugate_service.application.service.content.PublicationService;
-import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.UUID;
@@ -31,56 +31,74 @@ import java.util.UUID;
 @Tag(name = "Publications", description = "API for managing publications")
 public class PublicationController {
 
-        private final PublicationService publicationService;
-        private final MediaService mediaService;
+    private final PublicationService publicationService;
+    private final MediaService mediaService;
 
-        @Operation(summary = "Create a new publication", description = "Creates a new publication with optional image, video, and file attachments.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "201", description = "Publication created successfully", content = @Content(schema = @Schema(hidden = true))),
-                        @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content(schema = @Schema(hidden = true)))
-        })
-        @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-        public Mono<ResponseEntity<Void>> createPublication(
-                        @Parameter(description = "Content of the publication") @RequestPart("content") Mono<String> content,
-                        @Parameter(description = "Author ID of the publication") @RequestPart("authorId") Mono<String> authorId,
-                        @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
-                        @Parameter(description = "Optional image files to be attached") @RequestPart(name = "images", required = false) Flux<FilePart> images,
-                        @Parameter(description = "Optional video files to be attached") @RequestPart(name = "videos", required = false) Flux<FilePart> videos,
-                        @Parameter(description = "Optional general files to be attached") @RequestPart(name = "files", required = false) Flux<FilePart> files) {
+    @Operation(summary = "Create a new publication")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Publication created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input")
+    })
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<ResponseEntity<Void>> createPublication(
+            @Parameter(description = "Content") @RequestPart("content") Mono<String> content,
+            @Parameter(description = "Author ID") @RequestPart("authorId") Mono<String> authorId,
+            @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
 
-                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(images == null ? Flux.empty() : images);
-                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videos == null ? Flux.empty() : videos);
-                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(files == null ? Flux.empty() : files);
+            // 1. On accepte 'Flux<Part>' ici pour encaisser n'importe quel type de champ (Fichier ou Texte vide)
+            // Cela empêche l'exception "ClassCastException" dès l'entrée
+            @Parameter(description = "Optional image files") @RequestPart(name = "images", required = false) Flux<Part> images,
+            @Parameter(description = "Optional video files") @RequestPart(name = "videos", required = false) Flux<Part> videos,
+            @Parameter(description = "Optional general files") @RequestPart(name = "files", required = false) Flux<Part> files) {
 
-                return Mono.zip(content, authorId, branchId, imagesUrlsMono, videosUrlsMono, filesUrlsMono)
-                                .flatMap(tuple -> {
-                                        String contentValue = tuple.getT1();
-                                        UUID authorIdValue = UUID.fromString(tuple.getT2());
-                                        UUID branchIdValue = UUID.fromString(tuple.getT3());
-                                        List<String> imageUrls = tuple.getT4();
-                                        List<String> videoUrls = tuple.getT5();
-                                        List<String> fileUrls = tuple.getT6();
+        // 2. On convertit les 'Flux<Part>' en 'Flux<FilePart>' PROPRES avant d'appeler le service
+        Flux<FilePart> imageFiles = convertParts(images);
+        Flux<FilePart> videoFiles = convertParts(videos);
+        Flux<FilePart> genericFiles = convertParts(files);
 
-                                        return publicationService.createPublication(
-                                                        authorIdValue,
-                                                        branchIdValue,
-                                                        contentValue,
-                                                        imageUrls.toArray(new String[0]),
-                                                        videoUrls.toArray(new String[0]),
-                                                        fileUrls.toArray(new String[0]));
-                                })
-                                .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));
+        // 3. On appelle le service normalement (qui attend toujours des FilePart)
+        Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(imageFiles);
+        Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videoFiles);
+        Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(genericFiles);
+
+        return Mono.zip(content, authorId, branchId)
+                .zipWith(Mono.zip(imagesUrlsMono, videosUrlsMono, filesUrlsMono))
+                .flatMap(tuple -> {
+                    var textData = tuple.getT1();
+                    var mediaData = tuple.getT2();
+
+                    String contentValue = textData.getT1();
+                    UUID authorIdValue = UUID.fromString(textData.getT2());
+                    UUID branchIdValue = UUID.fromString(textData.getT3());
+
+                    List<String> imageUrls = mediaData.getT1();
+                    List<String> videoUrls = mediaData.getT2();
+                    List<String> fileUrls = mediaData.getT3();
+
+                    return publicationService.createPublication(
+                            authorIdValue,
+                            branchIdValue,
+                            contentValue,
+                            imageUrls.toArray(new String[0]),
+                            videoUrls.toArray(new String[0]),
+                            fileUrls.toArray(new String[0]));
+                })
+                .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));
+    }
+
+    // --- Méthode utilitaire privée pour faire le nettoyage localement ---
+    private Flux<FilePart> convertParts(Flux<Part> parts) {
+        if (parts == null) {
+            return Flux.empty();
         }
+        return parts
+                .filter(part -> part instanceof FilePart) // On jette ce qui n'est pas un fichier (ex: champ vide "")
+                .cast(FilePart.class); // On cast proprement en FilePart
+    }
 
-        @Operation(summary = "Get publications by branch", description = "Retrieves a list of publications for a specific branch.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Publications retrieved successfully", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = PublicationResponseDTO.class))),
-                        @ApiResponse(responseCode = "404", description = "Branch not found", content = @Content(schema = @Schema(hidden = true)))
-        })
-        @GetMapping("/branch/{branchId}")
-        public Flux<PublicationResponseDTO> getPublicationsByBranch(
-                        @Parameter(description = "ID of the branch to retrieve publications from") @PathVariable UUID branchId) {
-                return publicationService.getSyndicatPublication(branchId);
-        }
-
+    // Le reste du contrôleur (GET) ne change pas...
+    @GetMapping("/branch/{branchId}")
+    public Flux<PublicationResponseDTO> getPublicationsByBranch(@PathVariable UUID branchId) {
+        return publicationService.getSyndicatPublication(branchId);
+    }
 }
