@@ -5,6 +5,7 @@ import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationRespon
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema; // Import important
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -14,8 +15,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.codec.multipart.FilePart; // On garde FilePart pour le service
-import org.springframework.http.codec.multipart.Part;     // On utilise Part pour l'entrée brute
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.http.codec.multipart.Part;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -45,18 +46,31 @@ public class PublicationController {
             @Parameter(description = "Author ID") @RequestPart("authorId") Mono<String> authorId,
             @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
 
-            // 1. On accepte 'Flux<Part>' ici pour encaisser n'importe quel type de champ (Fichier ou Texte vide)
-            // Cela empêche l'exception "ClassCastException" dès l'entrée
-            @Parameter(description = "Optional image files") @RequestPart(name = "images", required = false) Flux<Part> images,
-            @Parameter(description = "Optional video files") @RequestPart(name = "videos", required = false) Flux<Part> videos,
-            @Parameter(description = "Optional general files") @RequestPart(name = "files", required = false) Flux<Part> files) {
+            // --- CORRECTION SWAGGER ICI ---
+            // On dit explicitement à Swagger : "C'est un tableau de fichiers binaires", même si le code Java utilise 'Part'
+            @Parameter(
+                    description = "Optional image files",
+                    array = @ArraySchema(schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestPart(name = "images", required = false) Flux<Part> images,
 
-        // 2. On convertit les 'Flux<Part>' en 'Flux<FilePart>' PROPRES avant d'appeler le service
+            @Parameter(
+                    description = "Optional video files",
+                    array = @ArraySchema(schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestPart(name = "videos", required = false) Flux<Part> videos,
+
+            @Parameter(
+                    description = "Optional general files",
+                    array = @ArraySchema(schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestPart(name = "files", required = false) Flux<Part> files) {
+
+        // Conversion et nettoyage (Le code backend reste robuste)
         Flux<FilePart> imageFiles = convertParts(images);
         Flux<FilePart> videoFiles = convertParts(videos);
         Flux<FilePart> genericFiles = convertParts(files);
 
-        // 3. On appelle le service normalement (qui attend toujours des FilePart)
         Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(imageFiles);
         Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videoFiles);
         Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(genericFiles);
@@ -86,17 +100,15 @@ public class PublicationController {
                 .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));
     }
 
-    // --- Méthode utilitaire privée pour faire le nettoyage localement ---
     private Flux<FilePart> convertParts(Flux<Part> parts) {
         if (parts == null) {
             return Flux.empty();
         }
         return parts
-                .filter(part -> part instanceof FilePart) // On jette ce qui n'est pas un fichier (ex: champ vide "")
-                .cast(FilePart.class); // On cast proprement en FilePart
+                .filter(part -> part instanceof FilePart)
+                .cast(FilePart.class);
     }
 
-    // Le reste du contrôleur (GET) ne change pas...
     @GetMapping("/branch/{branchId}")
     public Flux<PublicationResponseDTO> getPublicationsByBranch(@PathVariable UUID branchId) {
         return publicationService.getSyndicatPublication(branchId);
