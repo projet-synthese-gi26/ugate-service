@@ -53,23 +53,34 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
 
     @Override
     public Mono<Void> saveVideoMedia(String videoUrl, String title, UUID publicationId) {
-        // TODO: Implement video saving logic
-        return Mono.empty();
+        Image image = new Image(null, videoUrl, title, Instant.now());
+
+        return imageRepository.save(image)
+                .flatMap(savedImage -> {
+                    PublicationImage publicationImage = new PublicationImage(publicationId, savedImage.id(),
+                            Instant.now(), Instant.now());
+                    return publicationImageRepository.save(publicationImage);
+                }).then();
     }
 
     @Override
     public Mono<Void> saveAudioMedia(String audioUrl, String title, UUID publicationId) {
-        // TODO: Implement audio saving logic
-        return Mono.empty();
+        Image image = new Image(null, audioUrl, title, Instant.now());
+
+        return imageRepository.save(image)
+                .flatMap(savedImage -> {
+                    PublicationImage publicationImage = new PublicationImage(publicationId, savedImage.id(),
+                            Instant.now(), Instant.now());
+                    return publicationImageRepository.save(publicationImage);
+                }).then();
     }
 
     @Override
     public Flux<MediaInfo> getMediaByPublicationId(UUID publicationId) {
-        // TODO: extend to videos and other media types
         return imageRepository.findByPublicationId(publicationId)
                 .map(image -> new MediaInfo(
                         image.url(),
-                        "IMAGE"));
+                        image.altText().toUpperCase()));
     }
 
     @Override

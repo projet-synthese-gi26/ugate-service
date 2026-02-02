@@ -38,7 +38,7 @@ public class PublicationService {
                                         if (imagesUrls != null) {
                                                 imagesMono = Flux.fromArray(imagesUrls)
                                                                 .flatMap(imageUrl -> mediaPersistencePort
-                                                                                .saveImageMedia(imageUrl, "altText",
+                                                                                .saveImageMedia(imageUrl, "image",
                                                                                                 savedPublication.getId()))
                                                                 .then();
                                         }
@@ -47,7 +47,7 @@ public class PublicationService {
                                         if (videoUrls != null) {
                                                 videosMono = Flux.fromArray(videoUrls)
                                                                 .flatMap(videoUrl -> mediaPersistencePort
-                                                                                .saveVideoMedia(videoUrl, "title",
+                                                                                .saveVideoMedia(videoUrl, "video",
                                                                                                 savedPublication.getId()))
                                                                 .then();
                                         }
@@ -56,7 +56,7 @@ public class PublicationService {
                                         if (filesUrls != null) {
                                                 filesMono = Flux.fromArray(filesUrls)
                                                                 .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(
-                                                                                fileUrl, "title",
+                                                                                fileUrl, "audio",
                                                                                 savedPublication.getId()))
                                                                 .then();
                                         }
