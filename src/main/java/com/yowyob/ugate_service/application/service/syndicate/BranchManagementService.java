@@ -83,6 +83,12 @@ public class BranchManagementService {
                 .map(branchMapper::toResponse);
     }
 
+    public Mono<BranchResponse> getBranchDetails(UUID branchId) {
+        return branchPersistencePort.findById(branchId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable : " + branchId)))
+                .map(branchMapper::toResponse);
+    }
+
     @Transactional
     public Mono<BranchResponse> updateBranch(UUID branchId, UpdateBranchRequest request) {
 

@@ -155,9 +155,26 @@ public class SyndicatManagementService {
 
 
     public Flux<SyndicateResponse> getUserSyndicates(UUID userId) {
-        return syndicatRepository.findAllByMemberUserId(userId)
-                .map(syndicateMapper::toResponse)
-                .doOnError(e -> log.error("Erreur lors de la récupération des syndicats pour l'user {}", userId, e));
+        return syndicatMemberRepository.findAllByUserId(userId)
+                .flatMap(member -> {
+                    // 1. Récupération du Syndicat
+                    Mono<Syndicat> syndicatMono = syndicatRepository.findById(member.syndicatId());
+
+                    // 2. Récupération de la Branche
+                    Mono<Branch> branchMono = (member.branchId() != null)
+                            ? branchRepository.findById(member.branchId())
+                            : Mono.empty();
+
+                    // 3. Combinaison avec member
+                    return Mono.zip(syndicatMono, branchMono.defaultIfEmpty(new Branch(null, null, null, null, null, null, null, null)))
+                            .map(tuple -> {
+                                Syndicat syndicat = tuple.getT1();
+                                Branch branch = tuple.getT2();
+                                Branch validBranch = (branch.getId() != null) ? branch : null;
+                                return syndicateMapper.toResponse(syndicat, validBranch, member);
+                            });
+                })
+                .doOnError(e -> log.error("Erreur récupération syndicats user {}", userId, e));
     }
 
 

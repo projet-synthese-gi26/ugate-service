@@ -39,6 +39,10 @@ public interface SyndicatMemberRepository extends ReactiveCrudRepository<Syndica
     Mono<SyndicatMember> findByUserId(UUID userId);
 
 
+    @Query("SELECT * FROM syndicat_members WHERE syndicat_id = :syndicatId AND role = CAST(:role AS role_type_enum)")
+    Flux<SyndicatMember> findBySyndicatIdAndRole(UUID syndicatId, String role);
+
+
     Mono<Long> countByIsActiveTrue();
 
     Mono<SyndicatMember> findBySyndicatIdAndBranchIdAndUserId(UUID syndicatId, UUID branchId, UUID userId);

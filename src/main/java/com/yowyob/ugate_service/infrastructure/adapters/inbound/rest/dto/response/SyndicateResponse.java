@@ -1,5 +1,7 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
 
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -14,5 +16,8 @@ public record SyndicateResponse(
         UUID creatorId,
         Instant createdAt,
 
-        Boolean isActive
+        Boolean isActive,
+        UUID userBranchId,
+        String userBranchName,
+        RoleTypeEnum userRole
 ) {}

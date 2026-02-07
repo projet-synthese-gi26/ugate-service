@@ -4,6 +4,7 @@ import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.AddUserResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BranchMembersStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.MemberResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateFullStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.MembershipRequest;
@@ -199,6 +200,66 @@ public class SyndicateMembershipService {
                 tuple.getT4(), // activeServices
                 tuple.getT5()  // totalPublications
         ));
+    }
+
+
+
+    public Mono<BranchMembersStatsResponse> getBranchMembers(UUID branchId) {
+
+        // 1. On doit d'abord récupérer la branche pour connaître l'ID du Syndicat
+        return branchRepository.findById(branchId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable")))
+                .flatMap(branch -> {
+                    UUID syndicatId = branch.syndicatId();
+
+                    // 2. Flux A : Les membres "locaux" de la branche
+                    Flux<SyndicatMember> branchMembersFlux = memberRepository.findByBranchId(branchId);
+
+                    // 3. Flux B : Les Admins "globaux" du syndicat (ceux qui ont branch_id = null)
+                    Flux<SyndicatMember> globalAdminsFlux = memberRepository.findBySyndicatIdAndRole(syndicatId, RoleTypeEnum.ADMIN.name())
+                            .filter(m -> m.branchId() == null);
+
+                    // 4. Fusion des deux Flux
+                    return Flux.concat(globalAdminsFlux, branchMembersFlux)
+                            // Pour chaque membre (Admin ou Local), on va chercher ses infos User
+                            .flatMap(this::mapMemberToResponse)
+                            .collectList()
+                            .map(fullList -> new BranchMembersStatsResponse(
+                                    (long) fullList.size(), // Le total inclut maintenant l'admin
+                                    fullList
+                            ));
+                });
+    }
+
+    private Mono<MemberResponse> mapMemberToResponse(SyndicatMember member) {
+        return userGateway.findById(member.userId())
+                .onErrorResume(e -> Mono.empty())
+                .switchIfEmpty(userRepository.findById(member.userId())
+                        .map(localUser -> {
+                            String[] parts = (localUser.name() != null ? localUser.name() : "Inconnu").split(" ", 2);
+                            return new ExternalUserInfo(
+                                    localUser.id(),
+                                    parts[0],
+                                    parts.length > 1 ? parts[1] : "",
+                                    localUser.email(),
+                                    localUser.phoneNumber(),
+                                    List.of(),
+                                    List.of()
+                            );
+                        }))
+                .map(userInfo -> new MemberResponse(
+                        userInfo.id(),
+                        userInfo.firstName(),
+                        userInfo.lastName(),
+                        userInfo.email(),
+                        null, // Avatar URL
+                        member.role(),
+                        // Si c'est l'admin global, member.branchId() est null.
+                        // Mais dans le contexte de cette réponse, on peut laisser null ou simuler qu'il est là.
+                        // Laissons member.branchId() (donc null pour l'admin) pour que le front sache qu'il est global.
+                        member.branchId(),
+                        member.joinedAt()
+                ));
     }
 
 

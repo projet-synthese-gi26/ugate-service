@@ -1,7 +1,7 @@
 # Contexte Complet du Projet
 
 **Projet:** ugate-service  
-**Date de génération:** 31/01/2026 17:34:48  
+**Date de génération:** 07/02/2026 16:43:11  
 **Chemin:** D:\Projets\Scolaire\Reseau\New Version\ugate-service
 
 ---
@@ -73,6 +73,7 @@
 │   │   │               │   │   ├── ReactionModel.java
 │   │   │               │   │   ├── SyndicatService.java
 │   │   │               │   │   ├── UserEventModel.java
+│   │   │               │   │   ├── UserModel.java
 │   │   │               │   │   └── VoteModel.java
 │   │   │               │   └── ports
 │   │   │               │       ├── in
@@ -82,6 +83,7 @@
 │   │   │               │       │   │   ├── CreatePublicationVoteUseCase.java
 │   │   │               │       │   │   ├── GetEventParticipantsUseCase.java
 │   │   │               │       │   │   ├── GetEventsByBranchUseCase.java
+│   │   │               │       │   │   ├── GetFeedUseCase.java
 │   │   │               │       │   │   ├── GetPublicationVoteResultsUseCase.java
 │   │   │               │       │   │   ├── JoinEventUseCase.java
 │   │   │               │       │   │   └── LeaveEventUseCase.java
@@ -115,6 +117,7 @@
 │   │   │               │               ├── ReactionPersistencePort.java
 │   │   │               │               ├── SyndicatePersistencePort.java
 │   │   │               │               ├── UserEventPersistencePort.java
+│   │   │               │               ├── UserPersistencePort.java
 │   │   │               │               └── VotePersistencePort.java
 │   │   │               ├── infrastructure
 │   │   │               │   ├── adapters
@@ -127,6 +130,7 @@
 │   │   │               │   │   │       ├── content
 │   │   │               │   │   │       │   ├── CommentController.java
 │   │   │               │   │   │       │   ├── EventController.java
+│   │   │               │   │   │       │   ├── FeedController.java
 │   │   │               │   │   │       │   ├── PublicationController.java
 │   │   │               │   │   │       │   ├── PublicationVoteController.java
 │   │   │               │   │   │       │   └── ReactionController.java
@@ -208,6 +212,7 @@
 │   │   │               │   │           │   ├── PublicationVotePersistenceAdapter.java
 │   │   │               │   │           │   ├── ReactionPersistenceAdapter.java
 │   │   │               │   │           │   ├── UserEventPersistenceAdapter.java
+│   │   │               │   │           │   ├── UserPersistenceAdapterPort.java
 │   │   │               │   │           │   └── VotePersistenceAdapter.java
 │   │   │               │   │           ├── entity
 │   │   │               │   │           │   ├── enumeration
@@ -314,6 +319,7 @@
 │       │           └── ugate_service
 │       │               ├── CommentControllerTests.java
 │       │               ├── EventControllerTests.java
+│       │               ├── FeedControllerTests.java
 │       │               ├── PublicationControllerTests.java
 │       │               ├── PublicationVoteControllerTests.java
 │       │               ├── ReactionControllerTests.java
@@ -326,6 +332,7 @@
 ├── .gitattributes
 ├── .gitignore
 ├── compose.yaml
+├── create_templates.sh
 ├── Dockerfile
 ├── generate.js
 ├── HELP.md
@@ -1214,8 +1221,10 @@ import com.yowyob.ugate_service.domain.model.CommentModel;
 import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.CommentPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.CommentResponseDto;
 
 import lombok.AllArgsConstructor;
@@ -1228,6 +1237,8 @@ public class CommentService {
   private final MediaPersistencePort mediaPersistencePort;
   private final CommentPersistencePort commentPersistencePort;
   private final UserGatewayPort userGatewayPort;
+  private final NotificationPort notificationPort;
+  private final PublicationPersistencePort publicationPersistencePort;
 
   public Mono<Void> createComment(UUID authorId, UUID publicationId, UUID parentId, String ImageUrl, String content) {
 
@@ -1238,17 +1249,30 @@ public class CommentService {
     comment.setContent(content);
     comment.setCreatedAt(Instant.now());
 
+    Mono<CommentModel> saveCommentMono;
     if (ImageUrl == null) {
-      return this.commentPersistencePort.saveComment(comment);
+      saveCommentMono = this.commentPersistencePort.saveComment(comment).thenReturn(comment);
     } else {
-      return this.mediaPersistencePort.saveImage(ImageUrl, "alt text")
+      saveCommentMono = this.mediaPersistencePort.saveImage(ImageUrl, "alt text")
           .flatMap(imageModel -> {
             comment.setImageId(imageModel.getId());
-
-            return this.commentPersistencePort.saveComment(comment);
+            return this.commentPersistencePort.saveComment(comment).thenReturn(comment);
           });
     }
 
+    return saveCommentMono.flatMap(savedComment -> Mono.zip(
+        publicationPersistencePort.findById(publicationId),
+        userGatewayPort.findById(savedComment.getAuthorId()))
+        .flatMap(tuple -> {
+          var publication = tuple.getT1();
+          var commenterInfo = tuple.getT2();
+
+          return userGatewayPort.findById(publication.getAuthorId())
+              .flatMap(publicationAuthorInfo -> notificationPort.sendPublicationCommentAlert(
+                  publicationAuthorInfo.email(),
+                  publication.getContent(), // Using content as title for now
+                  commenterInfo.firstName()));
+        }));
   }
 
   public Flux<CommentResponseDto> getCommentsByPublicationId(UUID publicationId) {
@@ -1287,7 +1311,7 @@ public class CommentService {
 
 ```
 
-*Lignes: 81*
+*Lignes: 98*
 
 ---
 
@@ -1298,13 +1322,16 @@ package com.yowyob.ugate_service.application.service.content;
 
 import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.model.UserEventModel;
+import com.yowyob.ugate_service.domain.model.UserModel;
 import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetEventParticipantsUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetEventsByBranchUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.JoinEventUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.LeaveEventUseCase;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.UserPersistencePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ParticipantDTO;
 import lombok.AllArgsConstructor;
@@ -1322,113 +1349,133 @@ import java.util.UUID;
 
 @AllArgsConstructor
 public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEventsByBranchUseCase,
-        GetEventParticipantsUseCase, LeaveEventUseCase {
+                GetEventParticipantsUseCase, LeaveEventUseCase {
 
-    private final EventPersistencePort eventPersistencePort;
-    private final MediaPersistencePort mediaPersistencePort;
-    private final UserEventPersistencePort userEventPersistencePort;
-    private final UserGatewayPort userGatewayPort;
+        private final EventPersistencePort eventPersistencePort;
+        private final MediaPersistencePort mediaPersistencePort;
+        private final UserEventPersistencePort userEventPersistencePort;
+        private final UserGatewayPort userGatewayPort;
+        private final NotificationPort notificationPort;
+        private final UserPersistencePort userPersistencePort;
 
-    @Override
-    public Mono<Void> createEvent(UUID creatorId, UUID branchId, String title, String description, LocalDate eventDate,
-            String location, LocalTime startTime, LocalTime endTime, String[] imagesUrls, String[] videoUrls,
-            String[] filesUrls) {
-        EventModel event = new EventModel();
-        event.setCreatorId(creatorId);
-        event.setBranchId(branchId);
-        event.setTitle(title);
-        event.setDescription(description);
-        event.setDate(eventDate);
-        event.setLocation(location);
-        event.setCreatedAt(Instant.now());
-        event.setUpdatedAt(Instant.now());
-        event.setStartTime(startTime);
-        event.setEndTime(endTime);
+        @Override
+        public Mono<Void> createEvent(UUID creatorId, UUID branchId, String title, String description,
+                        LocalDate eventDate,
+                        String location, LocalTime startTime, LocalTime endTime, String[] imagesUrls,
+                        String[] videoUrls,
+                        String[] filesUrls) {
+                EventModel event = new EventModel();
+                event.setCreatorId(creatorId);
+                event.setBranchId(branchId);
+                event.setTitle(title);
+                event.setDescription(description);
+                event.setDate(eventDate);
+                event.setLocation(location);
+                event.setCreatedAt(Instant.now());
+                event.setUpdatedAt(Instant.now());
+                event.setStartTime(startTime);
+                event.setEndTime(endTime);
 
-        return eventPersistencePort.save(event)
-                .flatMap(savedEvent -> {
-                    Mono<Void> imagesMono = Mono.empty();
-                    if (imagesUrls != null) {
-                        imagesMono = Flux.fromArray(imagesUrls)
-                                .flatMap(imageUrl -> mediaPersistencePort.saveEventMedia(imageUrl, "altText",
-                                        savedEvent.getId()))
-                                .then();
-                    }
+                return eventPersistencePort.save(event)
+                                .flatMap(savedEvent -> {
+                                        Mono<Void> imagesMono = Mono.empty();
+                                        if (imagesUrls != null) {
+                                                imagesMono = Flux.fromArray(imagesUrls)
+                                                                .flatMap(imageUrl -> mediaPersistencePort
+                                                                                .saveEventMedia(imageUrl, "altText",
+                                                                                                savedEvent.getId()))
+                                                                .then();
+                                        }
 
-                    Mono<Void> videosMono = Mono.empty();
-                    if (videoUrls != null) {
-                        videosMono = Flux.fromArray(videoUrls)
-                                .flatMap(videoUrl -> mediaPersistencePort.saveVideoMedia(videoUrl, "title",
-                                        savedEvent.getId()))
-                                .then();
-                    }
+                                        Mono<Void> videosMono = Mono.empty();
+                                        if (videoUrls != null) {
+                                                videosMono = Flux.fromArray(videoUrls)
+                                                                .flatMap(videoUrl -> mediaPersistencePort
+                                                                                .saveVideoMedia(videoUrl, "title",
+                                                                                                savedEvent.getId()))
+                                                                .then();
+                                        }
 
-                    Mono<Void> filesMono = Mono.empty();
-                    if (filesUrls != null) {
-                        filesMono = Flux.fromArray(filesUrls)
-                                .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(fileUrl, "title",
-                                        savedEvent.getId()))
-                                .then();
-                    }
+                                        Mono<Void> filesMono = Mono.empty();
+                                        if (filesUrls != null) {
+                                                filesMono = Flux.fromArray(filesUrls)
+                                                                .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(
+                                                                                fileUrl, "title",
+                                                                                savedEvent.getId()))
+                                                                .then();
+                                        }
 
-                    return Mono.when(imagesMono, videosMono, filesMono);
-                });
-    }
+                                        // Send notification to all users in the branch about the new event
+                                        return userPersistencePort.findUsersByBranchId(branchId).collectList()
+                                                        .flatMap(users -> {
+                                                                List<String> emails = users.stream()
+                                                                                .map(UserModel::getEmail)
+                                                                                .toList();
+                                                                return notificationPort.sendNewEventAlert(emails,
+                                                                                title);
+                                                        })
+                                                        .then(Mono.when(imagesMono, videosMono, filesMono));
 
-    @Override
-    public Mono<Void> joinEvent(UUID userId, UUID eventId) {
-        // Here you might add logic to check if the event and user exist before creating
-        // the link
-        UserEventModel userEventModel = new UserEventModel();
-        userEventModel.setUserId(userId);
-        userEventModel.setEventId(eventId);
-        userEventModel.setTimestamp(Instant.now());
-        return userEventPersistencePort.save(userEventModel);
-    }
+                                });
+        }
 
-    @Override
-    public Flux<EventResponseDTO> getEventsByBranch(UUID branchId) {
-        return eventPersistencePort.findByBranchId(branchId)
-                .flatMap(eventModel -> {
-                    Mono<Long> participantCountMono = userEventPersistencePort.countByEventId(eventModel.getId());
-                    Mono<List<String>> imageUrlsMono = mediaPersistencePort.getImagesByEventId(eventModel.getId())
-                            .map(ImageModel::getUrl)
-                            .collectList();
+        @Override
+        public Mono<Void> joinEvent(UUID userId, UUID eventId) {
+                // Here you might add logic to check if the event and user exist before creating
+                // the link
+                UserEventModel userEventModel = new UserEventModel();
+                userEventModel.setUserId(userId);
+                userEventModel.setEventId(eventId);
+                userEventModel.setTimestamp(Instant.now());
+                return userEventPersistencePort.save(userEventModel);
+        }
 
-                    return Mono.zip(participantCountMono, imageUrlsMono)
-                            .map(tuple -> new EventResponseDTO(
-                                    eventModel.getId(),
-                                    eventModel.getCreatorId(),
-                                    eventModel.getBranchId(),
-                                    eventModel.getTitle(),
-                                    eventModel.getDescription(),
-                                    eventModel.getLocation(),
-                                    eventModel.getDate(),
-                                    eventModel.getStartTime(),
-                                    eventModel.getEndTime(),
-                                    eventModel.getCreatedAt(),
-                                    eventModel.getUpdatedAt(),
-                                    tuple.getT1(), // participant count
-                                    tuple.getT2()  // image urls
-                            ));
-                });
-    }
+        @Override
+        public Flux<EventResponseDTO> getEventsByBranch(UUID branchId) {
+                return eventPersistencePort.findByBranchId(branchId)
+                                .flatMap(eventModel -> {
+                                        Mono<Long> participantCountMono = userEventPersistencePort
+                                                        .countByEventId(eventModel.getId());
+                                        Mono<List<String>> imageUrlsMono = mediaPersistencePort
+                                                        .getImagesByEventId(eventModel.getId())
+                                                        .map(ImageModel::getUrl)
+                                                        .collectList();
 
-    @Override
-    public Flux<ParticipantDTO> getParticipants(UUID eventId) {
-        return userEventPersistencePort.findByEventId(eventId)
-                .flatMap(userEvent -> userGatewayPort.findById(userEvent.getUserId()))
-                .map(userInfo -> new ParticipantDTO(userInfo.id(), userInfo.firstName() + " " + userInfo.lastName()));
-    }
+                                        return Mono.zip(participantCountMono, imageUrlsMono)
+                                                        .map(tuple -> new EventResponseDTO(
+                                                                        eventModel.getId(),
+                                                                        eventModel.getCreatorId(),
+                                                                        eventModel.getBranchId(),
+                                                                        eventModel.getTitle(),
+                                                                        eventModel.getDescription(),
+                                                                        eventModel.getLocation(),
+                                                                        eventModel.getDate(),
+                                                                        eventModel.getStartTime(),
+                                                                        eventModel.getEndTime(),
+                                                                        eventModel.getCreatedAt(),
+                                                                        eventModel.getUpdatedAt(),
+                                                                        tuple.getT1(), // participant count
+                                                                        tuple.getT2() // image urls
+                                        ));
+                                });
+        }
 
-    @Override
-    public Mono<Void> leaveEvent(UUID userId, UUID eventId) {
-        return userEventPersistencePort.delete(userId, eventId);
-    }
+        @Override
+        public Flux<ParticipantDTO> getParticipants(UUID eventId) {
+                return userEventPersistencePort.findByEventId(eventId)
+                                .flatMap(userEvent -> userGatewayPort.findById(userEvent.getUserId()))
+                                .map(userInfo -> new ParticipantDTO(userInfo.id(),
+                                                userInfo.firstName() + " " + userInfo.lastName()));
+        }
+
+        @Override
+        public Mono<Void> leaveEvent(UUID userId, UUID eventId) {
+                return userEventPersistencePort.delete(userId, eventId);
+        }
 }
 ```
 
-*Lignes: 132*
+*Lignes: 155*
 
 ---
 
@@ -1437,12 +1484,138 @@ public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEv
 ```java
 package com.yowyob.ugate_service.application.service.content;
 
-public class FeedService {
+import com.yowyob.ugate_service.domain.model.EventModel;
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
+import com.yowyob.ugate_service.domain.model.ImageModel;
+import com.yowyob.ugate_service.domain.model.MediaInfo;
+import com.yowyob.ugate_service.domain.model.PublicationModel;
+import com.yowyob.ugate_service.domain.ports.in.content.GetFeedUseCase;
+import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
+import lombok.AllArgsConstructor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+
+@AllArgsConstructor
+public class FeedService implements GetFeedUseCase {
+    private final PublicationPersistencePort publicationModelRepository;
+    private final EventPersistencePort eventPersistencePort;
+    private final UserGatewayPort userGatewayPort;
+    private final MediaPersistencePort mediaPersistencePort;
+    private final UserEventPersistencePort userEventPersistencePort;
+
+    @Override
+    public Flux<Map<String, Object>> getFeed(int page, int size) {
+        Flux<Map<String, Object>> publicationsFlux = publicationModelRepository
+                .findAllPaginated(page, size)
+                .flatMap(this::toPublicationResponseDTO)
+                .map(dto -> Map.of(
+                        "type", "publication",
+                        "data", dto));
+
+        Flux<Map<String, Object>> eventsFlux = eventPersistencePort
+                .findAllPaginated(page, size)
+                .flatMap(this::toEventResponseDTO)
+                .map(dto -> Map.of(
+                        "type", "event",
+                        "data", dto));
+
+        return publicationsFlux.mergeWith(eventsFlux)
+                .sort((a, b) -> {
+                    Instant aCreatedAt = getInstant(a.get("data"));
+                    Instant bCreatedAt = getInstant(b.get("data"));
+
+                    if (aCreatedAt == null && bCreatedAt == null) {
+                        return 0;
+                    }
+                    if (aCreatedAt == null) {
+                        return 1;
+                    }
+                    if (bCreatedAt == null) {
+                        return -1;
+                    }
+
+                    return bCreatedAt.compareTo(aCreatedAt);
+                })
+                .skip((long) page * size)
+                .take(size);
+    }
+
+    private Instant getInstant(Object data) {
+        if (data instanceof PublicationResponseDTO) {
+            return ((PublicationResponseDTO) data).getCreatedAt();
+        } else if (data instanceof EventResponseDTO) {
+            return ((EventResponseDTO) data).getCreatedAt();
+        }
+        return null;
+    }
+
+    private Mono<PublicationResponseDTO> toPublicationResponseDTO(PublicationModel publicationModel) {
+        Mono<ExternalUserInfo> authorMono = userGatewayPort.findById(publicationModel.getAuthorId());
+        Mono<List<MediaInfo>> mediaListMono = mediaPersistencePort.getMediaByPublicationId(publicationModel.getId())
+                .map(mediaInfo -> {
+                    MediaInfo fileDto = new MediaInfo();
+                    fileDto.setUrl(mediaInfo.getUrl());
+                    fileDto.setType(mediaInfo.getType());
+                    return fileDto;
+                })
+                .collectList();
+
+        return Mono.zip(authorMono, mediaListMono)
+                .map(tuple -> {
+                    ExternalUserInfo author = tuple.getT1();
+                    List<MediaInfo> mediaList = tuple.getT2();
+
+                    PublicationResponseDTO dto = new PublicationResponseDTO();
+                    dto.setId(publicationModel.getId());
+                    dto.setBranchId(publicationModel.getBranchI());
+                    dto.setAuthorFullName(author.firstName() + " " + author.lastName());
+                    dto.setContent(publicationModel.getContent());
+                    dto.setNLikes(publicationModel.getNLikes());
+                    // dto.setNComments(publicationModel.get); // Assuming comments count is not directly in model
+                    dto.setCreatedAt(publicationModel.getCreatedAt());
+                    dto.setFileUrlAndType(mediaList);
+                    return dto;
+                });
+    }
+
+    private Mono<EventResponseDTO> toEventResponseDTO(EventModel eventModel) {
+        Mono<Long> participantCountMono = userEventPersistencePort.countByEventId(eventModel.getId());
+        Mono<List<String>> imageUrlsMono = mediaPersistencePort.getImagesByEventId(eventModel.getId())
+                .map(ImageModel::getUrl) // Assuming ImageModel has getUrl()
+                .collectList();
+
+        return Mono.zip(participantCountMono, imageUrlsMono)
+                .map(tuple -> new EventResponseDTO(
+                        eventModel.getId(),
+                        eventModel.getCreatorId(),
+                        eventModel.getBranchId(),
+                        eventModel.getTitle(),
+                        eventModel.getDescription(),
+                        eventModel.getLocation(),
+                        eventModel.getDate(),
+                        eventModel.getStartTime(),
+                        eventModel.getEndTime(),
+                        eventModel.getCreatedAt(),
+                        eventModel.getUpdatedAt(),
+                        tuple.getT1(), // participant count
+                        tuple.getT2()  // image urls
+                ));
+    }
 }
 
 ```
 
-*Lignes: 5*
+*Lignes: 131*
 
 ---
 
@@ -1469,9 +1642,12 @@ import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.model.MediaInfo;
 import com.yowyob.ugate_service.domain.model.PublicationModel;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.BranchPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
 
 import lombok.AllArgsConstructor;
 import reactor.core.publisher.Flux;
@@ -1487,6 +1663,9 @@ public class PublicationService {
         private final PublicationPersistencePort publicationModelRepository;
         private final MediaPersistencePort mediaPersistencePort;
         private final UserGatewayPort userGatewayPort;
+        private final NotificationPort notificationPort;
+        private final BranchPersistencePort branchPersistencePort;
+        private final SyndicatRepository syndicatRepository;
 
         public Mono<Void> createPublication(UUID authorId, UUID branchId, String content, String[] imagesUrls,
                         String[] videoUrls, String[] filesUrls) {
@@ -1499,34 +1678,37 @@ public class PublicationService {
 
                 return publicationModelRepository.save(publication)
                                 .flatMap(savedPublication -> {
-                                        Mono<Void> imagesMono = Mono.empty();
-                                        if (imagesUrls != null) {
-                                                imagesMono = Flux.fromArray(imagesUrls)
-                                                                .flatMap(imageUrl -> mediaPersistencePort
-                                                                                .saveImageMedia(imageUrl, "altText",
-                                                                                                savedPublication.getId()))
-                                                                .then();
-                                        }
+                                        Mono<Void> mediaMonos = Mono.when(
+                                            (imagesUrls != null ? Flux.fromArray(imagesUrls)
+                                                .flatMap(imageUrl -> mediaPersistencePort.saveImageMedia(imageUrl, "image", savedPublication.getId())).then() : Mono.empty()),
+                                            (videoUrls != null ? Flux.fromArray(videoUrls)
+                                                .flatMap(videoUrl -> mediaPersistencePort.saveVideoMedia(videoUrl, "video", savedPublication.getId())).then() : Mono.empty()),
+                                            (filesUrls != null ? Flux.fromArray(filesUrls)
+                                                .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(fileUrl, "audio", savedPublication.getId())).then() : Mono.empty())
+                                        );
 
-                                        Mono<Void> videosMono = Mono.empty();
-                                        if (videoUrls != null) {
-                                                videosMono = Flux.fromArray(videoUrls)
-                                                                .flatMap(videoUrl -> mediaPersistencePort
-                                                                                .saveVideoMedia(videoUrl, "title",
-                                                                                                savedPublication.getId()))
-                                                                .then();
-                                        }
+                                        Mono<Void> adminNotificationMono = Mono.zip(
+                                            branchPersistencePort.findById(branchId),
+                                            userGatewayPort.findById(savedPublication.getAuthorId())
+                                        )
+                                        .flatMap(branchAndAuthorTuple -> {
+                                            var branch = branchAndAuthorTuple.getT1();
+                                            var authorInfo = branchAndAuthorTuple.getT2();
 
-                                        Mono<Void> filesMono = Mono.empty();
-                                        if (filesUrls != null) {
-                                                filesMono = Flux.fromArray(filesUrls)
-                                                                .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(
-                                                                                fileUrl, "title",
-                                                                                savedPublication.getId()))
-                                                                .then();
-                                        }
+                                            return syndicatRepository.findById(branch.syndicatId())
+                                                .flatMap(syndicat ->
+                                                    userGatewayPort.findById(syndicat.creatorId()) // Assuming creatorId is the admin
+                                                        .flatMap(adminInfo ->
+                                                            notificationPort.sendAdminAlertWhenNewPublication(
+                                                                List.of(adminInfo.email()),
+                                                                savedPublication.getContent(), // Using content as title
+                                                                authorInfo.firstName() + " " + authorInfo.lastName()
+                                                            )
+                                                        )
+                                                );
+                                        });
 
-                                        return Mono.when(imagesMono, videosMono, filesMono);
+                                        return Mono.when(mediaMonos, adminNotificationMono);
                                 });
         }
 
@@ -1571,12 +1753,13 @@ public class PublicationService {
         }
 
         public Mono<Void> incrementLikes(UUID publicationId) {
-                return publicationModelRepository.incrementLikes(publicationId);
+                return publicationModelRepository.incrementLikes(publicationId)
+                        .switchIfEmpty(Mono.empty());
         }
 }
 ```
 
-*Lignes: 111*
+*Lignes: 121*
 
 ---
 
@@ -1596,6 +1779,8 @@ import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.respons
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.VoteResultDTO;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.List;
@@ -1619,10 +1804,10 @@ public class PublicationVoteService
     @Override
     public Mono<Void> castVote(UUID userId, UUID publicationVoteId, String choiceLabel) {
         return publicationVotePersistencePort.findById(publicationVoteId)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Poll not found")))
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Poll not found")))
                 .flatMap(poll -> {
                     if (poll.getClosingAt() != null && poll.getClosingAt().isBefore(Instant.now())) {
-                        return Mono.error(new IllegalStateException("This poll is closed."));
+                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "This poll is closed."));
                     }
                     VoteModel vote = new VoteModel(null, userId, publicationVoteId, choiceLabel);
                     return votePersistencePort.save(vote);
@@ -1632,7 +1817,7 @@ public class PublicationVoteService
     @Override
     public Mono<PublicationVoteWithResultsDTO> getPublicationVoteResults(UUID publicationVoteId, UUID userId) {
         Mono<PublicationVoteModel> pollMono = publicationVotePersistencePort.findById(publicationVoteId)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Poll not found")));
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Poll not found")));
 
         Mono<List<VoteModel>> votesMono = votePersistencePort.findByPublicationVoteId(publicationVoteId).collectList();
 
@@ -1656,7 +1841,7 @@ public class PublicationVoteService
 }
 ```
 
-*Lignes: 71*
+*Lignes: 73*
 
 ---
 
@@ -1668,27 +1853,75 @@ package com.yowyob.ugate_service.application.service.content;
 import java.util.UUID;
 
 import com.yowyob.ugate_service.domain.enumeration.ReactionTypeEnum;
+import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.ReactionPersistencePort;
 
 import lombok.AllArgsConstructor;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.Loggers;
+import reactor.util.Logger;
 
 @AllArgsConstructor
 public class ReactionService {
+
+  private static final Logger log = Loggers.getLogger(ReactionService.class);
+
   // Une methode pour ajouter une reaction à une publication et changer nlikes
   // dans le publication service en appelant la methode prévu
   private final PublicationService publicationService;
   private final ReactionPersistencePort reactionPersistencePort;
+  private final PublicationPersistencePort publicationPersistencePort;
+  private final UserGatewayPort userGatewayPort;
+  private final NotificationPort notificationPort;
 
   public Mono<Void> addReactionToPublication(UUID publicationId, UUID userId, ReactionTypeEnum reactionType) {
+    log.info("addReactionToPublication called for publicationId: {}, userId: {}", publicationId, userId);
     return reactionPersistencePort.saveReaction(publicationId, reactionType, userId)
-        .then(publicationService.incrementLikes(publicationId));
+        .doOnSuccess(v -> log.info("Reaction saved for publicationId: {}", publicationId))
+        .then(publicationService.incrementLikes(publicationId)
+            .doOnSuccess(v -> log.info("Likes incremented for publicationId: {}", publicationId))
+            .doOnError(e -> log.error("Error incrementing likes for publicationId: {}", publicationId, e)))
+        .then(Mono.defer(() -> {
+            log.info("Mono.defer block entered for publicationId: {}", publicationId);
+            return Mono.zip(
+                publicationPersistencePort.findById(publicationId)
+                    .doOnNext(p -> log.info("Found publication model: {}", p.getId()))
+                    .doOnError(e -> log.error("Error finding publication model for id: {}", publicationId, e)),
+                userGatewayPort.findById(userId)
+                    .doOnNext(u -> log.info("Found reactor user info: {}", u.id()))
+                    .doOnError(e -> log.error("Error finding reactor user info for id: {}", userId, e))
+            );
+        }))
+        .flatMap(tuple -> {
+            log.info("flatMap after Mono.zip entered for publicationId: {}", publicationId);
+            Tuple2<com.yowyob.ugate_service.domain.model.PublicationModel, com.yowyob.ugate_service.domain.model.ExternalUserInfo> typedTuple = tuple;
+            var publication = typedTuple.getT1();
+            var reactorInfo = typedTuple.getT2();
+
+            return userGatewayPort.findById(publication.getAuthorId())
+                .doOnNext(pubAuthorInfo -> log.info("Found publication author info: {}", pubAuthorInfo.id()))
+                .doOnError(e -> log.error("Error finding publication author info for id: {}", publication.getAuthorId(), e))
+                .flatMap(publicationAuthorInfo ->
+                        notificationPort.sendPublicationReactAlert(
+                                publicationAuthorInfo.email(),
+                                publication.getContent(), // Using content as title for now
+                                reactorInfo.firstName()
+                        ).doOnSuccess(v -> log.info("Publication reaction alert sent for publicationId: {}", publicationId))
+                        .doOnError(e -> log.error("Error sending notification for publicationId: {}", publicationId, e))
+                );
+        })
+        .then() // Ensure the Mono<Void> return type
+        .doOnSuccess(v -> log.info("addReactionToPublication completed successfully for publicationId: {}", publicationId))
+        .doOnError(e -> log.error("addReactionToPublication encountered an error for publicationId: {}", publicationId, e));
   }
 }
 
 ```
 
-*Lignes: 23*
+*Lignes: 71*
 
 ---
 
@@ -2623,8 +2856,7 @@ public class SyndicatManagementService {
                     return businessActorRepository.save(newActor);
                 }));
 
-        Organization organization = new Organization(orgId, creatorId, name.toUpperCase().replaceAll("\\s+", "_"), null, name, null, true, true);
-
+        Organization organization = Organization.createNew(orgId, creatorId, name, null);
 
         Syndicat syndicat = new Syndicat(
                 syndicatId, orgId, creatorId, false, name, description, domain, "STANDARD",
@@ -2863,7 +3095,7 @@ public class SyndicatManagementService {
 }
 ```
 
-*Lignes: 354*
+*Lignes: 353*
 
 ---
 
@@ -3247,6 +3479,27 @@ public class UserEventModel {
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\domain\model\UserModel.java
+
+```java
+package com.yowyob.ugate_service.domain.model;
+
+import lombok.Data;
+
+@Data
+public class UserModel {
+  private String id;
+  private String email;
+  private String name;
+  private String phoneNumber;
+}
+
+```
+
+*Lignes: 12*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\domain\model\VoteModel.java
 
 ```java
@@ -3370,6 +3623,24 @@ public interface GetEventsByBranchUseCase {
 ```
 
 *Lignes: 11*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\domain\ports\in\content\GetFeedUseCase.java
+
+```java
+package com.yowyob.ugate_service.domain.ports.in.content;
+
+import java.util.Map;
+import reactor.core.publisher.Flux;
+
+public interface GetFeedUseCase {
+    Flux<Map<String, Object>> getFeed(int page, int size);
+}
+
+```
+
+*Lignes: 9*
 
 ---
 
@@ -3653,14 +3924,26 @@ public interface FileStoragePort {
 ```java
 package com.yowyob.ugate_service.domain.ports.out.notification;
 
+import java.util.List;
+
 import reactor.core.publisher.Mono;
 
 public interface NotificationPort {
     Mono<Void> sendSyndicateInvitation(String email, String syndicateName, String firstName);
+
+    Mono<Void> sendNewEventAlert(List<String> emails, String eventName);
+
+    Mono<Void> sendPublicationCommentAlert(String authorEmail, String publicationTitle, String firstName);
+
+    Mono<Void> sendPublicationReactAlert(String authorEmail, String publicationTitle, String firstName);
+
+    Mono<Void> sendAdminAlertWhenNewPublication(List<String> emails, String publicationTitle, String authorName);
+
+    Mono<Void> sendAdminAlertAcceptEvent(List<String> emails, String eventName, String organizerName);
 }
 ```
 
-*Lignes: 7*
+*Lignes: 19*
 
 ---
 
@@ -3795,16 +4078,20 @@ import com.yowyob.ugate_service.domain.model.EventModel;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
 import java.util.UUID;
 
 public interface EventPersistencePort {
   Mono<EventModel> save(EventModel event);
+
   Flux<EventModel> findByBranchId(UUID branchId);
+
+  Flux<EventModel> findAllPaginated(int page, int size);
 }
 
 ```
 
-*Lignes: 14*
+*Lignes: 18*
 
 ---
 
@@ -3850,6 +4137,7 @@ public interface MediaPersistencePort {
 ```java
 package com.yowyob.ugate_service.domain.ports.out.syndicate;
 
+import java.util.Map;
 import java.util.UUID;
 
 import com.yowyob.ugate_service.domain.model.PublicationModel;
@@ -3861,14 +4149,18 @@ public interface PublicationPersistencePort {
 
   Mono<PublicationModel> save(PublicationModel publicationModel);
 
+  Mono<PublicationModel> findById(UUID id); // Added method
+
   Flux<PublicationModel> findByBranchId(UUID branchId);
 
   Mono<Void> incrementLikes(UUID publicationId);
+
+  Flux<PublicationModel> findAllPaginated(int page, int size);
 }
 
 ```
 
-*Lignes: 18*
+*Lignes: 23*
 
 ---
 
@@ -3948,6 +4240,27 @@ public interface UserEventPersistencePort {
 ```
 
 *Lignes: 14*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\domain\ports\out\syndicate\UserPersistencePort.java
+
+```java
+package com.yowyob.ugate_service.domain.ports.out.syndicate;
+
+import java.util.UUID;
+
+import com.yowyob.ugate_service.domain.model.UserModel;
+
+import reactor.core.publisher.Flux;
+
+public interface UserPersistencePort {
+  public Flux<UserModel> findUsersByBranchId(UUID branchId);
+}
+
+```
+
+*Lignes: 12*
 
 ---
 
@@ -4361,14 +4674,113 @@ public class EventController {
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\content\FeedController.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
+
+import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
+import com.yowyob.ugate_service.domain.ports.in.content.GetFeedUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+
+import java.util.Map;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/v1/feed")
+@Tag(name = "Feed", description = "API for retrieving a combined feed of publications and events")
+public class FeedController {
+
+    private final GetFeedUseCase getFeedUseCase;
+
+    @Operation(summary = "Get a paginated feed of publications and events",
+               description = "Retrieves a combined and sorted feed of recent publications and events. Each item in the feed is a map containing a 'type' (publication or event) and 'data' (either a PublicationResponseDTO or an EventResponseDTO).")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved feed items",
+                         content = @Content(mediaType = "application/json",
+                                            schema = @Schema(
+                                                description = "A list of feed items, where each item is a map with 'type' and 'data'. 'data' can be PublicationResponseDTO or EventResponseDTO.",
+                                                example = """
+                                                [
+                                                  {
+                                                    "type": "publication",
+                                                    "data": {
+                                                      "id": "123e4567-e89b-12d3-a456-426614174000",
+                                                      "branchId": "123e4567-e89b-12d3-a456-426614174001",
+                                                      "authorFullName": "John Doe",
+                                                      "content": "My latest thoughts.",
+                                                      "nLikes": 10,
+                                                      "nComments": 2,
+                                                      "createdAt": "2023-01-01T12:00:00Z",
+                                                      "fileUrlAndType": [
+                                                        {"url": "http://example.com/pub_img.jpg", "type": "IMAGE"}
+                                                      ]
+                                                    }
+                                                  },
+                                                  {
+                                                    "type": "event",
+                                                    "data": {
+                                                      "id": "123e4567-e89b-12d3-a456-426614174002",
+                                                      "creatorId": "123e4567-e89b-12d3-a456-426614174003",
+                                                      "branchId": "123e4567-e89b-12d3-a456-426614174001",
+                                                      "title": "Community Meetup",
+                                                      "description": "A gathering for local developers.",
+                                                      "location": "Community Hall",
+                                                      "date": "2023-01-15",
+                                                      "startTime": "18:00:00",
+                                                      "endTime": "20:00:00",
+                                                      "createdAt": "2023-01-05T10:00:00Z",
+                                                      "updatedAt": "2023-01-05T10:00:00Z",
+                                                      "participantCount": 50,
+                                                      "imageUrls": ["http://example.com/event_banner.jpg"]
+                                                    }
+                                                  }
+                                                ]
+                                                """,
+                                                oneOf = { PublicationResponseDTO.class, EventResponseDTO.class }
+                                            )))
+            ,
+            @ApiResponse(responseCode = "400", description = "Invalid pagination parameters supplied"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    @GetMapping(produces = "application/json")
+    public Flux<Map<String, Object>> getFeed(
+            @Parameter(description = "Page number (0-indexed)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Number of items per page", example = "20")
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return getFeedUseCase.getFeed(page, size);
+    }
+}
+
+```
+
+*Lignes: 87*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\content\PublicationController.java
 
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.content;
 
+import com.yowyob.ugate_service.application.service.content.PublicationService;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema; // Import important
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -4378,14 +4790,12 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.http.codec.multipart.Part;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
-import org.springframework.http.codec.multipart.FilePart;
-
-import com.yowyob.ugate_service.application.service.content.PublicationService;
-import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.UUID;
@@ -4397,63 +4807,91 @@ import java.util.UUID;
 @Tag(name = "Publications", description = "API for managing publications")
 public class PublicationController {
 
-        private final PublicationService publicationService;
-        private final MediaService mediaService;
+    private final PublicationService publicationService;
+    private final MediaService mediaService;
 
-        @Operation(summary = "Create a new publication", description = "Creates a new publication with optional image, video, and file attachments.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "201", description = "Publication created successfully", content = @Content(schema = @Schema(hidden = true))),
-                        @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content(schema = @Schema(hidden = true)))
-        })
-        @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-        public Mono<ResponseEntity<Void>> createPublication(
-                        @Parameter(description = "Content of the publication") @RequestPart("content") Mono<String> content,
-                        @Parameter(description = "Author ID of the publication") @RequestPart("authorId") Mono<String> authorId,
-                        @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
-                        @Parameter(description = "Optional image files to be attached") @RequestPart(name = "images", required = false) Flux<FilePart> images,
-                        @Parameter(description = "Optional video files to be attached") @RequestPart(name = "videos", required = false) Flux<FilePart> videos,
-                        @Parameter(description = "Optional general files to be attached") @RequestPart(name = "files", required = false) Flux<FilePart> files) {
+    @Operation(summary = "Create a new publication")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Publication created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input")
+    })
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<ResponseEntity<Void>> createPublication(
+            @Parameter(description = "Content") @RequestPart("content") Mono<String> content,
+            @Parameter(description = "Author ID") @RequestPart("authorId") Mono<String> authorId,
+            @Parameter(description = "Branch ID") @RequestPart("branchId") Mono<String> branchId,
 
-                Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(images == null ? Flux.empty() : images);
-                Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videos == null ? Flux.empty() : videos);
-                Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(files == null ? Flux.empty() : files);
+            // --- CORRECTION SWAGGER ICI ---
+            // On dit explicitement à Swagger : "C'est un tableau de fichiers binaires", même si le code Java utilise 'Part'
+            @Parameter(
+                    description = "Optional image files",
+                    array = @ArraySchema(schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestPart(name = "images", required = false) Flux<Part> images,
 
-                return Mono.zip(content, authorId, branchId, imagesUrlsMono, videosUrlsMono, filesUrlsMono)
-                                .flatMap(tuple -> {
-                                        String contentValue = tuple.getT1();
-                                        UUID authorIdValue = UUID.fromString(tuple.getT2());
-                                        UUID branchIdValue = UUID.fromString(tuple.getT3());
-                                        List<String> imageUrls = tuple.getT4();
-                                        List<String> videoUrls = tuple.getT5();
-                                        List<String> fileUrls = tuple.getT6();
+            @Parameter(
+                    description = "Optional video files",
+                    array = @ArraySchema(schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestPart(name = "videos", required = false) Flux<Part> videos,
 
-                                        return publicationService.createPublication(
-                                                        authorIdValue,
-                                                        branchIdValue,
-                                                        contentValue,
-                                                        imageUrls.toArray(new String[0]),
-                                                        videoUrls.toArray(new String[0]),
-                                                        fileUrls.toArray(new String[0]));
-                                })
-                                .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));
+            @Parameter(
+                    description = "Optional general files",
+                    array = @ArraySchema(schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestPart(name = "files", required = false) Flux<Part> files) {
+
+        // Conversion et nettoyage (Le code backend reste robuste)
+        Flux<FilePart> imageFiles = convertParts(images);
+        Flux<FilePart> videoFiles = convertParts(videos);
+        Flux<FilePart> genericFiles = convertParts(files);
+
+        Mono<List<String>> imagesUrlsMono = mediaService.uploadImage(imageFiles);
+        Mono<List<String>> videosUrlsMono = mediaService.uploadVideo(videoFiles);
+        Mono<List<String>> filesUrlsMono = mediaService.uploadFiles(genericFiles);
+
+        return Mono.zip(content, authorId, branchId)
+                .zipWith(Mono.zip(imagesUrlsMono, videosUrlsMono, filesUrlsMono))
+                .flatMap(tuple -> {
+                    var textData = tuple.getT1();
+                    var mediaData = tuple.getT2();
+
+                    String contentValue = textData.getT1();
+                    UUID authorIdValue = UUID.fromString(textData.getT2());
+                    UUID branchIdValue = UUID.fromString(textData.getT3());
+
+                    List<String> imageUrls = mediaData.getT1();
+                    List<String> videoUrls = mediaData.getT2();
+                    List<String> fileUrls = mediaData.getT3();
+
+                    return publicationService.createPublication(
+                            authorIdValue,
+                            branchIdValue,
+                            contentValue,
+                            imageUrls.toArray(new String[0]),
+                            videoUrls.toArray(new String[0]),
+                            fileUrls.toArray(new String[0]));
+                })
+                .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));
+    }
+
+    private Flux<FilePart> convertParts(Flux<Part> parts) {
+        if (parts == null) {
+            return Flux.empty();
         }
+        return parts
+                .filter(part -> part instanceof FilePart)
+                .cast(FilePart.class);
+    }
 
-        @Operation(summary = "Get publications by branch", description = "Retrieves a list of publications for a specific branch.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Publications retrieved successfully", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = PublicationResponseDTO.class))),
-                        @ApiResponse(responseCode = "404", description = "Branch not found", content = @Content(schema = @Schema(hidden = true)))
-        })
-        @GetMapping("/branch/{branchId}")
-        public Flux<PublicationResponseDTO> getPublicationsByBranch(
-                        @Parameter(description = "ID of the branch to retrieve publications from") @PathVariable UUID branchId) {
-                return publicationService.getSyndicatPublication(branchId);
-        }
-
+    @GetMapping("/branch/{branchId}")
+    public Flux<PublicationResponseDTO> getPublicationsByBranch(@PathVariable UUID branchId) {
+        return publicationService.getSyndicatPublication(branchId);
+    }
 }
-
 ```
 
-*Lignes: 87*
+*Lignes: 116*
 
 ---
 
@@ -6593,6 +7031,12 @@ public class TraMaSysUserAdapter implements UserGatewayPort {
                 .switchIfEmpty(webClient.get()
                         .uri("/api/users/{id}", id)
                         .retrieve()
+                        .onStatus(HttpStatusCode::isError, response ->
+                                response.bodyToMono(String.class).flatMap(body -> {
+                                    log.error("Error fetching user from TraMaSys, id: {}, response: {}", id, body);
+                                    return Mono.empty(); // Return empty instead of an error
+                                })
+                        )
                         .bodyToMono(TraMaSysUserDTO.class)
                         .map(this::mapToDomain)
                         .flatMap(dto -> userRedisTemplate.opsForValue()
@@ -6643,7 +7087,7 @@ public class TraMaSysUserAdapter implements UserGatewayPort {
 }
 ```
 
-*Lignes: 119*
+*Lignes: 125*
 
 ---
 
@@ -6849,56 +7293,148 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.Map;
 
-
 @Slf4j
 @Component
 public class HttpNotificationAdapter implements NotificationPort {
 
-    private final WebClient webClient;
-    private final String serviceToken;
-    private final Integer inviteTemplateId;
+        private final WebClient webClient;
+        private final String serviceToken;
+        private final Integer inviteTemplateId;
 
-    public HttpNotificationAdapter(WebClient.Builder builder,
-                                   @Value("${application.external.notification-service-url}") String notificationUrl,
-                                   @Value("${application.external.notification-service-token}") String serviceToken,
-                                   @Value("${application.external.notification-invite-template-id}") Integer inviteTemplateId) {
-        this.webClient = builder.baseUrl(notificationUrl).build();
-        this.serviceToken = serviceToken;
-        this.inviteTemplateId = inviteTemplateId;
-    }
+        private final Integer eventAlertTemplateId;
+        private final Integer publicationCommentAlertTemplateId;
+        private final Integer publicationReactAlertTemplateId;
+        private final Integer adminAlertWhenNewPublicationTemplateId;
+        private final Integer adminAlertAcceptEventTemplateId;
 
-    @Override
-    public Mono<Void> sendSyndicateInvitation(String email, String syndicateName, String firstName) {
+        public HttpNotificationAdapter(WebClient.Builder builder,
+                        @Value("${application.external.notification-service-url}") String notificationUrl,
+                        @Value("${application.external.notification-service-token}") String serviceToken,
+                        @Value("${application.external.notification-invite-template-id}") Integer inviteTemplateId,
+                        @Value("${application.external.notification-new-event-alert-templatet-id}") Integer eventAlertTemplateId,
+                        @Value("${application.external.notification-publication-comment-alert-template-id}") Integer publicationCommentAlertTemplate,
+                        @Value("${application.external.notification-publication-react-alert-template-id}") Integer publicationReactAlertTemplateId,
+                        @Value("${application.external.notification-admin-alert-when-new-publication-template-id}") Integer adminAlertWhenNewPublicationTemplateId,
+                        @Value("${application.external.notification-admin-alert-accept-event-template-id}") Integer adminAlertAcceptEventTemplateId) {
+                this.webClient = builder.baseUrl(notificationUrl).build();
+                this.serviceToken = serviceToken;
+                this.inviteTemplateId = inviteTemplateId;
+                this.eventAlertTemplateId = eventAlertTemplateId;
+                this.publicationCommentAlertTemplateId = publicationCommentAlertTemplate;
+                this.publicationReactAlertTemplateId = publicationReactAlertTemplateId;
+                this.adminAlertWhenNewPublicationTemplateId = adminAlertWhenNewPublicationTemplateId;
+                this.adminAlertAcceptEventTemplateId = adminAlertAcceptEventTemplateId;
+        }
 
-        Map<String, Object> requestBody = Map.of(
-                "notificationType", "EMAIL",
-                "templateId", inviteTemplateId,
-                "to", List.of(email),
-                "data", Map.of(
-                        "syndicateName", syndicateName,
-                        "firstName", firstName,
-                        "loginUrl", "https://ugate.yowyob.com/reset-password"
-                )
-        );
+        @Override
+        public Mono<Void> sendSyndicateInvitation(String email, String syndicateName, String firstName) {
 
-        return webClient.post()
-                .uri("/api/v1/notifications/send")
-                .header("X-Service-Token", serviceToken)
-                .bodyValue(requestBody)
-                .retrieve()
-                .onStatus(status -> status.isError(), response ->
-                        response.bodyToMono(String.class)
-                                .flatMap(error -> Mono.error(new RuntimeException("Notification Error: " + error)))
-                )
-                .toBodilessEntity()
-                .doOnSuccess(v -> log.info("Invitation envoyée avec succès à {}", email))
-                .doOnError(e -> log.error("Échec de l'envoi de l'invitation à {}: {}", email, e.getMessage()))
-                .then();
-    }
+                Map<String, Object> requestBody = Map.of(
+                                "notificationType", "EMAIL",
+                                "templateId", inviteTemplateId,
+                                "to", List.of(email),
+                                "data", Map.of(
+                                                "syndicateName", syndicateName,
+                                                "firstName", firstName,
+                                                "loginUrl", "https://ugate.yowyob.com/reset-password"));
+
+                return webClient.post()
+                                .uri("/api/v1/notifications/send")
+                                .header("X-Service-Token", serviceToken)
+                                .bodyValue(requestBody)
+                                .retrieve()
+                                .onStatus(status -> status.isError(), response -> response.bodyToMono(String.class)
+                                                .flatMap(error -> Mono.error(
+                                                                new RuntimeException("Notification Error: " + error))))
+                                .toBodilessEntity()
+                                .doOnSuccess(v -> log.info("Invitation envoyée avec succès à {}", email))
+                                .doOnError(e -> log.error("Échec de l'envoi de l'invitation à {}: {}", email,
+                                                e.getMessage()))
+                                .then();
+        }
+
+        private Mono<Void> sendEmailNotification(Integer templateId, List<String> recipients,
+                        Map<String, Object> data) {
+                Map<String, Object> requestBody = Map.of(
+                                "notificationType", "EMAIL",
+                                "templateId", templateId,
+                                "to", recipients,
+                                "data", data);
+
+                return webClient.post()
+                                .uri("/api/v1/notifications/send")
+                                .header("X-Service-Token", serviceToken)
+                                .bodyValue(requestBody)
+                                .retrieve()
+                                .onStatus(status -> status.isError(), response -> response.bodyToMono(String.class)
+                                                .flatMap(error -> Mono.error(
+                                                                new RuntimeException("Notification Error: " + error))))
+                                .toBodilessEntity()
+                                .doOnSuccess(v -> log.info("Notification envoyée avec succès à {}", recipients))
+                                .doOnError(e -> log.error("Échec de l'envoi de la notification à {}: {}", recipients,
+                                                e.getMessage()))
+                                .then();
+        }
+
+        @Override
+        public Mono<Void> sendNewEventAlert(List<String> emails, String eventName) {
+                Map<String, Object> data = Map.of(
+                                "eventName", eventName,
+                                "eventUrl",
+                                "https://ugate.yowyob.com/events/" + eventName.replaceAll(" ", "-").toLowerCase());
+
+                return sendEmailNotification(eventAlertTemplateId, emails, data);
+        }
+
+        @Override
+        public Mono<Void> sendPublicationCommentAlert(String authorEmail, String publicationTitle, String firstName) {
+                Map<String, Object> data = Map.of(
+                                "publicationTitle", publicationTitle,
+                                "firstName", firstName,
+                                "publicationUrl", "https://ugate.yowyob.com/publications/"
+                                                + publicationTitle.replaceAll(" ", "-").toLowerCase());
+
+                return sendEmailNotification(publicationCommentAlertTemplateId, List.of(authorEmail), data);
+        }
+
+        @Override
+        public Mono<Void> sendPublicationReactAlert(String authorEmail, String publicationTitle, String firstName) {
+                Map<String, Object> data = Map.of(
+                                "publicationTitle", publicationTitle,
+                                "firstName", firstName,
+                                "publicationUrl", "https://ugate.yowyob.com/publications/"
+                                                + publicationTitle.replaceAll(" ", "-").toLowerCase());
+
+                return sendEmailNotification(publicationReactAlertTemplateId, List.of(authorEmail), data);
+        }
+
+        @Override
+        public Mono<Void> sendAdminAlertWhenNewPublication(List<String> emails, String publicationTitle,
+                        String authorName) {
+                Map<String, Object> data = Map.of(
+                                "publicationTitle", publicationTitle,
+                                "authorName", authorName,
+                                "publicationUrl", "https://ugate.yowyob.com/publications/"
+                                                + publicationTitle.replaceAll(" ", "-").toLowerCase());
+
+                return sendEmailNotification(adminAlertWhenNewPublicationTemplateId, emails, data);
+        }
+
+        @Override
+        public Mono<Void> sendAdminAlertAcceptEvent(List<String> emails, String eventName, String organizerName) {
+                Map<String, Object> data = Map.of(
+                                "eventName", eventName,
+                                "organizerName", organizerName,
+                                "eventUrl",
+                                "https://ugate.yowyob.com/events/" + eventName.replaceAll(" ", "-").toLowerCase());
+
+                return sendEmailNotification(adminAlertAcceptEventTemplateId, emails, data);
+        }
+
 }
 ```
 
-*Lignes: 61*
+*Lignes: 153*
 
 ---
 
@@ -7023,11 +7559,19 @@ public class EventPersistenceAdapter implements EventPersistencePort {
         return eventRepository.findByBranchId(branchId)
                 .map(eventMapper::toModel);
     }
+
+    @Override
+    public Flux<EventModel> findAllPaginated(int page, int size) {
+        // The FeedService will handle the actual pagination after merging and sorting.
+        // This method should return all events for now.
+        return eventRepository.findAll()
+            .map(eventMapper::toModel);
+    }
 }
 
 ```
 
-*Lignes: 35*
+*Lignes: 43*
 
 ---
 
@@ -7089,23 +7633,34 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
 
     @Override
     public Mono<Void> saveVideoMedia(String videoUrl, String title, UUID publicationId) {
-        // TODO: Implement video saving logic
-        return Mono.empty();
+        Image image = new Image(null, videoUrl, title, Instant.now());
+
+        return imageRepository.save(image)
+                .flatMap(savedImage -> {
+                    PublicationImage publicationImage = new PublicationImage(publicationId, savedImage.id(),
+                            Instant.now(), Instant.now());
+                    return publicationImageRepository.save(publicationImage);
+                }).then();
     }
 
     @Override
     public Mono<Void> saveAudioMedia(String audioUrl, String title, UUID publicationId) {
-        // TODO: Implement audio saving logic
-        return Mono.empty();
+        Image image = new Image(null, audioUrl, title, Instant.now());
+
+        return imageRepository.save(image)
+                .flatMap(savedImage -> {
+                    PublicationImage publicationImage = new PublicationImage(publicationId, savedImage.id(),
+                            Instant.now(), Instant.now());
+                    return publicationImageRepository.save(publicationImage);
+                }).then();
     }
 
     @Override
     public Flux<MediaInfo> getMediaByPublicationId(UUID publicationId) {
-        // TODO: extend to videos and other media types
         return imageRepository.findByPublicationId(publicationId)
                 .map(image -> new MediaInfo(
                         image.url(),
-                        "IMAGE"));
+                        image.altText().toUpperCase()));
     }
 
     @Override
@@ -7136,7 +7691,7 @@ public class MediaPersistenceAdapter implements MediaPersistencePort {
 }
 ```
 
-*Lignes: 100*
+*Lignes: 111*
 
 ---
 
@@ -7179,6 +7734,21 @@ public class PublicationPersistenceAdapter implements PublicationPersistencePort
     }
 
     @Override
+    public Mono<PublicationModel> findById(UUID id) { // Added this method
+        return publicationRepository.findById(id)
+                .map(publication -> {
+                    PublicationModel model = new PublicationModel();
+                    model.setId(publication.id());
+                    model.setBranchI(publication.branchId());
+                    model.setAuthorId(publication.authorId());
+                    model.setContent(publication.content());
+                    model.setNLikes(publication.nLikes());
+                    model.setCreatedAt(publication.createdAt());
+                    return model;
+                });
+    }
+
+    @Override
     public Flux<PublicationModel> findByBranchId(UUID branchId) {
         return publicationRepository.findByBranchId(branchId)
                 .map(publication -> {
@@ -7208,11 +7778,27 @@ public class PublicationPersistenceAdapter implements PublicationPersistencePort
                 })
                 .then();
     }
-}
 
+    @Override
+    public Flux<PublicationModel> findAllPaginated(int page, int size) {
+        // The FeedService will handle the actual pagination after merging and sorting.
+        // This method should return all publications for now.
+        return publicationRepository.findAll()
+                .map(publication -> {
+                    PublicationModel model = new PublicationModel();
+                    model.setId(publication.id());
+                    model.setBranchI(publication.branchId());
+                    model.setAuthorId(publication.authorId());
+                    model.setContent(publication.content());
+                    model.setNLikes(publication.nLikes());
+                    model.setCreatedAt(publication.createdAt());
+                    return model;
+                });
+    }
+}
 ```
 
-*Lignes: 67*
+*Lignes: 98*
 
 ---
 
@@ -7346,6 +7932,53 @@ public class UserEventPersistenceAdapter implements UserEventPersistencePort {
 ```
 
 *Lignes: 43*
+
+---
+
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\outbound\persistence\adapters\UserPersistenceAdapterPort.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.adapters;
+
+import java.util.UUID;
+
+import org.springframework.stereotype.Component;
+
+import com.yowyob.ugate_service.domain.model.UserModel;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.UserPersistencePort;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.UserRepository;
+
+import lombok.AllArgsConstructor;
+import reactor.core.publisher.Flux;
+
+@Component
+@AllArgsConstructor
+public class UserPersistenceAdapterPort implements UserPersistencePort {
+
+  private final UserRepository userRepository;
+  private final SyndicatMemberRepository syndicatMemberRepository;
+
+  @Override
+  public Flux<UserModel> findUsersByBranchId(UUID branchId) {
+    return syndicatMemberRepository.findByBranchId(branchId)
+        .flatMap(member -> userRepository.findById(member.userId()))
+        .map(userEntity -> {
+          UserModel userModel = new UserModel();
+          userModel.setId(userEntity.getId().toString());
+          userModel.setEmail(userEntity.email());
+          userModel.setName(userEntity.name());
+          userModel.setPhoneNumber(userEntity.phoneNumber());
+          return userModel;
+        });
+
+  }
+
+}
+
+```
+
+*Lignes: 38*
 
 ---
 
@@ -8067,10 +8700,7 @@ public record MembershipRequest(
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.annotation.Transient;
+import org.springframework.data.annotation.*;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -8093,8 +8723,27 @@ public record Organization(
         @Transient boolean isNewRecord
 ) implements Persistable<UUID> {
 
+    @PersistenceCreator
+    public Organization(UUID id, UUID businessActorId, String code, String shortName,
+                        String longName, String email, Boolean isActive) {
+        this(id, businessActorId, code, shortName, longName, email, isActive, false);
+    }
+
     public Organization(UUID id, UUID businessActorId, String code, String email, String name) {
         this(id, businessActorId, code, name, name, email, true, true);
+    }
+
+    public static Organization createNew(UUID id, UUID businessActorId, String name, String email) {
+        return new Organization(
+                id,
+                businessActorId,
+                name.toUpperCase().replaceAll("\\s+", "_"),
+                name,
+                name,
+                email,
+                true,
+                true // isNewRecord = true pour forcer l'INSERT
+        );
     }
 
     @Override public UUID getId() { return id; }
@@ -8103,7 +8752,7 @@ public record Organization(
 
 ```
 
-*Lignes: 36*
+*Lignes: 52*
 
 ---
 
@@ -9849,7 +10498,12 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/webjars/**",
                                 "/actuator/**",
-                                "/syndicates"
+                                "/syndicates",
+                                "/compliance/**",
+                                "/syndicates/*/details",
+                                "/syndicates/*/branches",
+                                "/products/syndicates/*",
+                                "/products/*"
                         ).permitAll()
                         .anyExchange().authenticated()
                 )
@@ -9900,7 +10554,7 @@ public class SecurityConfig {
 }
 ```
 
-*Lignes: 95*
+*Lignes: 100*
 
 ---
 
@@ -9921,8 +10575,14 @@ import com.yowyob.ugate_service.domain.ports.out.syndicate.VotePersistencePort;
 import com.yowyob.ugate_service.application.service.content.PublicationVoteService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationVotePersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.BranchPersistencePort;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.UserPersistencePort;
 //... (keep existing imports)
 import com.yowyob.ugate_service.application.service.content.EventService;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
+import com.yowyob.ugate_service.application.service.content.FeedService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9931,18 +10591,18 @@ import org.springframework.context.annotation.Configuration;
 public class ServiceConfig {
 
     @Bean
-    public PublicationService publicationService(PublicationPersistencePort publicationPersistencePort, MediaPersistencePort mediaPersistencePort, UserGatewayPort userGatewayPort) {
-        return new PublicationService(publicationPersistencePort, mediaPersistencePort, userGatewayPort);
+    public PublicationService publicationService(PublicationPersistencePort publicationPersistencePort, MediaPersistencePort mediaPersistencePort, UserGatewayPort userGatewayPort, NotificationPort notificationPort, BranchPersistencePort branchPersistencePort, SyndicatRepository syndicatRepository) {
+        return new PublicationService(publicationPersistencePort, mediaPersistencePort, userGatewayPort, notificationPort, branchPersistencePort, syndicatRepository);
     }
 
     @Bean
-    public CommentService commentService(MediaPersistencePort mediaPersistencePort, CommentPersistencePort commentPersistencePort, UserGatewayPort userGatewayPort) {
-        return new CommentService(mediaPersistencePort, commentPersistencePort, userGatewayPort);
+    public CommentService commentService(MediaPersistencePort mediaPersistencePort, CommentPersistencePort commentPersistencePort, UserGatewayPort userGatewayPort, NotificationPort notificationPort, PublicationPersistencePort publicationPersistencePort) {
+        return new CommentService(mediaPersistencePort, commentPersistencePort, userGatewayPort, notificationPort, publicationPersistencePort);
     }
 
     @Bean
-    public ReactionService reactionService(PublicationService publicationService, ReactionPersistencePort reactionPersistencePort) {
-        return new ReactionService(publicationService, reactionPersistencePort);
+    public ReactionService reactionService(PublicationService publicationService, ReactionPersistencePort reactionPersistencePort, PublicationPersistencePort publicationPersistencePort, UserGatewayPort userGatewayPort, NotificationPort notificationPort) {
+        return new ReactionService(publicationService, reactionPersistencePort, publicationPersistencePort, userGatewayPort, notificationPort);
     }
 
     @Bean
@@ -9951,14 +10611,19 @@ public class ServiceConfig {
     }
 
     @Bean
-    public EventService eventService(EventPersistencePort eventPersistencePort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort, UserGatewayPort userGatewayPort) {
-        return new EventService(eventPersistencePort, mediaPersistencePort, userEventPersistencePort, userGatewayPort);
+    public EventService eventService(EventPersistencePort eventPersistencePort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort, UserGatewayPort userGatewayPort, NotificationPort notificationPort, UserPersistencePort userPersistencePort) {
+        return new EventService(eventPersistencePort, mediaPersistencePort, userEventPersistencePort, userGatewayPort, notificationPort, userPersistencePort);
+    }
+
+    @Bean
+    public FeedService feedService(PublicationPersistencePort publicationPersistencePort, EventPersistencePort eventPersistencePort, UserGatewayPort userGatewayPort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort) {
+        return new FeedService(publicationPersistencePort, eventPersistencePort, userGatewayPort, mediaPersistencePort, userEventPersistencePort);
     }
 }
 
 ```
 
-*Lignes: 49*
+*Lignes: 60*
 
 ---
 
@@ -10429,11 +11094,16 @@ jwt.secret=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
 
 #Notification Service
 application.external.notification-service-url=https://notification-service.pynfi.com
-application.external.notification-service-token=VOTRE_TOKEN_ICI
-application.external.notification-invite-template-id=123
+application.external.notification-service-token=0a98858a-a4ab-40c0-9d44-6239a71daed4
+application.external.notification-invite-template-id=39
+application.external.notification-new-event-alert-templatet-id=40
+application.external.notification-publication-comment-alert-template-id=41
+application.external.notification-publication-react-alert-template-id=42
+application.external.notification-admin-alert-when-new-publication-template-id=43
+application.external.notification-admin-alert-accept-event-template-id=44
 ```
 
-*Lignes: 90*
+*Lignes: 95*
 
 ---
 
@@ -11076,8 +11746,10 @@ package com.yowyob.ugate_service;
 import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateCommentRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Branch;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Comment;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Image;
@@ -11103,11 +11775,17 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import org.springframework.http.client.MultipartBodyBuilder; // NEW IMPORT
+import org.springframework.web.reactive.function.BodyInserters; // NEW IMPORT
+import org.springframework.core.io.ClassPathResource; // NEW IMPORT
+import java.io.IOException; // NEW IMPORT
+import java.util.List; // NEW IMPORT
 
 import java.time.Instant;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
 
@@ -11143,7 +11821,10 @@ public class CommentControllerTests {
         private UserGatewayPort userGatewayPort;
 
         @MockBean
-        private MediaPersistencePort mediaPersistencePort;
+        private MediaService mediaService;
+
+        @MockBean
+        private NotificationPort notificationPort;
 
         private User testUser;
         private Publication testPublication;
@@ -11152,7 +11833,7 @@ public class CommentControllerTests {
         private Image testImage;
 
         @BeforeEach
-        public void setUp() {
+        public void setUp() throws IOException {
                 webTestClient = WebTestClient
                                 .bindToApplicationContext(context)
                                 .apply(SecurityMockServerConfigurers.springSecurity())
@@ -11171,8 +11852,10 @@ public class CommentControllerTests {
                 testSyndicat = syndicatRepository.save(new Syndicat(null, testUser.id(), "Test Syndicat", "description",
                                 "domain", "logo", "status"))
                                 .block();
-                testBranch = branchRepository.save(Branch.createNew(UUID.randomUUID(), testSyndicat.id(), "Test Branch", "location",
-                                "contact","bannerUrl")).block();
+                testBranch = branchRepository
+                                .save(Branch.createNew(UUID.randomUUID(), testSyndicat.id(), "Test Branch", "location",
+                                                "contact", "bannerUrl"))
+                                .block();
                 testPublication = publicationRepository
                                 .save(new Publication(testBranch.id(), testUser.id(), "Test Content", 0L,
                                                 Instant.now()))
@@ -11185,28 +11868,28 @@ public class CommentControllerTests {
                 when(userGatewayPort.findById(any(UUID.class))).thenReturn(Mono.just(new ExternalUserInfo(testUser.id(),
                                 "Test", "User", "test@example.com", "1234567890", null, null)));
 
-                ImageModel mockImageModel = new ImageModel();
-                mockImageModel.setId(UUID.randomUUID());
-                mockImageModel.setUrl("http://example.com/mock-image.png");
-                mockImageModel.setAltText("Mock Image Alt Text");
-                mockImageModel.setUploadedAt(Instant.now());
-                when(mediaPersistencePort.getImageById(any(UUID.class))).thenReturn(Mono.just(mockImageModel));
-                when(mediaPersistencePort.saveImage(any(String.class), any(String.class)))
-                                .thenReturn(Mono.just(mockImageModel));
+                // NEW Mock for MediaService (used by controller)
+                when(mediaService.uploadImage(any()))
+                                .thenReturn(Mono.just(List.of("http://example.com/new-comment-image.png")));
+
+                // Mock NotificationPort
+                when(notificationPort.sendPublicationCommentAlert(anyString(), anyString(), anyString()))
+                                .thenReturn(Mono.empty());
         }
 
         @Test
         public void createComment_shouldSucceed() {
-                CreateCommentRequest request = new CreateCommentRequest();
-                request.setContent("This is a test comment");
-                request.setImageUrl("http://example.com/new-comment-image.png");
+                MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
+                bodyBuilder.part("content", "This is a test comment");
+                bodyBuilder.part("image", new ClassPathResource("test-image.png")).contentType(MediaType.IMAGE_PNG);
+                bodyBuilder.part("parentId", "");
 
                 webTestClient
                                 .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUser.id().toString())))
                                 .post()
                                 .uri("/publications/" + testPublication.id() + "/comments")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(request)
+                                .contentType(MediaType.MULTIPART_FORM_DATA)
+                                .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
                                 .exchange()
                                 .expectStatus().isOk();
 
@@ -11244,7 +11927,7 @@ public class CommentControllerTests {
 
 ```
 
-*Lignes: 171*
+*Lignes: 184*
 
 ---
 
@@ -11258,6 +11941,157 @@ public class CommentControllerTests {
 
 ---
 
+### 📄 src\test\java\com\yowyob\ugate_service\FeedControllerTests.java
+
+```java
+package com.yowyob.ugate_service;
+
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Event;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Publication;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.EventRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.UUID;
+
+import com.yowyob.ugate_service.domain.model.ImageModel;
+import reactor.core.publisher.Flux;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
+import com.yowyob.ugate_service.domain.model.MediaInfo;
+import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
+@Import(TestSecurityConfig.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+class FeedControllerTests {
+
+    @Autowired
+    private WebTestClient webTestClient;
+
+    @Autowired
+    private PublicationRepository publicationRepository;
+
+    @Autowired
+    private EventRepository eventRepository;
+
+    @MockBean
+    private UserGatewayPort userGatewayPort;
+    @MockBean
+    private MediaPersistencePort mediaPersistencePort;
+    @MockBean
+    private UserEventPersistencePort userEventPersistencePort;
+
+
+    @BeforeEach
+    void setUp() {
+        publicationRepository.deleteAll().block();
+        eventRepository.deleteAll().block();
+
+        // Mock external dependencies for DTO enrichment
+        when(userGatewayPort.findById(any(UUID.class)))
+                .thenReturn(Mono.just(new ExternalUserInfo(UUID.randomUUID(), "Test", "User", "test@example.com", "123", Collections.emptyList(), Collections.emptyList())));
+        when(mediaPersistencePort.getMediaByPublicationId(any(UUID.class)))
+                .thenReturn(Flux.just(new MediaInfo("http://pub.img/1", "IMAGE")));
+        ImageModel mockImageModel = new ImageModel();
+        mockImageModel.setId(UUID.randomUUID());
+        mockImageModel.setUrl("http://event.img/1");
+        mockImageModel.setAltText("event image alt");
+        mockImageModel.setUploadedAt(Instant.now());
+        when(mediaPersistencePort.getImagesByEventId(any(UUID.class)))
+                .thenReturn(Flux.just(mockImageModel));
+        when(userEventPersistencePort.countByEventId(any(UUID.class)))
+                .thenReturn(Mono.just(5L));
+    }
+
+    @Test
+    void testGetFeed() {
+        // Arrange
+        UUID branchId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+
+        // Create some publications and events with different timestamps
+        Publication pub1 = new Publication(branchId, authorId, "Publication 1", 0L, Instant.now().minus(1, ChronoUnit.DAYS));
+        Event event1 = new Event(authorId, branchId, "Event 1", "Description 1", "Location 1", LocalDate.now(), LocalTime.now(), LocalTime.now().plusHours(1), Instant.now().minus(2, ChronoUnit.DAYS), null);
+        Publication pub2 = new Publication(branchId, authorId, "Publication 2", 0L, Instant.now());
+        Event event2 = new Event(authorId, branchId, "Event 2", "Description 2", "Location 2", LocalDate.now(), LocalTime.now(), LocalTime.now().plusHours(1), Instant.now().minus(5, ChronoUnit.HOURS), null);
+
+        publicationRepository.save(pub1).block();
+        eventRepository.save(event1).block();
+        publicationRepository.save(pub2).block();
+        eventRepository.save(event2).block();
+
+        // Act & Assert
+        webTestClient.get()
+                .uri("/api/v1/feed?page=0&size=4")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentTypeCompatibleWith("application/json")
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(4)
+                .jsonPath("$[0].type").isEqualTo("publication")
+                .jsonPath("$[0].data.content").isEqualTo("Publication 2") // Most recent
+                .jsonPath("$[0].data.authorFullName").isEqualTo("Test User")
+                .jsonPath("$[0].data.fileUrlAndType[0].url").isEqualTo("http://pub.img/1")
+                .jsonPath("$[1].type").isEqualTo("event")
+                .jsonPath("$[1].data.title").isEqualTo("Event 2")
+                .jsonPath("$[1].data.participantCount").isEqualTo(5L)
+                .jsonPath("$[1].data.imageUrls[0]").isEqualTo("http://event.img/1")
+                .jsonPath("$[2].type").isEqualTo("publication")
+                .jsonPath("$[2].data.content").isEqualTo("Publication 1")
+                .jsonPath("$[3].type").isEqualTo("event")
+                .jsonPath("$[3].data.title").isEqualTo("Event 1"); // Oldest
+    }
+
+     @Test
+    void testGetFeedPagination() {
+        // Arrange
+        UUID branchId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+
+        for (int i = 0; i < 10; i++) {
+            publicationRepository.save(new Publication(branchId, authorId, "Pub " + i, 0L, Instant.now().minus(i, ChronoUnit.MINUTES))).block();
+        }
+
+        // Act & Assert
+        webTestClient.get()
+                .uri("/api/v1/feed?page=1&size=5")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentTypeCompatibleWith("application/json")
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(5)
+                .jsonPath("$[0].type").isEqualTo("publication")
+                .jsonPath("$[0].data.content").isEqualTo("Pub 5")
+                .jsonPath("$[0].data.authorFullName").isEqualTo("Test User");
+    }
+}
+
+```
+
+*Lignes: 142*
+
+---
+
 ### 📄 src\test\java\com\yowyob\ugate_service\PublicationControllerTests.java
 
 ```java
@@ -11266,14 +12100,19 @@ package com.yowyob.ugate_service;
 
 import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.BranchPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Branch;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Image;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Publication;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.PublicationImage;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Syndicat;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ImageRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationImageRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11295,6 +12134,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import org.springframework.test.annotation.DirtiesContext;
@@ -11322,22 +12163,65 @@ class PublicationControllerTests {
     @MockBean
     private UserGatewayPort userGatewayPort;
 
+    @MockBean
+    private NotificationPort notificationPort;
+
+    @MockBean
+    private BranchPersistencePort branchPersistencePort;
+
+    @MockBean
+    private SyndicatRepository syndicatRepository;
+
+    // --- New fields for consistent UUIDs ---
+    private UUID testAuthorId;
+    private UUID testBranchId;
+    private UUID testSyndicateId;
+    private UUID testSyndicateAdminId;
+    // --- End new fields ---
+
     @BeforeEach
     void setUp() {
         publicationRepository.deleteAll().block();
         imageRepository.deleteAll().block();
         publicationImageRepository.deleteAll().block();
+
+        // --- Initialize consistent UUIDs ---
+        testAuthorId = UUID.randomUUID();
+        testBranchId = UUID.randomUUID();
+        testSyndicateId = UUID.randomUUID();
+        testSyndicateAdminId = UUID.randomUUID();
+        // --- End initialize consistent UUIDs ---
+
         when(mediaService.uploadImage(any())).thenReturn(Mono.just(List.of("http://localhost:8080/media/1")));
         when(mediaService.uploadVideo(any())).thenReturn(Mono.just(List.of()));
         when(mediaService.uploadFiles(any())).thenReturn(Mono.just(List.of()));
+
+        // Mock for PublicationService dependencies
+        when(branchPersistencePort.findById(testBranchId)).thenReturn(Mono.just(new Branch(
+                testBranchId, testSyndicateId, "Mock Branch", "Mock Location", "Mock Contact", "Mock Banner", Instant.now(), Instant.now()
+        )));
+
+        when(syndicatRepository.findById(testSyndicateId)).thenReturn(Mono.just(new Syndicat(
+                testSyndicateId, testSyndicateAdminId, "Mock Syndicat", "Mock Description", "Mock Domain", "Mock Logo", "Mock Status"
+        )));
+
+        // Mock for author and admin user info
+        when(userGatewayPort.findById(testAuthorId)).thenReturn(Mono.just(new ExternalUserInfo(testAuthorId,
+                "Test", "Author", "author@example.com", "1234567890", null, null)));
+        when(userGatewayPort.findById(testSyndicateAdminId)).thenReturn(Mono.just(new ExternalUserInfo(testSyndicateAdminId,
+                "Test", "Admin", "admin@example.com", "0987654321", null, null)));
+
+
+        when(notificationPort.sendAdminAlertWhenNewPublication(anyList(), anyString(), anyString()))
+                .thenReturn(Mono.empty());
     }
 
     @Test
     void testCreatePublicationWithImage() {
         MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
         bodyBuilder.part("content", "Test publication content");
-        bodyBuilder.part("authorId", UUID.randomUUID().toString());
-        bodyBuilder.part("branchId", UUID.randomUUID().toString());
+        bodyBuilder.part("authorId", testAuthorId.toString()); // Use consistent ID
+        bodyBuilder.part("branchId", testBranchId.toString()); // Use consistent ID
         bodyBuilder.part("images", new ClassPathResource("test-image.png"))
                 .contentType(org.springframework.http.MediaType.IMAGE_PNG);
 
@@ -11357,8 +12241,8 @@ class PublicationControllerTests {
     void testCreatePublicationWithoutMedia() {
         MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
         bodyBuilder.part("content", "Test publication content without media");
-        bodyBuilder.part("authorId", UUID.randomUUID().toString());
-        bodyBuilder.part("branchId", UUID.randomUUID().toString());
+        bodyBuilder.part("authorId", testAuthorId.toString()); // Use consistent ID
+        bodyBuilder.part("branchId", testBranchId.toString()); // Use consistent ID
 
         webTestClient.post()
                 .uri("/publications")
@@ -11376,8 +12260,8 @@ class PublicationControllerTests {
     void testCreatePublicationWithInvalidInput() {
         MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
         bodyBuilder.part("content", ""); // Empty content
-        bodyBuilder.part("authorId", UUID.randomUUID().toString());
-        bodyBuilder.part("branchId", UUID.randomUUID().toString());
+        bodyBuilder.part("authorId", testAuthorId.toString()); // Use consistent ID
+        bodyBuilder.part("branchId", testBranchId.toString()); // Use consistent ID
 
         webTestClient.post()
                 .uri("/publications")
@@ -11436,13 +12320,13 @@ class PublicationControllerTests {
                     assertNotNull(mediaInfos);
                     assertEquals(1, mediaInfos.size());
                     assertEquals(savedImage.url(), mediaInfos.get(0).getUrl());
-                    assertEquals("IMAGE", mediaInfos.get(0).getType());
+                    assertEquals("TEST IMAGE", mediaInfos.get(0).getType()); // Changed to "TEST IMAGE"
                 });
     }
 }
 ```
 
-*Lignes: 179*
+*Lignes: 229*
 
 ---
 
@@ -11484,170 +12368,173 @@ import org.springframework.test.annotation.DirtiesContext;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PublicationVoteControllerTests {
 
-    private WebTestClient webTestClient;
+        private WebTestClient webTestClient;
 
-    @Autowired
-    private ApplicationContext context;
+        @Autowired
+        private ApplicationContext context;
 
-    @Autowired
-    private PublicationVoteRepository publicationVoteRepository;
+        @Autowired
+        private PublicationVoteRepository publicationVoteRepository;
 
-    @Autowired
-    private VoteRepository voteRepository;
+        @Autowired
+        private VoteRepository voteRepository;
 
-    @BeforeEach
-    void setUp() {
-        this.webTestClient = WebTestClient
-                .bindToApplicationContext(this.context)
-                .apply(springSecurity())
-                .configureClient()
-                .build();
+        @BeforeEach
+        void setUp() {
+                this.webTestClient = WebTestClient
+                                .bindToApplicationContext(this.context)
+                                .apply(springSecurity())
+                                .configureClient()
+                                .build();
 
-        publicationVoteRepository.deleteAll().block();
-        voteRepository.deleteAll().block();
-    }
+                publicationVoteRepository.deleteAll().block();
+                voteRepository.deleteAll().block();
+        }
 
-    @Test
-    void testCreateVote_Success() {
-        CreatePublicationVoteRequest request = new CreatePublicationVoteRequest();
-        request.setTitle("Best Framework");
-        request.setDescription("Vote for the best framework");
-        request.setClosingAt(Instant.now().plus(1, ChronoUnit.DAYS));
-        request.setType("SINGLE_CHOICE");
-        request.setBranchId(UUID.randomUUID());
+        @Test
+        void testCreateVote_Success() {
+                CreatePublicationVoteRequest request = new CreatePublicationVoteRequest();
+                request.setTitle("Best Framework");
+                request.setDescription("Vote for the best framework");
+                request.setClosingAt(Instant.now().plus(1, ChronoUnit.DAYS));
+                request.setType("SINGLE_CHOICE");
+                request.setBranchId(UUID.randomUUID());
 
-        webTestClient.post()
-                .uri("/publication-votes")
-                .bodyValue(request)
-                .exchange()
-                .expectStatus().isCreated();
+                webTestClient.post()
+                                .uri("/publication-votes")
+                                .bodyValue(request)
+                                .exchange()
+                                .expectStatus().isCreated();
 
-        PublicationVote vote = publicationVoteRepository.findAll().blockFirst();
-        assertNotNull(vote);
-        assertEquals("Best Framework", vote.title());
-        assertEquals("SINGLE_CHOICE", vote.type());
-    }
+                PublicationVote vote = publicationVoteRepository.findAll().blockFirst();
+                assertNotNull(vote);
+                assertEquals("Best Framework", vote.title());
+                assertEquals("SINGLE_CHOICE", vote.type());
+        }
 
-    @Test
-    void testCastVote_Success() {
-        PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
-                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
-        PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
-        assertNotNull(savedPoll);
+        @Test
+        void testCastVote_Success() {
+                PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
+                                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
+                PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
+                assertNotNull(savedPoll);
 
-        UUID testUserId = UUID.randomUUID();
-        CastVoteRequest request = new CastVoteRequest();
-        request.setChoiceLabel("Blue");
+                UUID testUserId = UUID.randomUUID();
+                CastVoteRequest request = new CastVoteRequest();
+                request.setChoiceLabel("Blue");
 
-        // 2. Perform authenticated POST request
-        webTestClient
-                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
-                .post()
-                .uri("/publication-votes/{publicationVoteId}/cast", savedPoll.id())
-                .bodyValue(request)
-                .exchange()
-                .expectStatus().isOk();
+                // 2. Perform authenticated POST request
+                webTestClient
+                                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
+                                .post()
+                                .uri("/publication-votes/{publicationVoteId}/cast", savedPoll.id())
+                                .bodyValue(request)
+                                .exchange()
+                                .expectStatus().isOk();
 
-        // 3. Verify the vote was saved
-        Vote vote = voteRepository.findAll().blockFirst();
-        assertNotNull(vote);
-        assertEquals(testUserId, vote.userId());
-        assertEquals(savedPoll.id(), vote.publicationVoteId());
-        assertEquals("Blue", vote.label());
-    }
+                // 3. Verify the vote was saved
+                Vote vote = voteRepository.findAll().blockFirst();
+                assertNotNull(vote);
+                assertEquals(testUserId, vote.userId());
+                assertEquals(savedPoll.id(), vote.publicationVoteId());
+                assertEquals("Blue", vote.label());
+        }
 
-    @Test
-    void testCastVote_Error_PollClosed() {
-        // 1. Create a poll that is already closed
-        PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Past Poll", "desc",
-                Instant.now().minus(1, ChronoUnit.HOURS),
-                "SINGLE");
-        PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
-        assertNotNull(savedPoll);
+        @Test
+        void testCastVote_Error_PollClosed() {
+                // 1. Create a poll that is already closed
+                PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Past Poll", "desc",
+                                Instant.now().minus(1, ChronoUnit.HOURS),
+                                "SINGLE");
+                PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
+                assertNotNull(savedPoll);
 
-        UUID testUserId = UUID.randomUUID();
-        CastVoteRequest request = new CastVoteRequest();
-        request.setChoiceLabel("Any");
+                UUID testUserId = UUID.randomUUID();
+                CastVoteRequest request = new CastVoteRequest();
+                request.setChoiceLabel("Any");
 
-        // 2. Perform authenticated POST request and expect an error
-        webTestClient
-                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
-                .post()
-                .uri("/publication-votes/{publicationVoteId}/cast", savedPoll.id())
-                .bodyValue(request)
-                .exchange()
-                .expectStatus().is5xxServerError(); // Or a specific 4xx error if you have exception handling
-    }
+                // 2. Perform authenticated POST request and expect an error
+                webTestClient
+                                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
+                                .post()
+                                .uri("/publication-votes/{publicationVoteId}/cast", savedPoll.id())
+                                .bodyValue(request)
+                                .exchange()
+                                .expectStatus().is4xxClientError(); // Or a specific 4xx error if you have exception
+                                                                    // handling
+        }
 
-    @Test
-    void testGetVoteResults_Success() {
-        // 1. Create a poll
-        PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
-                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
-        PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
-        assertNotNull(savedPoll);
+        @Test
+        void testGetVoteResults_Success() {
+                // 1. Create a poll
+                PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
+                                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
+                PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
+                assertNotNull(savedPoll);
 
-        // 2. Create votes
-        UUID user1 = UUID.randomUUID();
-        UUID user2 = UUID.randomUUID();
-        UUID user3 = UUID.randomUUID(); // This is the user who will be making the request
-        voteRepository.save(new Vote(null, user1, savedPoll.id(), "Blue")).block();
-        voteRepository.save(new Vote(null, user2, savedPoll.id(), "Red")).block();
-        voteRepository.save(new Vote(null, user3, savedPoll.id(), "Blue")).block();
+                // 2. Create votes
+                UUID user1 = UUID.randomUUID();
+                UUID user2 = UUID.randomUUID();
+                UUID user3 = UUID.randomUUID(); // This is the user who will be making the request
+                voteRepository.save(new Vote(null, user1, savedPoll.id(), "Blue")).block();
+                voteRepository.save(new Vote(null, user2, savedPoll.id(), "Red")).block();
+                voteRepository.save(new Vote(null, user3, savedPoll.id(), "Blue")).block();
 
-        // 3. Perform authenticated GET request
-        webTestClient
-                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(user3.toString())))
-                .get()
-                .uri("/publication-votes/{publicationVoteId}/results", savedPoll.id())
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(PublicationVoteWithResultsDTO.class)
-                .value(dto -> {
-                    assertEquals(3, dto.getTotalVotes());
-                    assertEquals(true, dto.isHasVoted());
-                    assertEquals(2, dto.getResults().size());
-                    VoteResultDTO blueResult = dto.getResults().stream().filter(r -> r.getChoiceLabel().equals("Blue"))
-                            .findFirst().orElseThrow();
-                    assertEquals(2, blueResult.getCount());
-                    VoteResultDTO redResult = dto.getResults().stream().filter(r -> r.getChoiceLabel().equals("Red"))
-                            .findFirst().orElseThrow();
-                    assertEquals(1, redResult.getCount());
-                });
-    }
+                // 3. Perform authenticated GET request
+                webTestClient
+                                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(user3.toString())))
+                                .get()
+                                .uri("/publication-votes/{publicationVoteId}/results", savedPoll.id())
+                                .exchange()
+                                .expectStatus().isOk()
+                                .expectBody(PublicationVoteWithResultsDTO.class)
+                                .value(dto -> {
+                                        assertEquals(3, dto.getTotalVotes());
+                                        assertEquals(true, dto.isHasVoted());
+                                        assertEquals(2, dto.getResults().size());
+                                        VoteResultDTO blueResult = dto.getResults().stream()
+                                                        .filter(r -> r.getChoiceLabel().equals("Blue"))
+                                                        .findFirst().orElseThrow();
+                                        assertEquals(2, blueResult.getCount());
+                                        VoteResultDTO redResult = dto.getResults().stream()
+                                                        .filter(r -> r.getChoiceLabel().equals("Red"))
+                                                        .findFirst().orElseThrow();
+                                        assertEquals(1, redResult.getCount());
+                                });
+        }
 
-    @Test
-    void testGetVoteResults_UserHasNotVoted() {
-        // 1. Create a poll
-        PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Animal", "desc",
-                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
-        PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
-        assertNotNull(savedPoll);
+        @Test
+        void testGetVoteResults_UserHasNotVoted() {
+                // 1. Create a poll
+                PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Animal", "desc",
+                                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
+                PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
+                assertNotNull(savedPoll);
 
-        // 2. Create votes from other users
-        voteRepository.save(new Vote(null, UUID.randomUUID(), savedPoll.id(), "Dog")).block();
+                // 2. Create votes from other users
+                voteRepository.save(new Vote(null, UUID.randomUUID(), savedPoll.id(), "Dog")).block();
 
-        UUID nonVoterId = UUID.randomUUID(); // This user has not voted
+                UUID nonVoterId = UUID.randomUUID(); // This user has not voted
 
-        // 3. Perform authenticated GET request
-        webTestClient
-                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(nonVoterId.toString())))
-                .get()
-                .uri("/publication-votes/{publicationVoteId}/results", savedPoll.id())
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(PublicationVoteWithResultsDTO.class)
-                .value(dto -> {
-                    assertEquals(1, dto.getTotalVotes());
-                    assertEquals(false, dto.isHasVoted());
-                    assertEquals(1, dto.getResults().size());
-                });
-    }
+                // 3. Perform authenticated GET request
+                webTestClient
+                                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(nonVoterId.toString())))
+                                .get()
+                                .uri("/publication-votes/{publicationVoteId}/results", savedPoll.id())
+                                .exchange()
+                                .expectStatus().isOk()
+                                .expectBody(PublicationVoteWithResultsDTO.class)
+                                .value(dto -> {
+                                        assertEquals(1, dto.getTotalVotes());
+                                        assertEquals(false, dto.isHasVoted());
+                                        assertEquals(1, dto.getResults().size());
+                                });
+        }
 }
 
 ```
 
-*Lignes: 196*
+*Lignes: 199*
 
 ---
 
@@ -11661,13 +12548,19 @@ import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Publication;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationRepository;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ReactionRepository;
+import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
+import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
+
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.time.Instant;
@@ -11675,6 +12568,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import org.springframework.test.annotation.DirtiesContext;
 
@@ -11684,67 +12580,93 @@ import org.springframework.test.annotation.DirtiesContext;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ReactionControllerTests {
 
-    @Autowired
-    private WebTestClient webTestClient;
+        @Autowired
+        private WebTestClient webTestClient;
 
-    @Autowired
-    private PublicationRepository publicationRepository;
+        @Autowired
+        private PublicationRepository publicationRepository;
 
-    @Autowired
-    private ReactionRepository reactionRepository;
+        @Autowired
+        private ReactionRepository reactionRepository;
 
-    @BeforeEach
-    void setUp() {
-        publicationRepository.deleteAll().block();
-        reactionRepository.deleteAll().block();
-    }
+        @MockBean
+        private NotificationPort notificationPort;
 
-    @Test
-    void testAddReactionToPublication() {
-        // Arrange: Create and save a publication
-        UUID authorId = UUID.randomUUID();
-        UUID branchId = UUID.randomUUID();
-        Publication publication = new Publication(branchId, authorId, "Test content", 0L, Instant.now());
-        Publication savedPublication = publicationRepository.save(publication).block();
-        assertNotNull(savedPublication);
-        assertEquals(0L, savedPublication.nLikes());
+        @MockBean
+        private UserGatewayPort userGatewayPort;
 
-        // Prepare the reaction request
-        UUID userId = UUID.randomUUID();
-        ReactionTypeEnum reactionType = ReactionTypeEnum.LIKE;
-        CreateReactionRequest request = new CreateReactionRequest();
-        request.setUserId(userId);
-        request.setReactionType(reactionType);
+        private UUID mockPublicationAuthorId;
+        private UUID mockReactorUserId; // New field
 
-        // Act: Call the endpoint to add a reaction
-        webTestClient.post()
-                .uri("/publications/{publicationId}/reactions", savedPublication.id())
-                .bodyValue(request)
-                .exchange()
-                .expectStatus().isOk();
+        @BeforeEach
+        void setUp() {
+                publicationRepository.deleteAll().block();
+                reactionRepository.deleteAll().block();
 
-        // Assert: Verify the reaction was created
-        StepVerifier.create(reactionRepository.findAll())
-                .assertNext(reaction -> {
-                    assertNotNull(reaction.id());
-                    assertEquals(savedPublication.id(), reaction.publicationId());
-                    assertEquals(userId, reaction.userId());
-                    assertEquals(reactionType, reaction.type());
-                })
-                .verifyComplete();
+                mockPublicationAuthorId = UUID.randomUUID();
+                mockReactorUserId = UUID.randomUUID(); // Initialize the reactor's user ID
 
-        // Assert: Verify the publication's like count was incremented
-        StepVerifier.create(publicationRepository.findById(savedPublication.id()))
-                .assertNext(updatedPublication -> {
-                    assertEquals(1L, updatedPublication.nLikes());
-                })
-                .verifyComplete();
-    }
+                // Mock external dependencies for ReactionService
+                // Mock for the publication author's ID
+                when(userGatewayPort.findById(eq(mockPublicationAuthorId)))
+                                .thenReturn(Mono.just(new ExternalUserInfo(mockPublicationAuthorId,
+                                                "Publication", "Author", "pubauthor@example.com", "0987654321", null,
+                                                null)));
+                // Mock for the reactor's ID
+                when(userGatewayPort.findById(eq(mockReactorUserId)))
+                                .thenReturn(Mono.just(new ExternalUserInfo(mockReactorUserId,
+                                                "Reactor", "User", "reactor@example.com", "1122334455", null, null)));
+
+                when(notificationPort.sendPublicationReactAlert(anyString(), anyString(), anyString()))
+                                .thenReturn(Mono.empty());
+        }
+
+        @Test
+        void testAddReactionToPublication() {
+                // Arrange: Create and save a publication
+                // Use the fixed mockPublicationAuthorId for consistency
+                Publication publication = new Publication(UUID.randomUUID(), mockPublicationAuthorId, "Test content",
+                                0L, Instant.now());
+                Publication savedPublication = publicationRepository.save(publication).block();
+                assertNotNull(savedPublication);
+                assertEquals(0L, savedPublication.nLikes());
+
+                // Prepare the reaction request
+                UUID userId = mockReactorUserId; // Use the fixed reactor user ID
+                ReactionTypeEnum reactionType = ReactionTypeEnum.LIKE;
+                CreateReactionRequest request = new CreateReactionRequest();
+                request.setUserId(userId);
+                request.setReactionType(reactionType);
+
+                // Act: Call the endpoint to add a reaction
+                webTestClient.post()
+                                .uri("/publications/{publicationId}/reactions", savedPublication.id())
+                                .bodyValue(request)
+                                .exchange()
+                                .expectStatus().isOk();
+
+                // Assert: Verify the reaction was created
+                StepVerifier.create(reactionRepository.findAll())
+                                .assertNext(reaction -> {
+                                        assertNotNull(reaction.id());
+                                        assertEquals(savedPublication.id(), reaction.publicationId());
+                                        assertEquals(userId, reaction.userId());
+                                        assertEquals(reactionType, reaction.type());
+                                })
+                                .verifyComplete();
+
+                // Assert: Verify the publication's like count was incremented
+                StepVerifier.create(publicationRepository.findById(savedPublication.id()))
+                                .assertNext(updatedPublication -> {
+                                        assertEquals(1L, updatedPublication.nLikes());
+                                })
+                                .verifyComplete();
+        }
 }
 
 ```
 
-*Lignes: 88*
+*Lignes: 123*
 
 ---
 
@@ -11904,7 +12826,7 @@ CREATE TABLE reactions (
     reacted_at TIMESTAMP
 );
 
-CREATE TABLE events (
+CREATE TABLE event (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     creator_id UUID,
     branch_id UUID,
@@ -11948,21 +12870,35 @@ CREATE TABLE vote (
     publication_vote_id UUID,
     label VARCHAR(255)
 );
+
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY,
+    user_id UUID,
+    profile_image_url VARCHAR(255),
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    birth_date TIMESTAMP,
+    nationality VARCHAR(255),
+    gender VARCHAR(255),
+    language VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
 ```
 
-*Lignes: 127*
+*Lignes: 141*
 
 ---
 
 ## Statistiques
 
-- **Total de fichiers analysés:** 224
-- **Total de lignes de code:** 9 600
-- **Moyenne de lignes par fichier:** 43
+- **Total de fichiers analysés:** 230
+- **Total de lignes de code:** 10 475
+- **Moyenne de lignes par fichier:** 46
 
 ### Répartition par type de fichier
 
-- **.java:** 203 fichiers
+- **.java:** 209 fichiers
 - **.xml:** 15 fichiers
 - **.properties:** 2 fichiers
 - **.yml:** 1 fichier
