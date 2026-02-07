@@ -3,8 +3,10 @@ package com.yowyob.ugate_service;
 import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateCommentRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.external.client.media.MediaService;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Branch;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Comment;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Image;
@@ -30,11 +32,17 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import org.springframework.http.client.MultipartBodyBuilder; // NEW IMPORT
+import org.springframework.web.reactive.function.BodyInserters; // NEW IMPORT
+import org.springframework.core.io.ClassPathResource; // NEW IMPORT
+import java.io.IOException; // NEW IMPORT
+import java.util.List; // NEW IMPORT
 
 import java.time.Instant;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
 
@@ -70,7 +78,10 @@ public class CommentControllerTests {
         private UserGatewayPort userGatewayPort;
 
         @MockBean
-        private MediaPersistencePort mediaPersistencePort;
+        private MediaService mediaService;
+
+        @MockBean
+        private NotificationPort notificationPort;
 
         private User testUser;
         private Publication testPublication;
@@ -79,7 +90,7 @@ public class CommentControllerTests {
         private Image testImage;
 
         @BeforeEach
-        public void setUp() {
+        public void setUp() throws IOException {
                 webTestClient = WebTestClient
                                 .bindToApplicationContext(context)
                                 .apply(SecurityMockServerConfigurers.springSecurity())
@@ -98,8 +109,10 @@ public class CommentControllerTests {
                 testSyndicat = syndicatRepository.save(new Syndicat(null, testUser.id(), "Test Syndicat", "description",
                                 "domain", "logo", "status"))
                                 .block();
-                testBranch = branchRepository.save(Branch.createNew(UUID.randomUUID(), testSyndicat.id(), "Test Branch", "location",
-                                "contact","bannerUrl")).block();
+                testBranch = branchRepository
+                                .save(Branch.createNew(UUID.randomUUID(), testSyndicat.id(), "Test Branch", "location",
+                                                "contact", "bannerUrl"))
+                                .block();
                 testPublication = publicationRepository
                                 .save(new Publication(testBranch.id(), testUser.id(), "Test Content", 0L,
                                                 Instant.now()))
@@ -112,28 +125,28 @@ public class CommentControllerTests {
                 when(userGatewayPort.findById(any(UUID.class))).thenReturn(Mono.just(new ExternalUserInfo(testUser.id(),
                                 "Test", "User", "test@example.com", "1234567890", null, null)));
 
-                ImageModel mockImageModel = new ImageModel();
-                mockImageModel.setId(UUID.randomUUID());
-                mockImageModel.setUrl("http://example.com/mock-image.png");
-                mockImageModel.setAltText("Mock Image Alt Text");
-                mockImageModel.setUploadedAt(Instant.now());
-                when(mediaPersistencePort.getImageById(any(UUID.class))).thenReturn(Mono.just(mockImageModel));
-                when(mediaPersistencePort.saveImage(any(String.class), any(String.class)))
-                                .thenReturn(Mono.just(mockImageModel));
+                // NEW Mock for MediaService (used by controller)
+                when(mediaService.uploadImage(any()))
+                                .thenReturn(Mono.just(List.of("http://example.com/new-comment-image.png")));
+
+                // Mock NotificationPort
+                when(notificationPort.sendPublicationCommentAlert(anyString(), anyString(), anyString()))
+                                .thenReturn(Mono.empty());
         }
 
         @Test
         public void createComment_shouldSucceed() {
-                CreateCommentRequest request = new CreateCommentRequest();
-                request.setContent("This is a test comment");
-                request.setImageUrl("http://example.com/new-comment-image.png");
+                MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
+                bodyBuilder.part("content", "This is a test comment");
+                bodyBuilder.part("image", new ClassPathResource("test-image.png")).contentType(MediaType.IMAGE_PNG);
+                bodyBuilder.part("parentId", "");
 
                 webTestClient
                                 .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUser.id().toString())))
                                 .post()
                                 .uri("/publications/" + testPublication.id() + "/comments")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(request)
+                                .contentType(MediaType.MULTIPART_FORM_DATA)
+                                .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
                                 .exchange()
                                 .expectStatus().isOk();
 

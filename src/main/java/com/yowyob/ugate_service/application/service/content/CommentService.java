@@ -8,8 +8,10 @@ import com.yowyob.ugate_service.domain.model.CommentModel;
 import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.CommentPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.CommentResponseDto;
 
 import lombok.AllArgsConstructor;
@@ -22,6 +24,8 @@ public class CommentService {
   private final MediaPersistencePort mediaPersistencePort;
   private final CommentPersistencePort commentPersistencePort;
   private final UserGatewayPort userGatewayPort;
+  private final NotificationPort notificationPort;
+  private final PublicationPersistencePort publicationPersistencePort;
 
   public Mono<Void> createComment(UUID authorId, UUID publicationId, UUID parentId, String ImageUrl, String content) {
 
@@ -32,17 +36,30 @@ public class CommentService {
     comment.setContent(content);
     comment.setCreatedAt(Instant.now());
 
+    Mono<CommentModel> saveCommentMono;
     if (ImageUrl == null) {
-      return this.commentPersistencePort.saveComment(comment);
+      saveCommentMono = this.commentPersistencePort.saveComment(comment).thenReturn(comment);
     } else {
-      return this.mediaPersistencePort.saveImage(ImageUrl, "alt text")
+      saveCommentMono = this.mediaPersistencePort.saveImage(ImageUrl, "alt text")
           .flatMap(imageModel -> {
             comment.setImageId(imageModel.getId());
-
-            return this.commentPersistencePort.saveComment(comment);
+            return this.commentPersistencePort.saveComment(comment).thenReturn(comment);
           });
     }
 
+    return saveCommentMono.flatMap(savedComment -> Mono.zip(
+        publicationPersistencePort.findById(publicationId),
+        userGatewayPort.findById(savedComment.getAuthorId()))
+        .flatMap(tuple -> {
+          var publication = tuple.getT1();
+          var commenterInfo = tuple.getT2();
+
+          return userGatewayPort.findById(publication.getAuthorId())
+              .flatMap(publicationAuthorInfo -> notificationPort.sendPublicationCommentAlert(
+                  publicationAuthorInfo.email(),
+                  publication.getContent(), // Using content as title for now
+                  commenterInfo.firstName()));
+        }));
   }
 
   public Flux<CommentResponseDto> getCommentsByPublicationId(UUID publicationId) {

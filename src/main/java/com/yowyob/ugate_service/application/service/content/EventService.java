@@ -2,13 +2,16 @@ package com.yowyob.ugate_service.application.service.content;
 
 import com.yowyob.ugate_service.domain.model.ImageModel;
 import com.yowyob.ugate_service.domain.model.UserEventModel;
+import com.yowyob.ugate_service.domain.model.UserModel;
 import com.yowyob.ugate_service.domain.ports.in.content.CreateEventUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetEventParticipantsUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetEventsByBranchUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.JoinEventUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.LeaveEventUseCase;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.UserPersistencePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.EventResponseDTO;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.ParticipantDTO;
 import lombok.AllArgsConstructor;
@@ -26,107 +29,127 @@ import java.util.UUID;
 
 @AllArgsConstructor
 public class EventService implements CreateEventUseCase, JoinEventUseCase, GetEventsByBranchUseCase,
-        GetEventParticipantsUseCase, LeaveEventUseCase {
+                GetEventParticipantsUseCase, LeaveEventUseCase {
 
-    private final EventPersistencePort eventPersistencePort;
-    private final MediaPersistencePort mediaPersistencePort;
-    private final UserEventPersistencePort userEventPersistencePort;
-    private final UserGatewayPort userGatewayPort;
+        private final EventPersistencePort eventPersistencePort;
+        private final MediaPersistencePort mediaPersistencePort;
+        private final UserEventPersistencePort userEventPersistencePort;
+        private final UserGatewayPort userGatewayPort;
+        private final NotificationPort notificationPort;
+        private final UserPersistencePort userPersistencePort;
 
-    @Override
-    public Mono<Void> createEvent(UUID creatorId, UUID branchId, String title, String description, LocalDate eventDate,
-            String location, LocalTime startTime, LocalTime endTime, String[] imagesUrls, String[] videoUrls,
-            String[] filesUrls) {
-        EventModel event = new EventModel();
-        event.setCreatorId(creatorId);
-        event.setBranchId(branchId);
-        event.setTitle(title);
-        event.setDescription(description);
-        event.setDate(eventDate);
-        event.setLocation(location);
-        event.setCreatedAt(Instant.now());
-        event.setUpdatedAt(Instant.now());
-        event.setStartTime(startTime);
-        event.setEndTime(endTime);
+        @Override
+        public Mono<Void> createEvent(UUID creatorId, UUID branchId, String title, String description,
+                        LocalDate eventDate,
+                        String location, LocalTime startTime, LocalTime endTime, String[] imagesUrls,
+                        String[] videoUrls,
+                        String[] filesUrls) {
+                EventModel event = new EventModel();
+                event.setCreatorId(creatorId);
+                event.setBranchId(branchId);
+                event.setTitle(title);
+                event.setDescription(description);
+                event.setDate(eventDate);
+                event.setLocation(location);
+                event.setCreatedAt(Instant.now());
+                event.setUpdatedAt(Instant.now());
+                event.setStartTime(startTime);
+                event.setEndTime(endTime);
 
-        return eventPersistencePort.save(event)
-                .flatMap(savedEvent -> {
-                    Mono<Void> imagesMono = Mono.empty();
-                    if (imagesUrls != null) {
-                        imagesMono = Flux.fromArray(imagesUrls)
-                                .flatMap(imageUrl -> mediaPersistencePort.saveEventMedia(imageUrl, "altText",
-                                        savedEvent.getId()))
-                                .then();
-                    }
+                return eventPersistencePort.save(event)
+                                .flatMap(savedEvent -> {
+                                        Mono<Void> imagesMono = Mono.empty();
+                                        if (imagesUrls != null) {
+                                                imagesMono = Flux.fromArray(imagesUrls)
+                                                                .flatMap(imageUrl -> mediaPersistencePort
+                                                                                .saveEventMedia(imageUrl, "altText",
+                                                                                                savedEvent.getId()))
+                                                                .then();
+                                        }
 
-                    Mono<Void> videosMono = Mono.empty();
-                    if (videoUrls != null) {
-                        videosMono = Flux.fromArray(videoUrls)
-                                .flatMap(videoUrl -> mediaPersistencePort.saveVideoMedia(videoUrl, "title",
-                                        savedEvent.getId()))
-                                .then();
-                    }
+                                        Mono<Void> videosMono = Mono.empty();
+                                        if (videoUrls != null) {
+                                                videosMono = Flux.fromArray(videoUrls)
+                                                                .flatMap(videoUrl -> mediaPersistencePort
+                                                                                .saveVideoMedia(videoUrl, "title",
+                                                                                                savedEvent.getId()))
+                                                                .then();
+                                        }
 
-                    Mono<Void> filesMono = Mono.empty();
-                    if (filesUrls != null) {
-                        filesMono = Flux.fromArray(filesUrls)
-                                .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(fileUrl, "title",
-                                        savedEvent.getId()))
-                                .then();
-                    }
+                                        Mono<Void> filesMono = Mono.empty();
+                                        if (filesUrls != null) {
+                                                filesMono = Flux.fromArray(filesUrls)
+                                                                .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(
+                                                                                fileUrl, "title",
+                                                                                savedEvent.getId()))
+                                                                .then();
+                                        }
 
-                    return Mono.when(imagesMono, videosMono, filesMono);
-                });
-    }
+                                        // Send notification to all users in the branch about the new event
+                                        return userPersistencePort.findUsersByBranchId(branchId).collectList()
+                                                        .flatMap(users -> {
+                                                                List<String> emails = users.stream()
+                                                                                .map(UserModel::getEmail)
+                                                                                .toList();
+                                                                return notificationPort.sendNewEventAlert(emails,
+                                                                                title);
+                                                        })
+                                                        .then(Mono.when(imagesMono, videosMono, filesMono));
 
-    @Override
-    public Mono<Void> joinEvent(UUID userId, UUID eventId) {
-        // Here you might add logic to check if the event and user exist before creating
-        // the link
-        UserEventModel userEventModel = new UserEventModel();
-        userEventModel.setUserId(userId);
-        userEventModel.setEventId(eventId);
-        userEventModel.setTimestamp(Instant.now());
-        return userEventPersistencePort.save(userEventModel);
-    }
+                                });
+        }
 
-    @Override
-    public Flux<EventResponseDTO> getEventsByBranch(UUID branchId) {
-        return eventPersistencePort.findByBranchId(branchId)
-                .flatMap(eventModel -> {
-                    Mono<Long> participantCountMono = userEventPersistencePort.countByEventId(eventModel.getId());
-                    Mono<List<String>> imageUrlsMono = mediaPersistencePort.getImagesByEventId(eventModel.getId())
-                            .map(ImageModel::getUrl)
-                            .collectList();
+        @Override
+        public Mono<Void> joinEvent(UUID userId, UUID eventId) {
+                // Here you might add logic to check if the event and user exist before creating
+                // the link
+                UserEventModel userEventModel = new UserEventModel();
+                userEventModel.setUserId(userId);
+                userEventModel.setEventId(eventId);
+                userEventModel.setTimestamp(Instant.now());
+                return userEventPersistencePort.save(userEventModel);
+        }
 
-                    return Mono.zip(participantCountMono, imageUrlsMono)
-                            .map(tuple -> new EventResponseDTO(
-                                    eventModel.getId(),
-                                    eventModel.getCreatorId(),
-                                    eventModel.getBranchId(),
-                                    eventModel.getTitle(),
-                                    eventModel.getDescription(),
-                                    eventModel.getLocation(),
-                                    eventModel.getDate(),
-                                    eventModel.getStartTime(),
-                                    eventModel.getEndTime(),
-                                    eventModel.getCreatedAt(),
-                                    eventModel.getUpdatedAt(),
-                                    tuple.getT1(), // participant count
-                                    tuple.getT2()  // image urls
-                            ));
-                });
-    }
+        @Override
+        public Flux<EventResponseDTO> getEventsByBranch(UUID branchId) {
+                return eventPersistencePort.findByBranchId(branchId)
+                                .flatMap(eventModel -> {
+                                        Mono<Long> participantCountMono = userEventPersistencePort
+                                                        .countByEventId(eventModel.getId());
+                                        Mono<List<String>> imageUrlsMono = mediaPersistencePort
+                                                        .getImagesByEventId(eventModel.getId())
+                                                        .map(ImageModel::getUrl)
+                                                        .collectList();
 
-    @Override
-    public Flux<ParticipantDTO> getParticipants(UUID eventId) {
-        return userEventPersistencePort.findByEventId(eventId)
-                .flatMap(userEvent -> userGatewayPort.findById(userEvent.getUserId()))
-                .map(userInfo -> new ParticipantDTO(userInfo.id(), userInfo.firstName() + " " + userInfo.lastName()));
-    }
+                                        return Mono.zip(participantCountMono, imageUrlsMono)
+                                                        .map(tuple -> new EventResponseDTO(
+                                                                        eventModel.getId(),
+                                                                        eventModel.getCreatorId(),
+                                                                        eventModel.getBranchId(),
+                                                                        eventModel.getTitle(),
+                                                                        eventModel.getDescription(),
+                                                                        eventModel.getLocation(),
+                                                                        eventModel.getDate(),
+                                                                        eventModel.getStartTime(),
+                                                                        eventModel.getEndTime(),
+                                                                        eventModel.getCreatedAt(),
+                                                                        eventModel.getUpdatedAt(),
+                                                                        tuple.getT1(), // participant count
+                                                                        tuple.getT2() // image urls
+                                        ));
+                                });
+        }
 
-    @Override
-    public Mono<Void> leaveEvent(UUID userId, UUID eventId) {
-        return userEventPersistencePort.delete(userId, eventId);
-    }
+        @Override
+        public Flux<ParticipantDTO> getParticipants(UUID eventId) {
+                return userEventPersistencePort.findByEventId(eventId)
+                                .flatMap(userEvent -> userGatewayPort.findById(userEvent.getUserId()))
+                                .map(userInfo -> new ParticipantDTO(userInfo.id(),
+                                                userInfo.firstName() + " " + userInfo.lastName()));
+        }
+
+        @Override
+        public Mono<Void> leaveEvent(UUID userId, UUID eventId) {
+                return userEventPersistencePort.delete(userId, eventId);
+        }
 }

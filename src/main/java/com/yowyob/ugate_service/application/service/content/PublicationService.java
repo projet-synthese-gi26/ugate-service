@@ -4,9 +4,12 @@ import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.model.MediaInfo;
 import com.yowyob.ugate_service.domain.model.PublicationModel;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.BranchPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.MediaPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationPersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.dto.PublicationResponseDTO;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
 
 import lombok.AllArgsConstructor;
 import reactor.core.publisher.Flux;
@@ -22,6 +25,9 @@ public class PublicationService {
         private final PublicationPersistencePort publicationModelRepository;
         private final MediaPersistencePort mediaPersistencePort;
         private final UserGatewayPort userGatewayPort;
+        private final NotificationPort notificationPort;
+        private final BranchPersistencePort branchPersistencePort;
+        private final SyndicatRepository syndicatRepository;
 
         public Mono<Void> createPublication(UUID authorId, UUID branchId, String content, String[] imagesUrls,
                         String[] videoUrls, String[] filesUrls) {
@@ -34,34 +40,37 @@ public class PublicationService {
 
                 return publicationModelRepository.save(publication)
                                 .flatMap(savedPublication -> {
-                                        Mono<Void> imagesMono = Mono.empty();
-                                        if (imagesUrls != null) {
-                                                imagesMono = Flux.fromArray(imagesUrls)
-                                                                .flatMap(imageUrl -> mediaPersistencePort
-                                                                                .saveImageMedia(imageUrl, "image",
-                                                                                                savedPublication.getId()))
-                                                                .then();
-                                        }
+                                        Mono<Void> mediaMonos = Mono.when(
+                                            (imagesUrls != null ? Flux.fromArray(imagesUrls)
+                                                .flatMap(imageUrl -> mediaPersistencePort.saveImageMedia(imageUrl, "image", savedPublication.getId())).then() : Mono.empty()),
+                                            (videoUrls != null ? Flux.fromArray(videoUrls)
+                                                .flatMap(videoUrl -> mediaPersistencePort.saveVideoMedia(videoUrl, "video", savedPublication.getId())).then() : Mono.empty()),
+                                            (filesUrls != null ? Flux.fromArray(filesUrls)
+                                                .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(fileUrl, "audio", savedPublication.getId())).then() : Mono.empty())
+                                        );
 
-                                        Mono<Void> videosMono = Mono.empty();
-                                        if (videoUrls != null) {
-                                                videosMono = Flux.fromArray(videoUrls)
-                                                                .flatMap(videoUrl -> mediaPersistencePort
-                                                                                .saveVideoMedia(videoUrl, "video",
-                                                                                                savedPublication.getId()))
-                                                                .then();
-                                        }
+                                        Mono<Void> adminNotificationMono = Mono.zip(
+                                            branchPersistencePort.findById(branchId),
+                                            userGatewayPort.findById(savedPublication.getAuthorId())
+                                        )
+                                        .flatMap(branchAndAuthorTuple -> {
+                                            var branch = branchAndAuthorTuple.getT1();
+                                            var authorInfo = branchAndAuthorTuple.getT2();
 
-                                        Mono<Void> filesMono = Mono.empty();
-                                        if (filesUrls != null) {
-                                                filesMono = Flux.fromArray(filesUrls)
-                                                                .flatMap(fileUrl -> mediaPersistencePort.saveAudioMedia(
-                                                                                fileUrl, "audio",
-                                                                                savedPublication.getId()))
-                                                                .then();
-                                        }
+                                            return syndicatRepository.findById(branch.syndicatId())
+                                                .flatMap(syndicat ->
+                                                    userGatewayPort.findById(syndicat.creatorId()) // Assuming creatorId is the admin
+                                                        .flatMap(adminInfo ->
+                                                            notificationPort.sendAdminAlertWhenNewPublication(
+                                                                List.of(adminInfo.email()),
+                                                                savedPublication.getContent(), // Using content as title
+                                                                authorInfo.firstName() + " " + authorInfo.lastName()
+                                                            )
+                                                        )
+                                                );
+                                        });
 
-                                        return Mono.when(imagesMono, videosMono, filesMono);
+                                        return Mono.when(mediaMonos, adminNotificationMono);
                                 });
         }
 
@@ -106,6 +115,7 @@ public class PublicationService {
         }
 
         public Mono<Void> incrementLikes(UUID publicationId) {
-                return publicationModelRepository.incrementLikes(publicationId);
+                return publicationModelRepository.incrementLikes(publicationId)
+                        .switchIfEmpty(Mono.empty());
         }
 }

@@ -34,6 +34,21 @@ public class PublicationPersistenceAdapter implements PublicationPersistencePort
     }
 
     @Override
+    public Mono<PublicationModel> findById(UUID id) { // Added this method
+        return publicationRepository.findById(id)
+                .map(publication -> {
+                    PublicationModel model = new PublicationModel();
+                    model.setId(publication.id());
+                    model.setBranchI(publication.branchId());
+                    model.setAuthorId(publication.authorId());
+                    model.setContent(publication.content());
+                    model.setNLikes(publication.nLikes());
+                    model.setCreatedAt(publication.createdAt());
+                    return model;
+                });
+    }
+
+    @Override
     public Flux<PublicationModel> findByBranchId(UUID branchId) {
         return publicationRepository.findByBranchId(branchId)
                 .map(publication -> {

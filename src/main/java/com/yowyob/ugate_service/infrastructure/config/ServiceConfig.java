@@ -12,6 +12,10 @@ import com.yowyob.ugate_service.domain.ports.out.syndicate.VotePersistencePort;
 import com.yowyob.ugate_service.application.service.content.PublicationVoteService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationVotePersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.UserEventPersistencePort;
+import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.BranchPersistencePort;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
+import com.yowyob.ugate_service.domain.ports.out.syndicate.UserPersistencePort;
 //... (keep existing imports)
 import com.yowyob.ugate_service.application.service.content.EventService;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.EventPersistencePort;
@@ -24,18 +28,18 @@ import org.springframework.context.annotation.Configuration;
 public class ServiceConfig {
 
     @Bean
-    public PublicationService publicationService(PublicationPersistencePort publicationPersistencePort, MediaPersistencePort mediaPersistencePort, UserGatewayPort userGatewayPort) {
-        return new PublicationService(publicationPersistencePort, mediaPersistencePort, userGatewayPort);
+    public PublicationService publicationService(PublicationPersistencePort publicationPersistencePort, MediaPersistencePort mediaPersistencePort, UserGatewayPort userGatewayPort, NotificationPort notificationPort, BranchPersistencePort branchPersistencePort, SyndicatRepository syndicatRepository) {
+        return new PublicationService(publicationPersistencePort, mediaPersistencePort, userGatewayPort, notificationPort, branchPersistencePort, syndicatRepository);
     }
 
     @Bean
-    public CommentService commentService(MediaPersistencePort mediaPersistencePort, CommentPersistencePort commentPersistencePort, UserGatewayPort userGatewayPort) {
-        return new CommentService(mediaPersistencePort, commentPersistencePort, userGatewayPort);
+    public CommentService commentService(MediaPersistencePort mediaPersistencePort, CommentPersistencePort commentPersistencePort, UserGatewayPort userGatewayPort, NotificationPort notificationPort, PublicationPersistencePort publicationPersistencePort) {
+        return new CommentService(mediaPersistencePort, commentPersistencePort, userGatewayPort, notificationPort, publicationPersistencePort);
     }
 
     @Bean
-    public ReactionService reactionService(PublicationService publicationService, ReactionPersistencePort reactionPersistencePort) {
-        return new ReactionService(publicationService, reactionPersistencePort);
+    public ReactionService reactionService(PublicationService publicationService, ReactionPersistencePort reactionPersistencePort, PublicationPersistencePort publicationPersistencePort, UserGatewayPort userGatewayPort, NotificationPort notificationPort) {
+        return new ReactionService(publicationService, reactionPersistencePort, publicationPersistencePort, userGatewayPort, notificationPort);
     }
 
     @Bean
@@ -44,8 +48,8 @@ public class ServiceConfig {
     }
 
     @Bean
-    public EventService eventService(EventPersistencePort eventPersistencePort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort, UserGatewayPort userGatewayPort) {
-        return new EventService(eventPersistencePort, mediaPersistencePort, userEventPersistencePort, userGatewayPort);
+    public EventService eventService(EventPersistencePort eventPersistencePort, MediaPersistencePort mediaPersistencePort, UserEventPersistencePort userEventPersistencePort, UserGatewayPort userGatewayPort, NotificationPort notificationPort, UserPersistencePort userPersistencePort) {
+        return new EventService(eventPersistencePort, mediaPersistencePort, userEventPersistencePort, userGatewayPort, notificationPort, userPersistencePort);
     }
 
     @Bean

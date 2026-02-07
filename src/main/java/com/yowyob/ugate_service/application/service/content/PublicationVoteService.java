@@ -11,6 +11,8 @@ import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.respons
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.VoteResultDTO;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.List;
@@ -34,10 +36,10 @@ public class PublicationVoteService
     @Override
     public Mono<Void> castVote(UUID userId, UUID publicationVoteId, String choiceLabel) {
         return publicationVotePersistencePort.findById(publicationVoteId)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Poll not found")))
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Poll not found")))
                 .flatMap(poll -> {
                     if (poll.getClosingAt() != null && poll.getClosingAt().isBefore(Instant.now())) {
-                        return Mono.error(new IllegalStateException("This poll is closed."));
+                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "This poll is closed."));
                     }
                     VoteModel vote = new VoteModel(null, userId, publicationVoteId, choiceLabel);
                     return votePersistencePort.save(vote);
@@ -47,7 +49,7 @@ public class PublicationVoteService
     @Override
     public Mono<PublicationVoteWithResultsDTO> getPublicationVoteResults(UUID publicationVoteId, UUID userId) {
         Mono<PublicationVoteModel> pollMono = publicationVotePersistencePort.findById(publicationVoteId)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Poll not found")));
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Poll not found")));
 
         Mono<List<VoteModel>> votesMono = votePersistencePort.findByPublicationVoteId(publicationVoteId).collectList();
 
