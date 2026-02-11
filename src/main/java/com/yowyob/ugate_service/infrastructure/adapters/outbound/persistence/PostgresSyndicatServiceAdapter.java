@@ -36,6 +36,13 @@ public class PostgresSyndicatServiceAdapter implements ServiceOfferingRepository
     }
 
     @Override
+    public Flux<SyndicatService> findBySyndicatId(UUID syndicatId) {
+        return syndicatServiceRepository.findBySyndicatId(syndicatId)
+                .map(this::mapToDomain);
+
+    }
+
+    @Override
     @Transactional
     public Mono<SyndicatService> save(SyndicatService service) {
         ServiceEntity entity = ServiceEntity.builder()

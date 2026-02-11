@@ -2,9 +2,12 @@ package com.yowyob.ugate_service.application.service.marketplace;
 import java.util.UUID;
 
 import com.yowyob.ugate_service.domain.exception.ServiceNotFoundException;
+import com.yowyob.ugate_service.domain.model.Product;
 import com.yowyob.ugate_service.domain.model.SyndicatService;
 import com.yowyob.ugate_service.domain.ports.in.marketplace.ManageServiceUseCase;
 
+import com.yowyob.ugate_service.domain.ports.out.payment.PaymentGatewayPort;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -20,6 +23,8 @@ import com.yowyob.ugate_service.domain.ports.out.marketplace.ServiceOfferingRepo
 public class ServiceOfferingService implements ManageServiceUseCase {
 
     public final ServiceOfferingRepositoryPort serviceOfferingRepositoryPort;
+    public final SyndicatRepository syndicatRepository;
+    public final PaymentGatewayPort paymentGatewayPort;
 
     @Override
     public Mono<SyndicatService> createService(SyndicatService service) {
@@ -70,5 +75,20 @@ public class ServiceOfferingService implements ManageServiceUseCase {
     public Mono<SyndicatService> getServiceDetails(UUID id) {
         return serviceOfferingRepositoryPort.findServiceById(id)
             .switchIfEmpty(Mono.error(new ServiceNotFoundException("Service not found")));
+    }
+
+    public Flux<SyndicatService> getSyndicatServices(UUID syndicatId) {
+        return syndicatRepository.findById(syndicatId)
+                .flatMapMany(syndicat -> {
+                    // On appelle le Payment-Service pour vérifier si le solde > 0
+                    return paymentGatewayPort.canOperate(syndicat.walletId())
+                            .flatMapMany(hasPoints -> {
+                                if (Boolean.TRUE.equals(hasPoints)) {
+                                    return serviceOfferingRepositoryPort.findBySyndicatId(syndicatId);
+                                }
+                                // Si pas de points, on renvoie un Flux vide (services cachés)
+                                return Flux.empty();
+                            });
+                });
     }
 }

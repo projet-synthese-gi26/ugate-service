@@ -2,6 +2,7 @@ package com.yowyob.ugate_service.domain.ports.out.marketplace;
 
 import com.yowyob.ugate_service.domain.model.SyndicatService;
 
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.util.UUID;
@@ -14,4 +15,5 @@ public interface ServiceOfferingRepositoryPort {
     Flux<SyndicatService> findAllActiveServices();
 
 
+    Flux<SyndicatService> findBySyndicatId(UUID syndicatId);
 }

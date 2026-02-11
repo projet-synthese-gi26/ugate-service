@@ -57,15 +57,19 @@ public record Syndicat(
         Instant updatedAt,
 
         @Column("is_active")
-        Boolean isActive
+        Boolean isActive,
+
+
+        @Column("wallet_id")
+        UUID walletId
 )implements Persistable<UUID> {
 
 
     // Constructeur pour créer un Syndicat
     public Syndicat(UUID id, UUID creatorId, String name, String description,
-                    String domain, String logoUrl, String statusUrl) {
+                    String domain, String logoUrl, String statusUrl, UUID walletId) {
         this(id, null, creatorId, false, name, description, domain, "STANDARD",
-                null, logoUrl, statusUrl, null, null, null, null, true);
+                null, logoUrl, statusUrl, null, null, null, null, true, walletId);
     }
 
 
@@ -74,7 +78,7 @@ public record Syndicat(
         return new Syndicat(
                 this.id, this.organizationId, this.creatorId, isApproved, this.name, this.description,
                 this.domain, this.type, charteUrl, logoUrl, statusUrl, this.membersListUrl,
-                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, isActive
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, isActive, this.walletId
         );
     }
 
@@ -82,7 +86,7 @@ public record Syndicat(
         return new Syndicat(
                 this.id, this.organizationId, this.creatorId, approved, this.name, this.description,
                 this.domain, this.type, this.charteUrl, this.logoUrl, this.statusUrl, this.membersListUrl,
-                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, this.isActive
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, this.isActive, this.walletId
         );
     }
 
@@ -90,7 +94,7 @@ public record Syndicat(
         return new Syndicat(
                 this.id, this.organizationId, this.creatorId, this.isApproved, this.name, this.description,
                 this.domain, this.type, this.charteUrl, this.logoUrl, this.statusUrl, this.membersListUrl,
-                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, active
+                this.commitmentCertificateUrl, this.createdAt, this.updatedAt, active, this.walletId
         );
     }
 

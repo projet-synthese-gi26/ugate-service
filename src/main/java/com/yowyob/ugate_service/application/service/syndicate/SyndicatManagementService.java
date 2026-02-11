@@ -2,6 +2,7 @@ package com.yowyob.ugate_service.application.service.syndicate;
 
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.media.FileStoragePort;
+import com.yowyob.ugate_service.domain.ports.out.payment.PaymentGatewayPort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateSyndicateFullRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PaginatedResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateDetailsResponse;
@@ -43,6 +44,7 @@ public class SyndicatManagementService {
     private final UserRepository userRepository;
     private final UserGatewayPort userGatewayPort;
     private final BranchRepository branchRepository;
+    private final PaymentGatewayPort paymentGatewayPort;
 
     @Transactional
     public Mono<SyndicateResponse> createSyndicate(String name, String description, String domain,
@@ -81,7 +83,7 @@ public class SyndicatManagementService {
                 null,
                 urls.logoUrl(),
                 urls.docUrl(),
-                null, null, null, null, false // isActive
+                null, null, null, null, false, UUID.randomUUID() // isActive
         );
     }
 
@@ -116,21 +118,30 @@ public class SyndicatManagementService {
 
         Organization organization = Organization.createNew(orgId, creatorId, name, null);
 
-        Syndicat syndicat = new Syndicat(
-                syndicatId, orgId, creatorId, false, name, description, domain, "STANDARD",
-                null, urls.logoUrl(), urls.docUrl(), null, null, null, null, true
-        );
 
         SyndicatMember adminMember = SyndicatMember.createGlobalAdmin(
                 syndicatId,
                 creatorId
         );
 
-        return businessActorMono
-                .then(organizationRepository.save(organization))
-                .then(syndicatRepository.save(syndicat))
-                .then(syndicatMemberRepository.save(adminMember))
-                .thenReturn(syndicat);
+        // 1. On demande au service de paiement de créer le wallet d'abord
+        return paymentGatewayPort.createWallet(syndicatId, name)
+                .flatMap(newWalletId -> {
+
+                    // 2. Une fois qu'on a le walletId, on crée l'objet Syndicat
+                    Syndicat syndicat = new Syndicat(
+                            syndicatId, orgId, creatorId, false, name, description, domain, "STANDARD",
+                            null, urls.logoUrl(), urls.docUrl(), null, null, null, null, true,
+                            newWalletId // On stocke l'ID reçu
+                    );
+
+                    // 3. Sauvegarde de toute la pile
+                    return businessActorMono
+                            .then(organizationRepository.save(organization))
+                            .then(syndicatRepository.save(syndicat))
+                            .then(syndicatMemberRepository.save(adminMember))
+                            .thenReturn(syndicat);
+                });
     }
 
     private record UploadResults(String logoUrl, String docUrl) {}
@@ -288,7 +299,8 @@ public class SyndicatManagementService {
                                         syndicat.commitmentCertificateUrl(),
                                         syndicat.createdAt(),
                                         Instant.now(), // UpdatedAt
-                                        syndicat.isActive()
+                                        syndicat.isActive(),
+                                        syndicat.walletId()
                                 );
 
                                 return syndicatRepository.save(updatedSyndicat);

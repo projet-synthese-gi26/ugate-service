@@ -18,5 +18,8 @@
     <include file="classpath:db/changelog/changes/v1.9-alter-user-events-table.xml"/>
     <include file="classpath:db/changelog/changes/v1.10-make-branch-nullable.xml"/>
     <include file="classpath:db/changelog/changes/v1.11-create-membership-request-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.12-add-walletId-to-syndicat.xml"/>
+    <include file="classpath:db/changelog/changes/v1.14-create-purchases-table.xml"/>
+
 
 </databaseChangeLog>

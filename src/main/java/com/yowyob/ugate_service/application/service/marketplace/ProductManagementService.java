@@ -2,6 +2,8 @@ package com.yowyob.ugate_service.application.service.marketplace;
 
 import java.util.UUID;
 
+import com.yowyob.ugate_service.domain.ports.out.payment.PaymentGatewayPort;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.yowyob.ugate_service.domain.exception.InsufficientStockException;
@@ -17,6 +19,8 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class ProductManagementService implements ManageProductUseCase {
     private final ProductRepositoryPort productRepositoryPort;
+    private final SyndicatRepository syndicatRepository;
+    private final PaymentGatewayPort paymentGatewayPort;
 
     @Override
     @Transactional 
@@ -92,7 +96,18 @@ public class ProductManagementService implements ManageProductUseCase {
 
     @Override
     public Flux<Product> getSyndicatProducts(UUID syndicatId) {
-        return productRepositoryPort.findBySyndicatId(syndicatId);
+        return syndicatRepository.findById(syndicatId)
+                .flatMapMany(syndicat -> {
+                    // On appelle le Payment-Service pour vérifier si le solde > 0
+                    return paymentGatewayPort.canOperate(syndicat.walletId())
+                            .flatMapMany(hasPoints -> {
+                                if (Boolean.TRUE.equals(hasPoints)) {
+                                    return productRepositoryPort.findBySyndicatId(syndicatId);
+                                }
+                                // Si pas de points, on renvoie un Flux vide (produits cachés)
+                                return Flux.empty();
+                            });
+                });
     }
 
     @Override

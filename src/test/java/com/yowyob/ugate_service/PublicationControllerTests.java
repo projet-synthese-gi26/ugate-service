@@ -105,7 +105,7 @@ class PublicationControllerTests {
         )));
 
         when(syndicatRepository.findById(testSyndicateId)).thenReturn(Mono.just(new Syndicat(
-                testSyndicateId, testSyndicateAdminId, "Mock Syndicat", "Mock Description", "Mock Domain", "Mock Logo", "Mock Status"
+                testSyndicateId, testSyndicateAdminId, "Mock Syndicat", "Mock Description", "Mock Domain", "Mock Logo", "Mock Status", UUID.randomUUID()
         )));
 
         // Mock for author and admin user info

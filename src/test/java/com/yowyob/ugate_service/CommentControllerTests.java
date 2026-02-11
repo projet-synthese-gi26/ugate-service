@@ -107,7 +107,7 @@ public class CommentControllerTests {
                 // Setup test data
                 testUser = userRepository.save(new User(null, "Test user", "6587895423", "test@mail.co", true)).block();
                 testSyndicat = syndicatRepository.save(new Syndicat(null, testUser.id(), "Test Syndicat", "description",
-                                "domain", "logo", "status"))
+                                "domain", "logo", "status", UUID.randomUUID()))
                                 .block();
                 testBranch = branchRepository
                                 .save(Branch.createNew(UUID.randomUUID(), testSyndicat.id(), "Test Branch", "location",

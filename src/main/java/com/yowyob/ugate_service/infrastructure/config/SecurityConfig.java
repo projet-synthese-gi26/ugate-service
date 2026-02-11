@@ -49,7 +49,8 @@ public class SecurityConfig {
                                 "/syndicates/*/details",
                                 "/syndicates/*/branches",
                                 "/products/syndicates/*",
-                                "/products/*"
+                                "/products/*",
+                                "marketplace/*"
                         ).permitAll()
                         .anyExchange().authenticated()
                 )

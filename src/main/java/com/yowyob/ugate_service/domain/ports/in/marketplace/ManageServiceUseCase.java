@@ -10,7 +10,7 @@ public interface ManageServiceUseCase {
     Mono<SyndicatService> createService(SyndicatService service);
     Mono<SyndicatService> updateService(SyndicatService service);
     Mono<Void> deleteService(UUID id);
-    // Flux<ServiceOffering> getSyndicatServices(UUID syndicatId);
+    Flux<SyndicatService> getSyndicatServices(UUID syndicatId);
     Flux<SyndicatService> getAllActiveServices();
     Mono<SyndicatService> getServiceDetails(UUID id);
 }
