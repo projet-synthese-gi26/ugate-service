@@ -5,25 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
 
-    <!-- ================================================================ -->
-    <!--  SCHÉMA INITIAL COMPLET — ugate-service                          -->
-    <!--  Ce fichier est la source unique de vérité pour le schéma DB.    -->
-    <!--  Il remplace toutes les migrations v1.1 à v1.11.                 -->
-    <!--  Toutes les preConditions le rendent idempotent :                -->
-    <!--  sans danger sur une BD existante (les changeSets déjà appliqués -->
-    <!--  sont ignorés via MARK_RAN).                                     -->
-    <!-- ================================================================ -->
-
-
-    <!-- ================================================================ -->
-    <!-- 1. EXTENSIONS & TYPES                                            -->
-    <!-- ================================================================ -->
-
-    <changeSet id="v1.0-enable-pgcrypto" author="ugate-service">
-        <sql>CREATE EXTENSION IF NOT EXISTS "pgcrypto";</sql>
-        <rollback><sql>DROP EXTENSION IF EXISTS pgcrypto;</sql></rollback>
-    </changeSet>
-
+    
     <changeSet id="v1.0-create-role-type-enum" author="ugate-service">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
