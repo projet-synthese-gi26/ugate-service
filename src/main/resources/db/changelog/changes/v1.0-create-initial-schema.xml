@@ -5,15 +5,26 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
 
+    <!-- ================================================================ -->
+    <!--  SCHÉMA INITIAL COMPLET — ugate-service                          -->
+    <!--  Ce fichier est la source unique de vérité pour le schéma DB.    -->
+    <!--  Il remplace toutes les migrations v1.1 à v1.11.                 -->
+    <!--  Toutes les preConditions le rendent idempotent :                -->
+    <!--  sans danger sur une BD existante (les changeSets déjà appliqués -->
+    <!--  sont ignorés via MARK_RAN).                                     -->
+    <!-- ================================================================ -->
+
+
+    <!-- ================================================================ -->
+    <!-- 1. EXTENSIONS & TYPES                                            -->
+    <!-- ================================================================ -->
 
     <changeSet id="v1.0-enable-pgcrypto" author="ugate-service">
-        <comment>Active l'extension pgcrypto pour gen_random_uuid()</comment>
         <sql>CREATE EXTENSION IF NOT EXISTS "pgcrypto";</sql>
         <rollback><sql>DROP EXTENSION IF EXISTS pgcrypto;</sql></rollback>
     </changeSet>
 
     <changeSet id="v1.0-create-role-type-enum" author="ugate-service">
-        <comment>Domaine PostgreSQL pour le type de rôle (RoleTypeEnum)</comment>
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM pg_catalog.pg_type WHERE typname = 'role_type_enum'
@@ -24,7 +35,6 @@
     </changeSet>
 
     <changeSet id="v1.0-create-reaction-type-enum" author="ugate-service">
-        <comment>Domaine PostgreSQL pour le type de réaction (ReactionTypeEnum)</comment>
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM pg_catalog.pg_type WHERE typname = 'reaction_type_enum'
@@ -35,7 +45,14 @@
     </changeSet>
 
     <changeSet id="v1.0-create-cast-role-type-enum" author="ugate-service">
-        <comment>Cast implicite VARCHAR -> role_type_enum requis par R2DBC</comment>
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM pg_catalog.pg_cast
+                                         JOIN pg_catalog.pg_type src ON pg_cast.castsource = src.oid
+                                         JOIN pg_catalog.pg_type tgt ON pg_cast.casttarget = tgt.oid
+                WHERE src.typname = 'varchar' AND tgt.typname = 'role_type_enum'
+            </sqlCheck>
+        </preConditions>
         <sql>CREATE CAST (character varying AS role_type_enum) WITH INOUT AS IMPLICIT;</sql>
         <rollback>
             <sql>DROP CAST IF EXISTS (character varying AS role_type_enum);</sql>
@@ -84,11 +101,9 @@
             </column>
             <column name="code" type="VARCHAR(255)"/>
             <column name="short_name" type="VARCHAR(255)"/>
-            <!-- Ajouté par migration v1.1 -->
             <column name="long_name" type="TEXT"/>
             <column name="email" type="VARCHAR(255)"/>
             <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
-            <!-- Colonnes legacy ajoutées par migration v1.1 -->
             <column name="logo_uri" type="TEXT"/>
             <column name="social_network" type="TEXT"/>
             <column name="keywords" type="TEXT"/>
@@ -243,7 +258,6 @@
                              referencedTableName="organizations"
                              referencedColumnNames="id"/>
             </column>
-            <!-- Ajouté par migration v1.1 — inclus directement -->
             <column name="creator_id" type="UUID" defaultValueComputed="'00000000-0000-0000-0000-000000000000'">
                 <constraints nullable="false"/>
             </column>
@@ -253,14 +267,12 @@
             <column name="domain" type="VARCHAR(255)"/>
             <column name="type" type="VARCHAR(255)"/>
             <column name="charte_url" type="VARCHAR(1024)"/>
-            <!-- Ajouté par migration v1.1 — inclus directement -->
             <column name="logo_url" type="TEXT"/>
             <column name="status_url" type="VARCHAR(1024)"/>
             <column name="members_list_url" type="VARCHAR(1024)"/>
             <column name="commitment_certificate_url" type="VARCHAR(1024)"/>
             <column name="created_at" type="TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <!-- Ajouté par migration v1.1 — inclus directement -->
             <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
         </createTable>
     </changeSet>
@@ -288,7 +300,6 @@
             <column name="name" type="VARCHAR(255)"/>
             <column name="location" type="VARCHAR(255)"/>
             <column name="contact" type="VARCHAR(255)"/>
-            <!-- Ajouté par migrations v1.4/v1.5 — inclus directement -->
             <column name="banner_url" type="VARCHAR(1024)"/>
             <column name="created_at" type="TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
@@ -299,8 +310,9 @@
     <!-- ================================================================ -->
     <!-- 11. TABLE : syndicat_members                                      -->
     <!--     Entité : SyndicatMember.java                                  -->
-    <!--     Inclut role (v1.1) et branch_id nullable (v1.10)             -->
-    <!--     PK composite : (syndicat_id, user_id)                        -->
+    <!--     PK composite (syndicat_id, user_id)                          -->
+    <!--     branch_id nullable (admin global sans branche)               -->
+    <!--     Inclut role (v1.1) et branch_id (v1.10)                     -->
     <!-- ================================================================ -->
 
     <changeSet id="v1.0-create-syndicat-members" author="ugate-service">
@@ -317,7 +329,6 @@
             <column name="user_id" type="UUID">
                 <constraints nullable="false" primaryKey="true"/>
             </column>
-            <!-- branch_id nullable — un admin global n'a pas de branche -->
             <column name="branch_id" type="UUID">
                 <constraints foreignKeyName="fk_member_branch"
                              referencedTableName="branches"
@@ -325,7 +336,6 @@
             </column>
             <column name="joined_at" type="TIMESTAMP" defaultValueComputed="now()"/>
             <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
-            <!-- Ajouté par migration v1.1 — inclus directement -->
             <column name="role" type="role_type_enum" defaultValue="CLIENT"/>
         </createTable>
     </changeSet>
@@ -425,7 +435,6 @@
                              referencedTableName="publications"
                              referencedColumnNames="id"/>
             </column>
-            <!-- parent_id nullable : null = commentaire racine -->
             <column name="parent_id" type="UUID"/>
             <column name="image_id" type="UUID"/>
             <column name="content" type="TEXT"/>
@@ -462,7 +471,6 @@
     <!-- ================================================================ -->
     <!-- 17. TABLE : event                                                 -->
     <!--     Entité : Event.java                                           -->
-    <!--     id avec gen_random_uuid() (v1.6)                             -->
     <!-- ================================================================ -->
 
     <changeSet id="v1.0-create-event" author="ugate-service">
@@ -494,7 +502,7 @@
     <!-- ================================================================ -->
     <!-- 18. TABLE : event_images                                          -->
     <!--     Entité : EventImages.java                                     -->
-    <!--     FK vers event (et non events) — correction v1.7              -->
+    <!--     FK vers "event" (et non "events") — correction v1.7         -->
     <!-- ================================================================ -->
 
     <changeSet id="v1.0-create-event-images" author="ugate-service">
@@ -524,7 +532,8 @@
     <!-- ================================================================ -->
     <!-- 19. TABLE : user_events                                           -->
     <!--     Entité : UserEvent.java                                       -->
-    <!--     user_id VARCHAR, event_id VARCHAR(36) (après migration v1.9) -->
+    <!--     event_id VARCHAR(36) = état final après migration v1.9       -->
+    <!--     Pas de FK sur event_id (cohérent avec v1.9)                 -->
     <!-- ================================================================ -->
 
     <changeSet id="v1.0-create-user-events" author="ugate-service">
@@ -538,7 +547,6 @@
             <column name="user_id" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <!-- VARCHAR(36) : état final après migration v1.9 (pas de FK) -->
             <column name="event_id" type="VARCHAR(36)">
                 <constraints nullable="false"/>
             </column>
@@ -576,7 +584,7 @@
     <!-- ================================================================ -->
     <!-- 21. TABLE : vote                                                  -->
     <!--     Entité : Vote.java                                            -->
-    <!--     (absente des migrations précédentes — ajoutée ici)           -->
+    <!--     Absente des migrations précédentes — créée ici               -->
     <!-- ================================================================ -->
 
     <changeSet id="v1.0-create-vote" author="ugate-service">
@@ -653,7 +661,6 @@
             </column>
             <column name="description" type="TEXT"/>
             <column name="price" type="DECIMAL(19,2)"/>
-            <!-- TEXT[] : tableau PostgreSQL natif pour List<String> -->
             <column name="features" type="TEXT[]"/>
             <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
         </createTable>
@@ -744,7 +751,6 @@
                              referencedTableName="branches"
                              referencedColumnNames="id"/>
             </column>
-            <!-- Valeurs : PENDING, APPROVED, REJECTED -->
             <column name="status" type="VARCHAR(50)">
                 <constraints nullable="false"/>
             </column>
