@@ -1,8 +1,8 @@
 # Contexte Complet du Projet
 
 **Projet:** ugate-service  
-**Date de génération:** 07/02/2026 16:43:11  
-**Chemin:** D:\Projets\Scolaire\Reseau\New Version\ugate-service
+**Date de génération:** 19/03/2026 21:15:44  
+**Chemin:** D:\Projets\Scolaire\Reseau\Litige\ugate-service
 
 ---
 
@@ -158,6 +158,7 @@
 │   │   │               │   │   │       │   │   ├── AddUserResponse.java
 │   │   │               │   │   │       │   │   ├── BasicResponse.java
 │   │   │               │   │   │       │   │   ├── BatchComplianceResponse.java
+│   │   │               │   │   │       │   │   ├── BranchMembersStatsResponse.java
 │   │   │               │   │   │       │   │   ├── BranchResponse.java
 │   │   │               │   │   │       │   │   ├── ComplianceResponse.java
 │   │   │               │   │   │       │   │   ├── EventResponseDTO.java
@@ -278,7 +279,6 @@
 │   │   │               │   │   ├── UserSyncWebFilter.java
 │   │   │               │   │   └── WebClientConfig.java
 │   │   │               │   └── mappers
-│   │   │               │       ├── media
 │   │   │               │       ├── products
 │   │   │               │       │   └── ProductMapper.java
 │   │   │               │       ├── serviceOffering
@@ -335,10 +335,10 @@
 ├── create_templates.sh
 ├── Dockerfile
 ├── generate.js
-├── HELP.md
 ├── mvnw
 ├── mvnw.cmd
-└── pom.xml
+├── pom.xml
+└── project-context-for-ai.md
 ```
 
 ---
@@ -354,119 +354,16 @@ on:
   push:
     branches:
       - "**"
-      #- main
-
-env:
-  REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/ugate
-  APP_NAME: ugate
-  HEALTH_DELAY: ${{ secrets.DEPLOY_DELAY }}
-  CONTAINER_NAME: ugate
-
 jobs:
-  tests:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: 21
-
-      - name: Run Unit Tests + SonarQube Analysis
-        continue-on-error: true
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          mvn clean verify sonar:sonar \
-            -Dsonar.projectKey=${{ env.APP_NAME }} \
-            -Dsonar.projectName=${{ env.APP_NAME }} \
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
-
-  build:
-    needs: tests
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Log in to GitHub Container Registry
-        run: |
-          echo "${{ secrets.PERSONAL_ACCESS_TOKEN }}" | docker login ghcr.io -u ${{ secrets.REGISTRY_NAMESPACE }} --password-stdin
-
-      - name: Build Docker image
-        run: |
-          echo "Building Docker image..."
-          docker build -t ${{ env.REGISTRY_IMAGE }}:latest .
-
-      - name: Push Docker image
-        run: |
-          echo "Pushing Docker image..."
-          docker push ${{ env.REGISTRY_IMAGE }}:latest
-
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Add SSH key
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Deploy on server
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }} << 'EOF'
-
-            echo "Pulling latest image ${{ env.REGISTRY_IMAGE }}"
-
-            docker login ghcr.io -u ${{ secrets.REGISTRY_NAMESPACE }} -p ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
-            cd /root/projet_synthese/infra
-
-            echo "Stopping container"
-            docker compose down ${{ env.CONTAINER_NAME }}
-
-            echo "Removing old image"
-            docker rmi -f ${{ env.REGISTRY_IMAGE }}:latest || true
-
-            echo "Pulling new image"
-            docker pull ${{ env.REGISTRY_IMAGE }}:latest
-
-            echo " Starting container"
-            docker compose up -d ${{ env.CONTAINER_NAME }}
-
-            echo " Waiting ${{ env.HEALTH_DELAY }} seconds for health check"
-            sleep ${{ env.HEALTH_DELAY }}
-
-            echo " Checking container health..."
-            STATUS=$(docker inspect --format='{{json .State.Health.Status}}' ${{ env.CONTAINER_NAME }})
-
-            echo "Health status: $STATUS"
-
-            if [ "$STATUS" != "\"healthy\"" ]; then
-              echo "ERROR: Container is not healthy"
-              exit 1
-            fi
-
-            echo "Deployment successful & container healthy!"
-          EOF
-
-          
+  pipeline:
+    uses: projet-synthese-gi26/workflows/.github/workflows/spring-boot-ci-cd.yml@main
+    with:
+      app_name: ugate
+    secrets: inherit          # passe TOUS les secrets automatiquement
 
 ```
 
-*Lignes: 116*
+*Lignes: 13*
 
 ---
 
@@ -490,67 +387,6 @@ services:
 ```
 
 *Lignes: 14*
-
----
-
-### 📄 HELP.md
-
-```markdown
-# Read Me First
-The following was discovered as part of building this project:
-
-* The original package name 'com.yowyob.ugate-service' is invalid and this project uses 'com.yowyob.ugate_service' instead.
-
-# Getting Started
-
-### Reference Documentation
-For further reference, please consider the following sections:
-
-* [Official Apache Maven documentation](https://maven.apache.org/guides/index.html)
-* [Spring Boot Maven Plugin Reference Guide](https://docs.spring.io/spring-boot/4.0.1/maven-plugin)
-* [Create an OCI image](https://docs.spring.io/spring-boot/4.0.1/maven-plugin/build-image.html)
-* [Docker Compose Support](https://docs.spring.io/spring-boot/4.0.1/reference/features/dev-services.html#features.dev-services.docker-compose)
-* [Spring Reactive Web](https://docs.spring.io/spring-boot/4.0.1/reference/web/reactive.html)
-* [Spring Data R2DBC](https://docs.spring.io/spring-boot/4.0.1/reference/data/sql.html#data.sql.r2dbc)
-* [Spring Data Reactive Redis](https://docs.spring.io/spring-boot/4.0.1/reference/data/nosql.html#data.nosql.redis)
-* [Spring for Apache Kafka](https://docs.spring.io/spring-boot/4.0.1/reference/messaging/kafka.html)
-* [Validation](https://docs.spring.io/spring-boot/4.0.1/reference/io/validation.html)
-* [Cloud Bootstrap](https://docs.spring.io/spring-cloud-commons/reference/spring-cloud-commons/application-context-services.html)
-* [Resilience4J](https://docs.spring.io/spring-cloud-circuitbreaker/reference/spring-cloud-circuitbreaker-resilience4j.html)
-
-### Guides
-The following guides illustrate how to use some features concretely:
-
-* [Building a Reactive RESTful Web Service](https://spring.io/guides/gs/reactive-rest-service/)
-* [Accessing data with R2DBC](https://spring.io/guides/gs/accessing-data-r2dbc/)
-* [Messaging with Redis](https://spring.io/guides/gs/messaging-redis/)
-* [Validation](https://spring.io/guides/gs/validating-form-input/)
-
-### Additional Links
-These additional references should also help you:
-
-* [R2DBC Homepage](https://r2dbc.io)
-
-### Docker Compose support
-This project contains a Docker Compose file named `compose.yaml`.
-In this file, the following services have been defined:
-
-* postgres: [`postgres:latest`](https://hub.docker.com/_/postgres)
-* redis: [`redis:latest`](https://hub.docker.com/_/redis)
-
-Please review the tags of the used images and set them to the same as you're running in production.
-
-### Maven Parent overrides
-
-Due to Maven's design, elements are inherited from the parent POM to the project POM.
-While most of the inheritance is fine, it also inherits unwanted elements like `<license>` and `<developers>` from the parent.
-To prevent this, the project POM contains empty overrides for these elements.
-If you manually switch to a different parent and actually want the inheritance, you need to remove those overrides.
-
-
-```
-
-*Lignes: 52*
 
 ---
 
@@ -2252,6 +2088,12 @@ public class BranchManagementService {
                 .map(branchMapper::toResponse);
     }
 
+    public Mono<BranchResponse> getBranchDetails(UUID branchId) {
+        return branchPersistencePort.findById(branchId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable : " + branchId)))
+                .map(branchMapper::toResponse);
+    }
+
     @Transactional
     public Mono<BranchResponse> updateBranch(UUID branchId, UpdateBranchRequest request) {
 
@@ -2270,7 +2112,7 @@ public class BranchManagementService {
 }
 ```
 
-*Lignes: 101*
+*Lignes: 107*
 
 ---
 
@@ -2297,6 +2139,7 @@ import com.yowyob.ugate_service.domain.model.ExternalUserInfo;
 import com.yowyob.ugate_service.domain.ports.out.gateway.UserGatewayPort;
 import com.yowyob.ugate_service.domain.ports.out.notification.NotificationPort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.AddUserResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BranchMembersStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.MemberResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateFullStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.MembershipRequest;
@@ -2492,6 +2335,66 @@ public class SyndicateMembershipService {
                 tuple.getT4(), // activeServices
                 tuple.getT5()  // totalPublications
         ));
+    }
+
+
+
+    public Mono<BranchMembersStatsResponse> getBranchMembers(UUID branchId) {
+
+        // 1. On doit d'abord récupérer la branche pour connaître l'ID du Syndicat
+        return branchRepository.findById(branchId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable")))
+                .flatMap(branch -> {
+                    UUID syndicatId = branch.syndicatId();
+
+                    // 2. Flux A : Les membres "locaux" de la branche
+                    Flux<SyndicatMember> branchMembersFlux = memberRepository.findByBranchId(branchId);
+
+                    // 3. Flux B : Les Admins "globaux" du syndicat (ceux qui ont branch_id = null)
+                    Flux<SyndicatMember> globalAdminsFlux = memberRepository.findBySyndicatIdAndRole(syndicatId, RoleTypeEnum.ADMIN.name())
+                            .filter(m -> m.branchId() == null);
+
+                    // 4. Fusion des deux Flux
+                    return Flux.concat(globalAdminsFlux, branchMembersFlux)
+                            // Pour chaque membre (Admin ou Local), on va chercher ses infos User
+                            .flatMap(this::mapMemberToResponse)
+                            .collectList()
+                            .map(fullList -> new BranchMembersStatsResponse(
+                                    (long) fullList.size(), // Le total inclut maintenant l'admin
+                                    fullList
+                            ));
+                });
+    }
+
+    private Mono<MemberResponse> mapMemberToResponse(SyndicatMember member) {
+        return userGateway.findById(member.userId())
+                .onErrorResume(e -> Mono.empty())
+                .switchIfEmpty(userRepository.findById(member.userId())
+                        .map(localUser -> {
+                            String[] parts = (localUser.name() != null ? localUser.name() : "Inconnu").split(" ", 2);
+                            return new ExternalUserInfo(
+                                    localUser.id(),
+                                    parts[0],
+                                    parts.length > 1 ? parts[1] : "",
+                                    localUser.email(),
+                                    localUser.phoneNumber(),
+                                    List.of(),
+                                    List.of()
+                            );
+                        }))
+                .map(userInfo -> new MemberResponse(
+                        userInfo.id(),
+                        userInfo.firstName(),
+                        userInfo.lastName(),
+                        userInfo.email(),
+                        null, // Avatar URL
+                        member.role(),
+                        // Si c'est l'admin global, member.branchId() est null.
+                        // Mais dans le contexte de cette réponse, on peut laisser null ou simuler qu'il est là.
+                        // Laissons member.branchId() (donc null pour l'admin) pour que le front sache qu'il est global.
+                        member.branchId(),
+                        member.joinedAt()
+                ));
     }
 
 
@@ -2733,7 +2636,7 @@ public class SyndicateMembershipService {
 }
 ```
 
-*Lignes: 440*
+*Lignes: 501*
 
 ---
 
@@ -2897,9 +2800,26 @@ public class SyndicatManagementService {
 
 
     public Flux<SyndicateResponse> getUserSyndicates(UUID userId) {
-        return syndicatRepository.findAllByMemberUserId(userId)
-                .map(syndicateMapper::toResponse)
-                .doOnError(e -> log.error("Erreur lors de la récupération des syndicats pour l'user {}", userId, e));
+        return syndicatMemberRepository.findAllByUserId(userId)
+                .flatMap(member -> {
+                    // 1. Récupération du Syndicat
+                    Mono<Syndicat> syndicatMono = syndicatRepository.findById(member.syndicatId());
+
+                    // 2. Récupération de la Branche
+                    Mono<Branch> branchMono = (member.branchId() != null)
+                            ? branchRepository.findById(member.branchId())
+                            : Mono.empty();
+
+                    // 3. Combinaison avec member
+                    return Mono.zip(syndicatMono, branchMono.defaultIfEmpty(new Branch(null, null, null, null, null, null, null, null)))
+                            .map(tuple -> {
+                                Syndicat syndicat = tuple.getT1();
+                                Branch branch = tuple.getT2();
+                                Branch validBranch = (branch.getId() != null) ? branch : null;
+                                return syndicateMapper.toResponse(syndicat, validBranch, member);
+                            });
+                })
+                .doOnError(e -> log.error("Erreur récupération syndicats user {}", userId, e));
     }
 
 
@@ -3095,7 +3015,7 @@ public class SyndicatManagementService {
 }
 ```
 
-*Lignes: 353*
+*Lignes: 370*
 
 ---
 
@@ -5524,6 +5444,23 @@ public record BatchComplianceResponse(
 
 ---
 
+### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\BranchMembersStatsResponse.java
+
+```java
+package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
+
+import java.util.List;
+
+public record BranchMembersStatsResponse(
+        long totalMembers,
+        List<MemberResponse> members
+) {}
+```
+
+*Lignes: 8*
+
+---
+
 ### 📄 src\main\java\com\yowyob\ugate_service\infrastructure\adapters\inbound\rest\dto\response\BranchResponse.java
 
 ```java
@@ -5945,6 +5882,8 @@ public record SyndicateFullStatsResponse(
 ```java
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
 
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -5959,11 +5898,14 @@ public record SyndicateResponse(
         UUID creatorId,
         Instant createdAt,
 
-        Boolean isActive
+        Boolean isActive,
+        UUID userBranchId,
+        String userBranchName,
+        RoleTypeEnum userRole
 ) {}
 ```
 
-*Lignes: 18*
+*Lignes: 23*
 
 ---
 
@@ -6480,8 +6422,10 @@ public class SyndicateSuperAdminController {
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.syndicate;
 
 import com.yowyob.ugate_service.application.service.syndicate.BranchManagementService;
+import com.yowyob.ugate_service.application.service.syndicate.SyndicateMembershipService;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreateBranchRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.UpdateBranchRequest;
+import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BranchMembersStatsResponse;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.BranchResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -6507,6 +6451,7 @@ import java.util.UUID;
 public class BranchController {
 
     private final BranchManagementService branchService;
+    private final SyndicateMembershipService membershipService;
 
     @Operation(
             summary = "Créer une branche pour un syndicat",
@@ -6550,10 +6495,39 @@ public class BranchController {
             @RequestBody UpdateBranchRequest request) {
         return branchService.updateBranch(branchId, request);
     }
+
+
+    @Operation(summary = "Obtenir les détails d'une branche", security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Détails trouvés"),
+            @ApiResponse(responseCode = "404", description = "Branche introuvable")
+    })
+    @GetMapping("/branches/{branchId}")
+    public Mono<BranchResponse> getBranchDetails(
+            @Parameter(description = "ID de la branche", required = true)
+            @PathVariable UUID branchId) {
+        return branchService.getBranchDetails(branchId);
+    }
+
+
+    @Operation(
+            summary = "Lister les membres d'une branche",
+            description = "Retourne le nombre total et la liste des membres (y compris l'admin s'il est affecté à cette branche).",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Liste récupérée")
+    })
+    @GetMapping("/branches/{branchId}/members")
+    public Mono<BranchMembersStatsResponse> getBranchMembers(
+            @Parameter(description = "ID de la branche", required = true)
+            @PathVariable UUID branchId) {
+        return membershipService.getBranchMembers(branchId);
+    }
 }
 ```
 
-*Lignes: 74*
+*Lignes: 106*
 
 ---
 
@@ -10155,6 +10129,10 @@ public interface SyndicatMemberRepository extends ReactiveCrudRepository<Syndica
     Mono<SyndicatMember> findByUserId(UUID userId);
 
 
+    @Query("SELECT * FROM syndicat_members WHERE syndicat_id = :syndicatId AND role = CAST(:role AS role_type_enum)")
+    Flux<SyndicatMember> findBySyndicatIdAndRole(UUID syndicatId, String role);
+
+
     Mono<Long> countByIsActiveTrue();
 
     Mono<SyndicatMember> findBySyndicatIdAndBranchIdAndUserId(UUID syndicatId, UUID branchId, UUID userId);
@@ -10183,7 +10161,7 @@ public interface SyndicatMemberRepository extends ReactiveCrudRepository<Syndica
 
 ```
 
-*Lignes: 67*
+*Lignes: 71*
 
 ---
 
@@ -10901,13 +10879,15 @@ public interface BranchMapper {
 package com.yowyob.ugate_service.infrastructure.mappers.syndicate;
 
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.SyndicateResponse;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Branch;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Syndicat;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatMember;
 import org.springframework.stereotype.Component;
 
 @Component
 public class SyndicateMapper {
 
-    public SyndicateResponse toResponse(Syndicat entity) {
+    public SyndicateResponse toResponse(Syndicat entity, Branch userBranch, SyndicatMember member) {
         if (entity == null) return null;
 
         return new SyndicateResponse(
@@ -10920,14 +10900,29 @@ public class SyndicateMapper {
                 entity.statusUrl(),
                 entity.creatorId(),
                 entity.createdAt(),
-                entity.isActive()
+                entity.isActive(),
+
+                // Info Branche
+                userBranch != null ? userBranch.id() : null,
+                userBranch != null ? userBranch.name() : null,
+
+                member != null ? member.role() : null
         );
+    }
+
+
+    public SyndicateResponse toResponse(Syndicat entity) {
+        return toResponse(entity, null, null);
+    }
+
+    public SyndicateResponse toResponse(Syndicat entity, Branch userBranch) {
+        return toResponse(entity, userBranch, null);
     }
 }
 
 ```
 
-*Lignes: 27*
+*Lignes: 44*
 
 ---
 
@@ -11009,7 +11004,6 @@ public class UgateServiceApplication {
 spring.application.name=ugate-service
 application.external.media-service-name=syndicat
 
-
 # SERVER
 server.port=8091
 spring.docker.compose.enabled=false
@@ -11019,61 +11013,122 @@ server.forward-headers-strategy=framework
 logging.level.org.springframework.security=DEBUG
 logging.level.org.springframework.security.oauth2=DEBUG
 
-# POSTGRESQL (R2DBC) 
-spring.r2dbc.url=r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:newdb2}
-spring.r2dbc.username=${DB_USERNAME:postgres}
-spring.r2dbc.password=${DB_PASSWORD:postgres}
-# spring.r2dbc.username=master
-# spring.r2dbc.password=Azerty1234
-# Nombre de connexions ouvertes au démarrage
+# ------------------------------------------------------------------
+# DATABASE — R2DBC réactif (DML : SELECT, INSERT, UPDATE, DELETE)
+# ------------------------------------------------------------------
+spring.r2dbc.url=r2dbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:yowyob}?schema=${DB_SCHEMA:ugate}
+spring.r2dbc.username=${DB_USERNAME}
+spring.r2dbc.password=${DB_PASSWORD}
 spring.r2dbc.pool.initial-size=1
-# MAX connexions simultanées vers PostgreSQL
 spring.r2dbc.pool.max-size=5
-# Temps max d’attente pour obtenir une connexion
 spring.r2dbc.pool.max-acquire-time=30s
-# Libère les connexions inutilisées
 spring.r2dbc.pool.max-idle-time=30m
-# Recycle les connexions (évite les leaks)
 spring.r2dbc.pool.max-life-time=10m
-# Retry si le pool est saturé
 spring.r2dbc.pool.acquire-retry=3
-# Vérification de la connexion
 spring.r2dbc.pool.validation-query=SELECT 1
 
 # SQL INIT
-spring.sql.init.mode=always
+spring.sql.init.mode=never
 
-# Configuration Liquibase
+# ------------------------------------------------------------------
+# DATABASE — Liquibase (DDL : CREATE TABLE, ALTER, migrations)
+# ------------------------------------------------------------------
 spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.xml
-spring.liquibase.url=jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:newdb2}
-spring.liquibase.user=${DB_USERNAME:postgres}
-spring.liquibase.password=${DB_PASSWORD:postgres}
-#  spring.liquibase.user=master
-#  spring.liquibase.password=Azerty1234
+spring.liquibase.url=jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:yowyob}
+spring.liquibase.user=${DB_LIQUIBASE_USERNAME}
+spring.liquibase.password=${DB_LIQUIBASE_PASSWORD}
+spring.liquibase.enabled=true
+spring.liquibase.default-schema=${DB_SCHEMA:ugate}
+spring.liquibase.liquibase-schema=${DB_SCHEMA:ugate}
 
-# REDIS
-spring.data.redis.host=${REDIS_HOST:168.119.122.86}
-spring.data.redis.port=${REDIS_PORT:7000}
-spring.data.redis.password=${REDIS_PASSWORD:Azerty1234*}
-spring.data.redis.cluster.enabled=false
+# ------------------------------------------------------------------
+# REDIS — Instance dev standalone (redis-dev, port 7000) en dev uniquement
+# REDIS_HOST = IP du serveur hôte (pas le nom container — port exposé)
+# ------------------------------------------------------------------
+#spring.data.redis.host=${REDIS_HOST}
+#spring.data.redis.port=${REDIS_PORT:7000}
+#spring.data.redis.username=${REDIS_USERNAME}
+#spring.data.redis.password=${REDIS_PASSWORD}
+#spring.data.redis.cluster.enabled=false
 
-# KAFKA
-spring.kafka.bootstrap-servers=${KAFKA_HOST:168.119.122.86}:${KAFKA_PORT:9092}
+# ------------------------------------------------------------------
+# REDIS — Cluster mode (6 noeuds actifs)
+# Utilise app-user (lecture/écriture, pas d'accès admin)
+# REDIS_HOST = IP du serveur hôte (ports exposés, pas noms containers)
+# Spring Lettuce découvre automatiquement la topologie complète
+# ------------------------------------------------------------------
+spring.data.redis.username=${REDIS_USERNAME}
+spring.data.redis.password=${REDIS_PASSWORD}
+spring.data.redis.cluster.nodes=${REDIS_HOST}:7001,${REDIS_HOST}:7002,${REDIS_HOST}:7003,${REDIS_HOST}:7004,${REDIS_HOST}:7005,${REDIS_HOST}:7006
+spring.data.redis.cluster.max-redirects=3
+spring.data.redis.lettuce.pool.max-active=16
+spring.data.redis.lettuce.pool.max-idle=8
+spring.data.redis.lettuce.pool.min-idle=2
+spring.data.redis.lettuce.cluster.refresh.adaptive=true
+spring.data.redis.lettuce.cluster.refresh.period=30s
+spring.data.redis.lettuce.cluster.refresh.dynamic-refresh-sources=false
 
-# KAFKA CONSUMER
+# ------------------------------------------------------------------
+# KAFKA — Connexion sécurisée SASL/SCRAM-SHA-256
+# ------------------------------------------------------------------
+spring.kafka.bootstrap-servers=${KAFKA_HOST}:${KAFKA_PORT:29092}
+
+# ── Authentification SASL/SCRAM-SHA-256 ──────────────────────────
+spring.kafka.properties.security.protocol=SASL_PLAINTEXT
+spring.kafka.properties.sasl.mechanism=SCRAM-SHA-256
+spring.kafka.properties.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_BACKEND_USER}" password="${KAFKA_BACKEND_PASSWORD}";
+
+# ── Consumer ──────────────────────────────────────────────────────
+spring.kafka.consumer.group-id=yowyob.ugate-group
 spring.kafka.consumer.auto-offset-reset=earliest
+spring.kafka.consumer.enable-auto-commit=false
+spring.kafka.consumer.max-poll-records=50
 spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
 spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer
-spring.kafka.consumer.properties.spring.json.trusted.packages=*
+# Restreindre les packages désérialisables — remplacer par les vrais packages du projet
+spring.kafka.consumer.properties.spring.json.trusted.packages=com.yowyob.ugate.*,com.yowyob.shared.*
+spring.kafka.consumer.properties.isolation.level=read_committed
 
-# KAFKA PRODUCER
+# ── Producer ──────────────────────────────────────────────────────
 spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
 spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
+spring.kafka.producer.acks=all
+spring.kafka.producer.retries=3
+spring.kafka.producer.properties.enable.idempotence=true
+spring.kafka.producer.properties.max.in.flight.requests.per.connection=5
+spring.kafka.producer.properties.compression.type=lz4
+
+# ── Listener container ────────────────────────────────────────────
+spring.kafka.listener.ack-mode=MANUAL_IMMEDIATE
+spring.kafka.listener.concurrency=3
+# false = le service démarre même si le topic n'existe pas encore
+spring.kafka.listener.missing-topics-fatal=false
+
+# ------------------------------------------------------------------
+# KAFKA TOPICS
+#
+# Aucun topic n'est encore créé. Le service démarre normalement grâce
+# à missing-topics-fatal=false. Les @KafkaListener s'activeront
+# automatiquement sans redémarrage dès que le topic sera créé.
+#
+# Quand les topics seront prêts, lancer :
+#   ./create-topic.sh yowyob.ugate.access.granted   6  720
+#   ./create-topic.sh yowyob.ugate.access.denied    6  720
+#   ./create-topic.sh yowyob.ugate.event.created    6  168
+#   ./create-topic.sh yowyob.notification.send.requested  6   24
+#   ./create-topic.sh yowyob.ugate.access.granted.DLT     3 2160
+# ------------------------------------------------------------------
+application.kafka.topics.product-events=yowyob.ugate.event.created
+application.kafka.topics.access-granted=yowyob.ugate.access.granted
+application.kafka.topics.access-denied=yowyob.ugate.access.denied
+application.kafka.topics.notification-send=yowyob.notification.send.requested
+application.kafka.topics.access-granted-dlt=yowyob.ugate.access.granted.DLT
+
 
 # CUSTOM CONFIG
-application.external.stock-service-url= http://${EXTERNAL_HOST:168.119.122.86}:8081
-application.kafka.topics.product-events=test-topic
+application.external.stock-service-url=http://${EXTERNAL_HOST}:8081
 
+# MONITORING
 management.endpoints.web.exposure.include=health,info,prometheus
 management.endpoint.health.probes.enabled=true
 management.metrics.export.prometheus.enabled=true
@@ -11083,27 +11138,22 @@ resilience4j.circuitbreaker.instances.stock-service.failureRateThreshold=50
 resilience4j.circuitbreaker.instances.stock-service.waitDurationInOpenState=5s
 resilience4j.circuitbreaker.instances.stock-service.slidingWindowSize=5
 
-# API Externe
-
-#Media Service
+# API EXTERNES
 application.external.media-service-url=https://media-service.pynfi.com
-
-# Authentication Service
 application.external.auth-service-url=https://auth-service.pynfi.com/
 jwt.secret=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-
-#Notification Service
 application.external.notification-service-url=https://notification-service.pynfi.com
-application.external.notification-service-token=0a98858a-a4ab-40c0-9d44-6239a71daed4
+application.external.notification-service-token=${NOTIFICATION_SERVICE_TOKEN}
 application.external.notification-invite-template-id=39
 application.external.notification-new-event-alert-templatet-id=40
 application.external.notification-publication-comment-alert-template-id=41
 application.external.notification-publication-react-alert-template-id=42
 application.external.notification-admin-alert-when-new-publication-template-id=43
 application.external.notification-admin-alert-accept-event-template-id=44
+
 ```
 
-*Lignes: 95*
+*Lignes: 150*
 
 ---
 
@@ -12893,17 +12943,16 @@ CREATE TABLE profiles (
 ## Statistiques
 
 - **Total de fichiers analysés:** 230
-- **Total de lignes de code:** 10 475
+- **Total de lignes de code:** 10 525
 - **Moyenne de lignes par fichier:** 46
 
 ### Répartition par type de fichier
 
-- **.java:** 209 fichiers
+- **.java:** 210 fichiers
 - **.xml:** 15 fichiers
 - **.properties:** 2 fichiers
 - **.yml:** 1 fichier
 - **.yaml:** 1 fichier
-- **.md:** 1 fichier
 - **.sql:** 1 fichier
 
 ---

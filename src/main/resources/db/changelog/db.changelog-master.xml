@@ -4,19 +4,6 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
-
-    <include file="classpath:db/changelog/changes/v1.1-sync-java-entities.xml"/>
-    <include file="classpath:db/changelog/changes/v1.2-create-event-table.xml"/>
-    <include file="classpath:db/changelog/changes/v1.3-create-publication-vote-table.xml"/>
-    <include file="classpath:db/changelog/changes/v1.4-create-vote-table.xml"/>
-    <include file="classpath:db/changelog/changes/v1.5-add-branch-banner.xml"/>
-    <include file="classpath:db/changelog/changes/v1.6-setup-products.xml"/>
-    <include file="classpath:db/changelog/changes/v1.7-setup-services.xml"/>
-    <include file="classpath:db/changelog/changes/v1.6-auto-uuid-comments.xml"/>
-    <include file="classpath:db/changelog/changes/v1.7-create-event-images-table.xml"/>
-    <include file="classpath:db/changelog/changes/v1.8-create-user-events-table.xml"/>
-    <include file="classpath:db/changelog/changes/v1.9-alter-user-events-table.xml"/>
-    <include file="classpath:db/changelog/changes/v1.10-make-branch-nullable.xml"/>
-    <include file="classpath:db/changelog/changes/v1.11-create-membership-request-table.xml"/>
+    <include file="classpath:db/changelog/changes/v1.0-create-initial-schema.xml"/>
 
 </databaseChangeLog>
