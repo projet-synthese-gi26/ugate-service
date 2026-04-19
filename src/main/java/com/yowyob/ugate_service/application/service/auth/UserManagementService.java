@@ -38,16 +38,27 @@ public class UserManagementService {
     @Transactional
     public Mono<Void> synchronizeUser(UUID userId, String username) {
         String cacheKey = "user_exists:" + userId;
+
         return redisTemplate.hasKey(cacheKey)
+                .doOnError(e -> log.warn(
+                        "⚠️ Redis indisponible pendant la vérification du cache utilisateur [{}] : {}",
+                        cacheKey,
+                        e.getMessage()
+                ))
+                .onErrorReturn(false)
                 .flatMap(existsInCache -> {
                     if (Boolean.TRUE.equals(existsInCache)) {
+                        log.debug("Cache hit utilisateur déjà synchronisé : {}", userId);
                         return Mono.empty();
                     }
+
                     return userRepository.existsById(userId)
                             .flatMap(existsInDb -> {
                                 if (Boolean.TRUE.equals(existsInDb)) {
+                                    log.debug("Utilisateur {} trouvé en base locale, tentative de mise en cache.", userId);
                                     return cacheUserExistence(cacheKey);
                                 }
+
                                 return createUserAndProfile(userId, username)
                                         .then(cacheUserExistence(cacheKey));
                             });
@@ -56,12 +67,14 @@ public class UserManagementService {
 
     private Mono<Void> createUserAndProfile(UUID userId, String username) {
         log.info("Création locale de l'utilisateur {}", userId);
+
         User newUser = new User(
                 userId,
                 username,
                 null,
                 username
         );
+
         Profile newProfile = Profile.createNew(
                 userId,
                 "", // FirstName
@@ -80,7 +93,20 @@ public class UserManagementService {
 
     private Mono<Void> cacheUserExistence(String key) {
         return redisTemplate.opsForValue()
-                .set(key, new ExternalUserInfo(null, null, null, null, null, null, null), USER_EXISTENCE_CACHE_TTL)
+                .set(
+                        key,
+                        new ExternalUserInfo(null, null, null, null, null, null, null),
+                        USER_EXISTENCE_CACHE_TTL
+                )
+                .doOnSuccess(saved ->
+                        log.debug("Présence utilisateur mise en cache [{}] : {}", key, saved)
+                )
+                .doOnError(e -> log.warn(
+                        "⚠️ Impossible de mettre en cache la présence utilisateur [{}] : {}",
+                        key,
+                        e.getMessage()
+                ))
+                .onErrorResume(e -> Mono.empty())
                 .then();
     }
 
@@ -90,35 +116,46 @@ public class UserManagementService {
                 .switchIfEmpty(Mono.error(new RuntimeException("Utilisateur introuvable")))
                 .flatMap(user ->
                         profileRepository.findByUserId(userId)
-                                .defaultIfEmpty(Profile.createNew(userId, "", "")) // Fallback si pas de profil
+                                .defaultIfEmpty(Profile.createNew(userId, "", ""))
                                 .flatMap(profile -> {
 
-                                    // 1. Gestion de l'image (si fournie)
                                     Mono<String> imageMono = (request.profileImage() != null)
                                             ? fileStoragePort.uploadFile(request.profileImage(), "avatars")
-                                            : Mono.justOrEmpty(profile.profilImageUrl());
+                                            : Mono.justOrEmpty(profile.profilImageUrl()).defaultIfEmpty("");
 
                                     return imageMono.flatMap(imgUrl -> {
+                                        String finalImageUrl = (imgUrl == null || imgUrl.isBlank())
+                                                ? profile.profilImageUrl()
+                                                : imgUrl;
 
-                                        // 2. Mise à jour Entité USER (Base)
-                                        String newFirstName = request.firstName() != null ? request.firstName() : profile.firstName();
-                                        String newLastName = request.lastName() != null ? request.lastName() : profile.lastName();
-                                        String fullName = newFirstName + " " + newLastName;
-                                        String newPhone = request.phoneNumber() != null ? request.phoneNumber() : user.phoneNumber();
+                                        String newFirstName = request.firstName() != null
+                                                ? request.firstName()
+                                                : profile.firstName();
+
+                                        String newLastName = request.lastName() != null
+                                                ? request.lastName()
+                                                : profile.lastName();
+
+                                        String safeFirstName = newFirstName != null ? newFirstName : "";
+                                        String safeLastName = newLastName != null ? newLastName : "";
+                                        String fullName = (safeFirstName + " " + safeLastName).trim();
+
+                                        String newPhone = request.phoneNumber() != null
+                                                ? request.phoneNumber()
+                                                : user.phoneNumber();
 
                                         User updatedUser = new User(
                                                 user.id(),
                                                 fullName,
                                                 newPhone,
                                                 user.email(),
-                                                false // isNewRecord = false pour UPDATE
+                                                false
                                         );
 
-                                        // 3. Mise à jour Entité PROFILE (Extended)
                                         Profile updatedProfile = new Profile(
                                                 profile.id(),
                                                 profile.userId(),
-                                                imgUrl,
+                                                finalImageUrl,
                                                 newFirstName,
                                                 newLastName,
                                                 request.birthDate() != null ? request.birthDate() : profile.birth_date(),
@@ -126,25 +163,49 @@ public class UserManagementService {
                                                 request.gender() != null ? request.gender() : profile.gender(),
                                                 request.language() != null ? request.language() : profile.language(),
                                                 profile.createdAt(),
-                                                Instant.now(), // UpdatedAt
+                                                Instant.now(),
                                                 false
                                         );
 
-                                        // 4. Sync Externe (Gateway)
                                         ExternalUserInfo extInfo = new ExternalUserInfo(
-                                                userId, newFirstName, newLastName, user.email(), newPhone, null, null
+                                                userId,
+                                                newFirstName,
+                                                newLastName,
+                                                user.email(),
+                                                newPhone,
+                                                null,
+                                                null
                                         );
 
-                                        // 5. Exécution transactionnelle
                                         return userRepository.save(updatedUser)
                                                 .then(profileRepository.save(updatedProfile))
-                                                .then(userGatewayPort.updateProfile(extInfo)) // Sync best-effort
+                                                .then(syncExternalProfileBestEffort(extInfo))
                                                 .thenReturn(new MemberResponse(
-                                                        userId, newFirstName, newLastName, user.email(),
-                                                        imgUrl, null, null, null
+                                                        userId,
+                                                        newFirstName,
+                                                        newLastName,
+                                                        user.email(),
+                                                        finalImageUrl,
+                                                        null,
+                                                        null,
+                                                        null
                                                 ));
                                     });
                                 })
                 );
+    }
+
+    private Mono<Void> syncExternalProfileBestEffort(ExternalUserInfo extInfo) {
+        return userGatewayPort.updateProfile(extInfo)
+                .doOnSuccess(updated ->
+                        log.info("Profil externe synchronisé avec succès pour l'utilisateur {}", extInfo.id())
+                )
+                .doOnError(e -> log.warn(
+                        "⚠️ Échec de synchronisation externe du profil pour l'utilisateur {} (non bloquant) : {}",
+                        extInfo.id(),
+                        e.getMessage()
+                ))
+                .onErrorResume(e -> Mono.empty())
+                .then();
     }
 }

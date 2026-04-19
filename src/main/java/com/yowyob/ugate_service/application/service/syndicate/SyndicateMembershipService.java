@@ -12,7 +12,14 @@ import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.ent
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.SyndicatMember;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.User;
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.enumeration.RoleTypeEnum;
-import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.*;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.BranchRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.MembershipRequestRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.ProfileRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.PublicationRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatMemberRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.SyndicatRepository;
+import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
@@ -25,6 +32,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +42,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class SyndicateMembershipService {
+
+    private static final Duration NOTIFICATION_TIMEOUT = Duration.ofSeconds(3);
 
     private final MembershipRequestRepository requestRepository;
     private final SyndicatMemberRepository memberRepository;
@@ -75,8 +85,15 @@ public class SyndicateMembershipService {
 
     private Mono<MembershipRequest> createNewRequest(UUID userId, UUID syndicatId, UUID branchId, String motivation) {
         MembershipRequest newRequest = new MembershipRequest(
-                null, userId, syndicatId, branchId, MembershipRequest.MembershipStatus.PENDING,
-                motivation, null, Instant.now(), Instant.now()
+                null,
+                userId,
+                syndicatId,
+                branchId,
+                MembershipRequest.MembershipStatus.PENDING,
+                motivation,
+                null,
+                Instant.now(),
+                Instant.now()
         );
         return requestRepository.save(newRequest);
     }
@@ -95,16 +112,15 @@ public class SyndicateMembershipService {
 
                     if (approve) {
                         MembershipRequest approvedRequest = new MembershipRequest(
-                                request.id(), request.userId(), request.syndicatId(), request.branchId(),
-                                MembershipRequest.MembershipStatus.APPROVED, request.motivation(),
-                                null, request.createdAt(), Instant.now()
-                        );
-
-                        SyndicatMember newMember = SyndicatMember.createLocal(
+                                request.id(),
+                                request.userId(),
                                 request.syndicatId(),
                                 request.branchId(),
-                                request.userId(),
-                                RoleTypeEnum.CLIENT
+                                MembershipRequest.MembershipStatus.APPROVED,
+                                request.motivation(),
+                                null,
+                                request.createdAt(),
+                                Instant.now()
                         );
 
                         return requestRepository.save(approvedRequest)
@@ -116,34 +132,46 @@ public class SyndicateMembershipService {
                                         RoleTypeEnum.CLIENT.name()
                                 ));
                     } else {
-                        // Rejet
                         if (rejectionReason == null || rejectionReason.isBlank()) {
                             return Mono.error(new IllegalArgumentException("Le motif de rejet est obligatoire."));
                         }
+
                         MembershipRequest rejectedRequest = new MembershipRequest(
-                                request.id(), request.userId(), request.syndicatId(), request.branchId(),
-                                MembershipRequest.MembershipStatus.REJECTED, request.motivation(),
-                                rejectionReason, request.createdAt(), Instant.now()
+                                request.id(),
+                                request.userId(),
+                                request.syndicatId(),
+                                request.branchId(),
+                                MembershipRequest.MembershipStatus.REJECTED,
+                                request.motivation(),
+                                rejectionReason,
+                                request.createdAt(),
+                                Instant.now()
                         );
+
                         return requestRepository.save(rejectedRequest).then();
                     }
                 });
     }
 
-    // --- LECTURE DES DEMANDES ---
-
     /**
      * Récupérer toutes les demandes en attente pour un syndicat (toutes branches).
      */
     public Flux<MembershipRequest> getRequestsBySyndicate(UUID syndicatId) {
-        return requestRepository.findBySyndicatIdAndStatus(syndicatId, MembershipRequest.MembershipStatus.PENDING, null);
+        return requestRepository.findBySyndicatIdAndStatus(
+                syndicatId,
+                MembershipRequest.MembershipStatus.PENDING,
+                null
+        );
     }
 
     /**
      * Récupérer les demandes en attente pour une branche spécifique.
      */
     public Flux<MembershipRequest> getRequestsByBranch(UUID branchId) {
-        return requestRepository.findByBranchIdAndStatus(branchId, MembershipRequest.MembershipStatus.PENDING);
+        return requestRepository.findByBranchIdAndStatus(
+                branchId,
+                MembershipRequest.MembershipStatus.PENDING
+        );
     }
 
     /**
@@ -153,8 +181,6 @@ public class SyndicateMembershipService {
         return requestRepository.findById(requestId)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Demande non trouvée")));
     }
-
-    // --- GESTION DES RÔLES ---
 
     /**
      * Modifier le rôle d'un membre dans une branche spécifique.
@@ -168,8 +194,11 @@ public class SyndicateMembershipService {
                         syndicatRepository.findById(syndicatId)
                                 .flatMap(syndicat -> {
                                     if (syndicat.creatorId().equals(targetUserId)) {
-                                        return Mono.error(new IllegalStateException("Impossible de modifier le rôle du créateur du syndicat."));
+                                        return Mono.error(new IllegalStateException(
+                                                "Impossible de modifier le rôle du créateur du syndicat."
+                                        ));
                                     }
+
                                     SyndicatMember updatedMember = member.withRole(newRole);
                                     return memberRepository.save(updatedMember);
                                 })
@@ -177,126 +206,106 @@ public class SyndicateMembershipService {
                 .then();
     }
 
-
     public Mono<SyndicateFullStatsResponse> getSyndicateStats(UUID syndicatId) {
         return Mono.zip(
                 memberRepository.countBySyndicatIdAndIsActiveTrue(syndicatId)
                         .defaultIfEmpty(0L),
                 branchRepository.countBySyndicatId(syndicatId)
                         .defaultIfEmpty(0L),
-                requestRepository.countBySyndicatIdAndStatus(syndicatId, MembershipRequest.MembershipStatus.PENDING)
+                requestRepository.countBySyndicatIdAndStatus(
+                                syndicatId,
+                                MembershipRequest.MembershipStatus.PENDING
+                        )
                         .defaultIfEmpty(0L),
-
-                // 4. Services (Actuellement 0 car le lien Service <-> Syndicat n'est pas encore défini dans l'entité ServiceEntity)
                 Mono.just(0L),
-
-
                 publicationRepository.countBySyndicatId(syndicatId)
                         .defaultIfEmpty(0L)
         ).map(tuple -> new SyndicateFullStatsResponse(
-                tuple.getT1(), // totalMembers
-                tuple.getT2(), // totalBranches
-                tuple.getT3(), // pendingRequests
-                tuple.getT4(), // activeServices
-                tuple.getT5()  // totalPublications
+                tuple.getT1(),
+                tuple.getT2(),
+                tuple.getT3(),
+                tuple.getT4(),
+                tuple.getT5()
         ));
     }
 
-
-
     public Mono<BranchMembersStatsResponse> getBranchMembers(UUID branchId) {
-
-        // 1. On doit d'abord récupérer la branche pour connaître l'ID du Syndicat
         return branchRepository.findById(branchId)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable")))
                 .flatMap(branch -> {
                     UUID syndicatId = branch.syndicatId();
 
-                    // 2. Flux A : Les membres "locaux" de la branche
                     Flux<SyndicatMember> branchMembersFlux = memberRepository.findByBranchId(branchId);
 
-                    // 3. Flux B : Les Admins "globaux" du syndicat (ceux qui ont branch_id = null)
-                    Flux<SyndicatMember> globalAdminsFlux = memberRepository.findBySyndicatIdAndRole(syndicatId, RoleTypeEnum.ADMIN.name())
-                            .filter(m -> m.branchId() == null);
+                    Flux<SyndicatMember> globalAdminsFlux = memberRepository
+                            .findBySyndicatIdAndRole(syndicatId, RoleTypeEnum.ADMIN.name())
+                            .filter(member -> member.branchId() == null);
 
-                    // 4. Fusion des deux Flux
                     return Flux.concat(globalAdminsFlux, branchMembersFlux)
-                            // Pour chaque membre (Admin ou Local), on va chercher ses infos User
                             .flatMap(this::mapMemberToResponse)
                             .collectList()
                             .map(fullList -> new BranchMembersStatsResponse(
-                                    (long) fullList.size(), // Le total inclut maintenant l'admin
+                                    (long) fullList.size(),
                                     fullList
                             ));
                 });
     }
 
     private Mono<MemberResponse> mapMemberToResponse(SyndicatMember member) {
-        return userGateway.findById(member.userId())
-                .onErrorResume(e -> Mono.empty())
-                .switchIfEmpty(userRepository.findById(member.userId())
-                        .map(localUser -> {
-                            String[] parts = (localUser.name() != null ? localUser.name() : "Inconnu").split(" ", 2);
-                            return new ExternalUserInfo(
-                                    localUser.id(),
-                                    parts[0],
-                                    parts.length > 1 ? parts[1] : "",
-                                    localUser.email(),
-                                    localUser.phoneNumber(),
-                                    List.of(),
-                                    List.of()
-                            );
-                        }))
+        return loadUserInfo(member.userId())
                 .map(userInfo -> new MemberResponse(
                         userInfo.id(),
                         userInfo.firstName(),
                         userInfo.lastName(),
                         userInfo.email(),
-                        null, // Avatar URL
+                        null,
                         member.role(),
-                        // Si c'est l'admin global, member.branchId() est null.
-                        // Mais dans le contexte de cette réponse, on peut laisser null ou simuler qu'il est là.
-                        // Laissons member.branchId() (donc null pour l'admin) pour que le front sache qu'il est global.
                         member.branchId(),
                         member.joinedAt()
                 ));
     }
 
-
-
-    
-    //TODO LES Méthodes qui suivent sont à refactoriser
+    /**
+     * TODO : Cette méthode reste longue, mais on sécurise ici les dépendances externes.
+     */
     @Transactional
-    public Mono<AddUserResponse> addMemberByAdmin(UUID syndicatId, UUID branchId,
-                                                  String email, String firstName, String lastName) {
-        log.info("🔵 Début ajout membre - Syndicat: {}, Branche: {}, Email: {}",
-                syndicatId, branchId, email);
+    public Mono<AddUserResponse> addMemberByAdmin(UUID syndicatId,
+                                                  UUID branchId,
+                                                  String email,
+                                                  String firstName,
+                                                  String lastName) {
+        log.info("🔵 Début ajout membre - Syndicat: {}, Branche: {}, Email: {}", syndicatId, branchId, email);
 
         return syndicatRepository.findById(syndicatId)
                 .doOnNext(s -> log.debug("✅ Syndicat trouvé: {}", s.name()))
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Syndicat introuvable")))
-                .zipWith(branchRepository.findById(branchId)
-                        .doOnNext(b -> log.debug("✅ Branche trouvée: {}", branchId))
-                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable"))))
+                .zipWith(
+                        branchRepository.findById(branchId)
+                                .doOnNext(b -> log.debug("✅ Branche trouvée: {}", branchId))
+                                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Branche introuvable")))
+                )
                 .flatMap(tuple -> {
                     var syndicat = tuple.getT1();
                     log.debug("📋 Vérification existence utilisateur: {}", email);
 
-                    // Mono<Tuple2<User, Boolean>> où Boolean indique si c'est un nouvel user
                     Mono<Tuple2<User, Boolean>> userMono = userRepository.findByEmail(email)
-                            .doOnNext(u -> log.info("✅ Utilisateur existant trouvé: {} (ID: {})",
-                                    email, u.getId()))
-                            .map(user -> Tuples.of(user, false)) // Utilisateur existant
+                            .doOnNext(u -> log.info("✅ Utilisateur existant trouvé: {} (ID: {})", email, u.getId()))
+                            .map(user -> Tuples.of(user, false))
                             .switchIfEmpty(Mono.defer(() -> {
                                 log.info("🆕 Utilisateur inexistant, création externe + locale pour: {}", email);
 
                                 return userGateway.registerUser(email, firstName, lastName, "00000000")
                                         .doOnNext(extUser -> log.info(
                                                 "✅ Utilisateur créé dans système externe - ID: {}, Email: {}",
-                                                extUser.id(), email))
+                                                extUser.id(),
+                                                email
+                                        ))
                                         .doOnError(e -> log.error(
                                                 "❌ ERREUR création utilisateur externe pour {}: {}",
-                                                email, e.getMessage(), e))
+                                                email,
+                                                e.getMessage(),
+                                                e
+                                        ))
                                         .flatMap(extUser -> {
                                             User localUser = new User(
                                                     extUser.id(),
@@ -304,34 +313,45 @@ public class SyndicateMembershipService {
                                                     null,
                                                     email
                                             );
+
                                             Profile localProfile = Profile.createNew(
-                                                    extUser.id(), firstName, lastName);
+                                                    extUser.id(),
+                                                    firstName,
+                                                    lastName
+                                            );
 
                                             log.debug("💾 Sauvegarde utilisateur local + profil - ID: {}", extUser.id());
 
                                             return userRepository.save(localUser)
-                                                    .doOnSuccess(u -> log.info("✅ User local sauvegardé: {} - {}",
-                                                            u.getId(), u.email()))
+                                                    .doOnSuccess(u -> log.info("✅ User local sauvegardé: {} - {}", u.getId(), u.email()))
                                                     .doOnError(e -> log.error(
-                                                            "❌ ERREUR sauvegarde user local (ID: {}): {} - " +
-                                                                    "ATTENTION: User externe créé mais pas en local!",
-                                                            extUser.id(), e.getMessage(), e))
-                                                    .zipWith(profileRepository.save(localProfile)
-                                                            .doOnSuccess(p -> log.debug("✅ Profil sauvegardé: {}", p.userId()))
-                                                            .doOnError(e -> log.error(
-                                                                    "❌ ERREUR sauvegarde profil (ID: {}): {} - " +
-                                                                            "ATTENTION: User externe créé, user local sauvegardé mais pas le profil!",
-                                                                    extUser.id(), e.getMessage(), e)))
-                                                    .map(userAndProfile -> Tuples.of(userAndProfile.getT1(), true)) // Nouvel utilisateur
+                                                            "❌ ERREUR sauvegarde user local (ID: {}): {} - ATTENTION: User externe créé mais pas en local!",
+                                                            extUser.id(),
+                                                            e.getMessage(),
+                                                            e
+                                                    ))
+                                                    .zipWith(
+                                                            profileRepository.save(localProfile)
+                                                                    .doOnSuccess(p -> log.debug("✅ Profil sauvegardé: {}", p.userId()))
+                                                                    .doOnError(e -> log.error(
+                                                                            "❌ ERREUR sauvegarde profil (ID: {}): {} - ATTENTION: User externe créé, user local sauvegardé mais pas le profil!",
+                                                                            extUser.id(),
+                                                                            e.getMessage(),
+                                                                            e
+                                                                    ))
+                                                    )
+                                                    .map(userAndProfile -> Tuples.of(userAndProfile.getT1(), true))
                                                     .onErrorResume(e -> {
                                                         log.error(
-                                                                "🔴 ROLLBACK NÉCESSAIRE - Échec sauvegarde locale " +
-                                                                        "mais user externe créé (ID: {}, Email: {}). " +
-                                                                        "Action requise: Nettoyer user externe ou réessayer sync.",
-                                                                extUser.id(), email, e);
-
+                                                                "🔴 ROLLBACK NÉCESSAIRE - Échec sauvegarde locale mais user externe créé (ID: {}, Email: {}). Action requise: Nettoyer user externe ou réessayer sync.",
+                                                                extUser.id(),
+                                                                email,
+                                                                e
+                                                        );
                                                         return Mono.error(new IllegalStateException(
-                                                                "Échec synchronisation user local/externe pour " + email, e));
+                                                                "Échec synchronisation user local/externe pour " + email,
+                                                                e
+                                                        ));
                                                     });
                                         });
                             }));
@@ -341,15 +361,13 @@ public class SyndicateMembershipService {
                         boolean isNewUser = userTuple.getT2();
                         UUID userId = user.getId();
 
-                        log.debug("🔍 Vérification si déjà membre - User: {}, Syndicat: {}",
-                                userId, syndicatId);
+                        log.debug("🔍 Vérification si déjà membre - User: {}, Syndicat: {}", userId, syndicatId);
 
                         return memberRepository.existsBySyndicatIdAndUserId(syndicatId, userId)
                                 .doOnNext(exists -> log.debug("Résultat vérification membre: {}", exists))
                                 .flatMap(isMember -> {
-                                    if (isMember) {
-                                        log.warn("⚠️ Utilisateur {} déjà membre du syndicat {}",
-                                                userId, syndicatId);
+                                    if (Boolean.TRUE.equals(isMember)) {
+                                        log.warn("⚠️ Utilisateur {} déjà membre du syndicat {}", userId, syndicatId);
                                         return Mono.error(new IllegalStateException("Déjà membre"));
                                     }
 
@@ -357,7 +375,11 @@ public class SyndicateMembershipService {
                                             userId, syndicatId, branchId);
 
                                     SyndicatMember member = SyndicatMember.createLocal(
-                                            syndicatId, branchId, userId, RoleTypeEnum.CLIENT);
+                                            syndicatId,
+                                            branchId,
+                                            userId,
+                                            RoleTypeEnum.CLIENT
+                                    );
 
                                     return memberRepository.insertMember(
                                                     syndicatId,
@@ -368,40 +390,33 @@ public class SyndicateMembershipService {
                                             )
                                             .doOnSuccess(v -> log.info(
                                                     "✅ Membre inséré avec succès - User: {}, Syndicat: {}",
-                                                    userId, syndicatId))
+                                                    userId,
+                                                    syndicatId
+                                            ))
                                             .doOnError(e -> log.error(
                                                     "❌ ERREUR insertion membre - User: {}, Syndicat: {}: {}",
-                                                    userId, syndicatId, e.getMessage(), e))
+                                                    userId,
+                                                    syndicatId,
+                                                    e.getMessage(),
+                                                    e
+                                            ))
                                             .thenReturn(Tuples.of(user, member, syndicat.name(), isNewUser));
                                 });
                     });
                 })
-                // Construction de la réponse avec notification APRÈS le commit
                 .flatMap(resultTuple -> {
                     User user = resultTuple.getT1();
                     SyndicatMember member = resultTuple.getT2();
                     String syndicatName = resultTuple.getT3();
                     boolean isNewUser = resultTuple.getT4();
 
-                    log.info("📧 Tentative envoi notification invitation - Email: {}", email);
-
-                    // Créer l'objet de données pour la réponse
                     Map<String, Object> responseData = Map.of(
                             "user", user,
                             "member", member,
                             "isNewUser", isNewUser
                     );
 
-                    return notificationPort.sendSyndicateInvitation(email, syndicatName, firstName)
-                            .doOnSuccess(v -> log.info("✅ Notification envoyée avec succès à {}", email))
-                            .doOnError(e -> log.error(
-                                    "⚠️ ÉCHEC NOTIFICATION (membre ajouté mais email non envoyé) - " +
-                                            "Email: {}, Syndicat: {}, Erreur: {}",
-                                    email, syndicatName, e.getMessage()))
-                            .onErrorResume(e -> {
-                                log.warn("♻️ Erreur notification ignorée (membre déjà en DB)");
-                                return Mono.empty();
-                            })
+                    return sendInvitationBestEffort(email, syndicatName, firstName)
                             .thenReturn(new AddUserResponse(
                                     "Membre ajouté avec succès" + (isNewUser ? " (nouvel utilisateur créé)" : ""),
                                     responseData
@@ -409,89 +424,136 @@ public class SyndicateMembershipService {
                 })
                 .doOnSuccess(response -> log.info(
                         "🎉 Ajout membre terminé avec succès - Email: {}, Syndicat: {}, Data: {}",
-                        email, syndicatId, response.data()))
+                        email,
+                        syndicatId,
+                        response.data()
+                ))
                 .doOnError(e -> log.error(
                         "❌ ÉCHEC GLOBAL ajout membre - Email: {}, Syndicat: {}, Erreur: {}",
-                        email, syndicatId, e.getMessage()));
+                        email,
+                        syndicatId,
+                        e.getMessage(),
+                        e
+                ));
     }
 
     public Flux<MemberResponse> getSyndicateMembers(UUID syndicatId) {
         log.info("🔍 Récupération membres du syndicat: {}", syndicatId);
 
         return memberRepository.findBySyndicatId(syndicatId)
-                .doOnNext(member -> log.debug("👤 Membre trouvé - UserID: {}, Role: {}, BranchID: {}",
-                        member.userId(), member.role(), member.branchId()))
-                .flatMap(member -> {
-                    log.debug("🔎 Recherche infos utilisateur - ID: {}", member.userId());
+                .doOnNext(member -> log.debug(
+                        "👤 Membre trouvé - UserID: {}, Role: {}, BranchID: {}",
+                        member.userId(),
+                        member.role(),
+                        member.branchId()
+                ))
+                .flatMap(member ->
+                        loadUserInfo(member.userId())
+                                .map(userInfo -> {
+                                    log.debug(
+                                            "✅ MemberResponse créé pour user: {} {} ({})",
+                                            userInfo.firstName(),
+                                            userInfo.lastName(),
+                                            userInfo.email()
+                                    );
 
-                    return userGateway.findById(member.userId())
-                            .doOnNext(extUser -> log.debug(
-                                    "✅ User trouvé dans gateway externe: {} {} ({})",
-                                    extUser.firstName(), extUser.lastName(), extUser.email()))
-                            .doOnError(e -> log.warn(
-                                    "⚠️ Erreur gateway externe pour user {}: {}, tentative fallback local",
-                                    member.userId(), e.getMessage()))
-                            .onErrorResume(e -> {
-                                // ✅ Fallback aussi sur erreur, pas seulement sur empty
-                                log.debug("♻️ Fallback vers repository local pour user {}", member.userId());
-                                return Mono.empty();
-                            })
-                            .switchIfEmpty(Mono.defer(() -> {
-                                log.debug("🔄 Gateway vide, recherche user {} dans repository local",
-                                        member.userId());
-
-                                return userRepository.findById(member.userId())
-                                        .doOnNext(localUser -> log.debug(
-                                                "✅ User trouvé en local: {} ({})",
-                                                localUser.name(), localUser.email()))
-                                        .map(localUser -> {
-                                            // ✅ Parsing robuste avec limit
-                                            String[] parts = localUser.name().split(" ", 2);
-                                            String firstName = parts[0];
-                                            String lastName = parts.length > 1 ? parts[1] : "";
-
-                                            log.debug("📝 Parsing nom local: '{}' → Prénom: '{}', Nom: '{}'",
-                                                    localUser.name(), firstName, lastName);
-
-                                            return new ExternalUserInfo(
-                                                    localUser.id(),
-                                                    firstName,
-                                                    lastName,
-                                                    localUser.email(),
-                                                    localUser.phoneNumber(),
-                                                    List.of(),
-                                                    List.of()
-                                            );
-                                        })
-                                        .switchIfEmpty(Mono.defer(() -> {
-                                            log.error(
-                                                    "❌ DONNÉE INCOHÉRENTE - User {} (membre du syndicat {}) " +
-                                                            "introuvable ni dans gateway ni dans repo local!",
-                                                    member.userId(), syndicatId);
-                                            return Mono.empty();
-                                        }));
-                            }))
-                            .map(userInfo -> {
-                                log.debug("✅ MemberResponse créé pour user: {} {} ({})",
-                                        userInfo.firstName(), userInfo.lastName(), userInfo.email());
-
-                                return new MemberResponse(
-                                        userInfo.id(),
-                                        userInfo.firstName(),
-                                        userInfo.lastName(),
-                                        userInfo.email(),
-                                        null, // Avatar URL - TODO: récupérer depuis ProfileRepository si nécessaire
-                                        member.role(),
-                                        member.branchId(),
-                                        member.joinedAt()
-                                );
-                            });
-                })
-                .doOnComplete(() -> log.info("✅ Récupération membres terminée pour syndicat {}",
-                        syndicatId))
+                                    return new MemberResponse(
+                                            userInfo.id(),
+                                            userInfo.firstName(),
+                                            userInfo.lastName(),
+                                            userInfo.email(),
+                                            null,
+                                            member.role(),
+                                            member.branchId(),
+                                            member.joinedAt()
+                                    );
+                                })
+                )
+                .doOnComplete(() -> log.info("✅ Récupération membres terminée pour syndicat {}", syndicatId))
                 .doOnError(e -> log.error(
                         "❌ Erreur récupération membres syndicat {}: {}",
-                        syndicatId, e.getMessage(), e));
+                        syndicatId,
+                        e.getMessage(),
+                        e
+                ));
+    }
+
+    private Mono<ExternalUserInfo> loadUserInfo(UUID userId) {
+        return userGateway.findById(userId)
+                .doOnNext(extUser -> log.debug(
+                        "✅ User trouvé dans gateway externe: {} {} ({})",
+                        extUser.firstName(),
+                        extUser.lastName(),
+                        extUser.email()
+                ))
+                .doOnError(e -> log.warn(
+                        "⚠️ Erreur gateway externe pour user {}: {}, tentative fallback local",
+                        userId,
+                        e.getMessage()
+                ))
+                .onErrorResume(e -> Mono.empty())
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.debug("🔄 Gateway vide, recherche user {} dans repository local", userId);
+
+                    return userRepository.findById(userId)
+                            .doOnNext(localUser -> log.debug(
+                                    "✅ User trouvé en local: {} ({})",
+                                    localUser.name(),
+                                    localUser.email()
+                            ))
+                            .map(this::mapLocalUserToExternalInfo)
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.error(
+                                        "❌ DONNÉE INCOHÉRENTE - User {} introuvable ni dans gateway ni dans repo local",
+                                        userId
+                                );
+                                return Mono.empty();
+                            }));
+                }));
+    }
+
+    private ExternalUserInfo mapLocalUserToExternalInfo(User localUser) {
+        String fullName = localUser.name() != null ? localUser.name() : "Inconnu";
+        String[] parts = fullName.split(" ", 2);
+
+        String firstName = parts.length > 0 ? parts[0] : "";
+        String lastName = parts.length > 1 ? parts[1] : "";
+
+        log.debug(
+                "📝 Parsing nom local: '{}' → Prénom: '{}', Nom: '{}'",
+                fullName,
+                firstName,
+                lastName
+        );
+
+        return new ExternalUserInfo(
+                localUser.id(),
+                firstName,
+                lastName,
+                localUser.email(),
+                localUser.phoneNumber(),
+                List.of(),
+                List.of()
+        );
+    }
+
+    private Mono<Void> sendInvitationBestEffort(String email, String syndicatName, String firstName) {
+        log.info("📧 Tentative envoi notification invitation - Email: {}", email);
+
+        return notificationPort.sendSyndicateInvitation(email, syndicatName, firstName)
+                .timeout(NOTIFICATION_TIMEOUT)
+                .doOnSuccess(v -> log.info("✅ Notification envoyée avec succès à {}", email))
+                .doOnError(e -> log.warn(
+                        "⚠️ ÉCHEC NOTIFICATION NON BLOQUANT - Email: {}, Syndicat: {}, Erreur: {}",
+                        email,
+                        syndicatName,
+                        e.getMessage()
+                ))
+                .onErrorResume(e -> {
+                    log.warn("♻️ Notification ignorée pour ne pas bloquer le flux métier - Email: {}", email);
+                    return Mono.empty();
+                })
+                .then();
     }
 
     private Mono<UUID> getCurrentUserId() {
