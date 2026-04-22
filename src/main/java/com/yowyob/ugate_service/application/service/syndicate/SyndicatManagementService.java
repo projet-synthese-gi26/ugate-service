@@ -177,27 +177,50 @@ public class SyndicatManagementService {
                 .doOnError(e -> log.error("Erreur récupération syndicats user {}", userId, e));
     }
 
+    private Mono<Void> ensureUpdated(Integer rows) {
+        if (rows == null || rows == 0) {
+            return Mono.error(
+                    new org.apache.kafka.common.errors.ResourceNotFoundException(
+                            "Syndicat introuvable"
+                    )
+            );
+        }
+        return Mono.empty();
+    }
 
     //TODO pour ces suite de methodes plutard on va vérifier le role de l'utilisateur connecté
     public Mono<SyndicateResponse> approve(UUID id) {
-        return updateState(id, s -> s.withApproval(true), "Approbation");
+        return syndicatRepository.updateApproval(id, true)
+                .flatMap(this::ensureUpdated)
+                .then(syndicatRepository.findById(id))
+                .map(syndicateMapper::toResponse);
     }
 
-
     public Mono<SyndicateResponse> disapprove(UUID id) {
-        return updateState(id, s -> s.withApproval(false), "Désapprobation");
+        return syndicatRepository.updateApproval(id, false)
+                .flatMap(this::ensureUpdated)
+                .then(syndicatRepository.findById(id))
+                .map(syndicateMapper::toResponse);
     }
 
 
     public Mono<SyndicateResponse> activate(UUID id) {
-        return updateState(id, s -> s.withActive(true), "Activation");
+        return syndicatRepository.updateActivation(id, true)
+                .flatMap(this::ensureUpdated)
+                .then(syndicatRepository.findById(id))
+                .map(syndicateMapper::toResponse);
     }
+
 
 
 
     public Mono<SyndicateResponse> deactivate(UUID id) {
-        return updateState(id, s -> s.withActive(false), "Désactivation");
+        return syndicatRepository.updateActivation(id, false)
+                .flatMap(this::ensureUpdated)
+                .then(syndicatRepository.findById(id))
+                .map(syndicateMapper::toResponse);
     }
+
 
 
 

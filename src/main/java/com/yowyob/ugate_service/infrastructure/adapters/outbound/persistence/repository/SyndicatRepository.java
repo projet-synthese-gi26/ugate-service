@@ -2,6 +2,7 @@ package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.re
 
 import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity.Syndicat;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.r2dbc.repository.Modifying;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import reactor.core.publisher.Flux;
@@ -32,4 +33,25 @@ public interface SyndicatRepository extends R2dbcRepository<Syndicat, UUID> {
     Mono<Long> countByIsApprovedFalse();
 
     Mono<Long> countByIsApprovedTrue();
+
+
+    @Modifying
+    @Query("""
+        UPDATE syndicats
+        SET is_approved = :approved,
+            updated_at = NOW()
+        WHERE id = :id
+    """)
+    Mono<Integer> updateApproval(UUID id, boolean approved);
+
+
+    @Modifying
+    @Query("""
+        UPDATE syndicats
+        SET is_active = :active,
+            updated_at = NOW()
+        WHERE id = :id
+    """)
+    Mono<Integer> updateActivation(UUID id, boolean active);
+
 }
