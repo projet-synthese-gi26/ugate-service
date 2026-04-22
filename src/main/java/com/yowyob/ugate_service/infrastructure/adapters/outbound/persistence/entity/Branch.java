@@ -1,18 +1,20 @@
 package com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.entity;
 
+import java.time.Instant;
 import java.util.UUID;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.annotation.PersistenceCreator; // Import
-import org.springframework.data.annotation.Transient;         // Import
-import org.springframework.data.domain.Persistable;           // Import
+import org.springframework.data.annotation.PersistenceCreator;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
-import java.time.Instant;
 
 @Table("branches")
 public record Branch(
+
         @Id
         UUID id,
 
@@ -25,6 +27,10 @@ public record Branch(
 
         @Column("banner_url")
         String bannerUrl,
+
+        
+        Double latitude,
+        Double longitude,
 
         @CreatedDate
         @Column("created_at")
@@ -39,14 +45,45 @@ public record Branch(
 
 ) implements Persistable<UUID> {
 
-
     @PersistenceCreator
-    public Branch(UUID id, UUID syndicatId, String name, String location, String contact, String bannerUrl, Instant createdAt, Instant updatedAt) {
-        this(id, syndicatId, name, location, contact, bannerUrl, createdAt, updatedAt, false);
+    public Branch(
+            UUID id,
+            UUID syndicatId,
+            String name,
+            String location,
+            String contact,
+            String bannerUrl,
+            Double latitude,
+            Double longitude,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        this(
+                id,
+                syndicatId,
+                name,
+                location,
+                contact,
+                bannerUrl,
+                latitude,
+                longitude,
+                createdAt,
+                updatedAt,
+                false
+        );
     }
 
 
-    public static Branch createNew(UUID id, UUID syndicatId, String name, String location, String contact, String bannerUrl) {
+    public static Branch createNew(
+            UUID id,
+            UUID syndicatId,
+            String name,
+            String location,
+            String contact,
+            String bannerUrl,
+            Double latitude,
+            Double longitude
+    ) {
         return new Branch(
                 id,
                 syndicatId,
@@ -54,16 +91,34 @@ public record Branch(
                 location,
                 contact,
                 bannerUrl,
+                latitude,
+                longitude,
                 Instant.now(),
                 Instant.now(),
                 true
         );
     }
 
-    public Branch withInfo(String name, String location, String contact, String bannerUrl) {
+
+    public Branch withInfo(
+            String name,
+            String location,
+            String contact,
+            String bannerUrl,
+            Double latitude,
+            Double longitude
+    ) {
         return new Branch(
-                this.id, this.syndicatId, name, location, contact, bannerUrl,
-                this.createdAt, null,
+                this.id,
+                this.syndicatId,
+                name,
+                location,
+                contact,
+                bannerUrl,
+                latitude,
+                longitude,
+                this.createdAt,
+                Instant.now(),
                 false
         );
     }

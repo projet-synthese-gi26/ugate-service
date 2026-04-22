@@ -1,6 +1,5 @@
 package com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response;
 
-import java.time.Instant;
 import java.util.UUID;
 
 public record BranchResponse(
@@ -10,6 +9,6 @@ public record BranchResponse(
         String location,
         String contact,
         String bannerUrl,
-        Instant createdAt,
-        Instant updatedAt
+        Double latitude,
+        Double longitude
 ) {}

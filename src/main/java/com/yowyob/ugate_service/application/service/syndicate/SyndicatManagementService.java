@@ -166,7 +166,7 @@ public class SyndicatManagementService {
                             : Mono.empty();
 
                     // 3. Combinaison avec member
-                    return Mono.zip(syndicatMono, branchMono.defaultIfEmpty(new Branch(null, null, null, null, null, null, null, null)))
+                    return Mono.zip(syndicatMono, branchMono.defaultIfEmpty(new Branch(null, null, null, null, null, null, null, null, null, null)))
                             .map(tuple -> {
                                 Syndicat syndicat = tuple.getT1();
                                 Branch branch = tuple.getT2();

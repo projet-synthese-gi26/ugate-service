@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+            http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <!-- ========================================================= -->
+    <!-- Ajout des coordonnées GPS aux antennes (branches)         -->
+    <!-- ========================================================= -->
+
+    <changeSet
+            id="2026-04-22-add-branch-geolocation"
+            author="yowyob">
+
+        <comment>
+            Ajout des champs latitude et longitude pour stocker la position
+            géographique précise des antennes (branches).
+        </comment>
+
+        <!-- ========================= -->
+        <!-- Colonnes latitude / longitude -->
+        <!-- ========================= -->
+
+        <addColumn tableName="branches">
+            <column name="latitude" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+
+            <column name="longitude" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <!-- ========================= -->
+        <!-- Rollback propre -->
+        <!-- ========================= -->
+
+        <rollback>
+            <dropColumn tableName="branches" columnName="latitude"/>
+            <dropColumn tableName="branches" columnName="longitude"/>
+        </rollback>
+
+    </changeSet>
+
+</databaseChangeLog>
