@@ -101,7 +101,7 @@ class PublicationControllerTests {
 
         // Mock for PublicationService dependencies
         when(branchPersistencePort.findById(testBranchId)).thenReturn(Mono.just(new Branch(
-                testBranchId, testSyndicateId, "Mock Branch", "Mock Location", "Mock Contact", "Mock Banner", Instant.now(), Instant.now()
+                testBranchId, testSyndicateId, "Mock Branch", null, null, "Mock Location", null, null, Instant.now(), Instant.now()
         )));
 
         when(syndicatRepository.findById(testSyndicateId)).thenReturn(Mono.just(new Syndicat(

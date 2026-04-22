@@ -111,7 +111,7 @@ public class CommentControllerTests {
                                 .block();
                 testBranch = branchRepository
                                 .save(Branch.createNew(UUID.randomUUID(), testSyndicat.id(), "Test Branch", "location",
-                                                "contact", "bannerUrl"))
+                                                "contact", "bannerUrl", null, null))
                                 .block();
                 testPublication = publicationRepository
                                 .save(new Publication(testBranch.id(), testUser.id(), "Test Content", 0L,
