@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+            http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="v1.2-add-choices-array" author="yowyob">
+        <comment>Ajout du tableau des choix pour les sondages</comment>
+        <addColumn tableName="publication_vote">
+            <column name="choices" type="TEXT[]">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="publication_vote" columnName="choices"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
