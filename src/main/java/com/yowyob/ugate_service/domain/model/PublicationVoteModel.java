@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -17,4 +18,5 @@ public class PublicationVoteModel {
     private String description;
     private Instant closingAt;
     private String type;
+    private List<String> choices;
 }

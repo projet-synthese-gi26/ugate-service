@@ -4,7 +4,7 @@ import com.yowyob.ugate_service.domain.model.PublicationVoteModel;
 import com.yowyob.ugate_service.domain.ports.in.content.CastVoteUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.CreatePublicationVoteUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetPublicationVoteResultsUseCase;
-import com.yowyob.ugate_service.domain.ports.in.content.GetPublicationVotesByBranchUseCase; 
+import com.yowyob.ugate_service.domain.ports.in.content.GetPublicationVotesByBranchUseCase;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CastVoteRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.request.CreatePublicationVoteRequest;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PublicationVoteWithResultsDTO;
@@ -49,6 +49,7 @@ public class PublicationVoteController {
                 model.setClosingAt(request.getClosingAt());
                 model.setType(request.getType());
                 model.setBranchId(request.getBranchId());
+                model.setChoices(request.getChoices());
 
                 return createPublicationVoteUseCase.createPublicationVote(model)
                         .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));

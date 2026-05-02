@@ -63,11 +63,21 @@ public class PublicationVoteService
                     long totalVotes = votes.size();
                     boolean hasVoted = votes.stream().anyMatch(v -> v.getUserId().equals(userId));
 
-                    List<VoteResultDTO> results = votes.stream()
-                            .collect(Collectors.groupingBy(VoteModel::getLabel, Collectors.counting()))
-                            .entrySet().stream()
-                            .map(entry -> new VoteResultDTO(entry.getKey(), entry.getValue()))
-                            .collect(Collectors.toList());
+
+                    java.util.Map<String, Long> voteCounts = votes.stream()
+                            .collect(Collectors.groupingBy(VoteModel::getLabel, Collectors.counting()));
+
+                    List<VoteResultDTO> results;
+
+                    if (poll.getChoices() != null && !poll.getChoices().isEmpty()) {
+                        results = poll.getChoices().stream()
+                                .map(choice -> new VoteResultDTO(choice, voteCounts.getOrDefault(choice, 0L)))
+                                .collect(Collectors.toList());
+                    } else {
+                        results = voteCounts.entrySet().stream()
+                                .map(entry -> new VoteResultDTO(entry.getKey(), entry.getValue()))
+                                .collect(Collectors.toList());
+                    }
 
                     return PublicationVoteWithResultsDTO.from(poll, totalVotes, results, hasVoted);
                 });

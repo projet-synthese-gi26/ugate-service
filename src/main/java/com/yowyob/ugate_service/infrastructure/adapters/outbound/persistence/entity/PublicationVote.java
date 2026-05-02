@@ -18,5 +18,6 @@ public record PublicationVote(
                 // "closing_at" suggère un timestamp précis
                 @Column("closing_at") Instant closingAt,
 
-                String type) {
+                String type,
+                String[] choices) {
 }
