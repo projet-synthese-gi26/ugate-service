@@ -5,6 +5,7 @@ import com.yowyob.ugate_service.domain.model.VoteModel;
 import com.yowyob.ugate_service.domain.ports.in.content.CastVoteUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.CreatePublicationVoteUseCase;
 import com.yowyob.ugate_service.domain.ports.in.content.GetPublicationVoteResultsUseCase;
+import com.yowyob.ugate_service.domain.ports.in.content.GetPublicationVotesByBranchUseCase;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.PublicationVotePersistencePort;
 import com.yowyob.ugate_service.domain.ports.out.syndicate.VotePersistencePort;
 import com.yowyob.ugate_service.infrastructure.adapters.inbound.rest.dto.response.PublicationVoteWithResultsDTO;
@@ -13,7 +14,9 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -22,14 +25,13 @@ import java.util.stream.Collectors;
 @Service
 @AllArgsConstructor
 public class PublicationVoteService
-        implements CreatePublicationVoteUseCase, CastVoteUseCase, GetPublicationVoteResultsUseCase {
+        implements CreatePublicationVoteUseCase, CastVoteUseCase, GetPublicationVoteResultsUseCase, GetPublicationVotesByBranchUseCase { // <-- AJOUT
 
     private final PublicationVotePersistencePort publicationVotePersistencePort;
     private final VotePersistencePort votePersistencePort;
 
     @Override
     public Mono<Void> createPublicationVote(PublicationVoteModel publicationVoteModel) {
-
         return publicationVotePersistencePort.save(publicationVoteModel).then();
     }
 
@@ -69,5 +71,9 @@ public class PublicationVoteService
 
                     return PublicationVoteWithResultsDTO.from(poll, totalVotes, results, hasVoted);
                 });
+    }
+    @Override
+    public Flux<PublicationVoteModel> getVotesByBranch(UUID branchId) {
+        return publicationVotePersistencePort.findByBranchId(branchId);
     }
 }

@@ -7,6 +7,7 @@ import com.yowyob.ugate_service.infrastructure.adapters.outbound.persistence.rep
 import com.yowyob.ugate_service.infrastructure.mappers.PublicationVoteMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -28,6 +29,12 @@ public class PublicationVotePersistenceAdapter implements PublicationVotePersist
     @Override
     public Mono<PublicationVoteModel> findById(UUID id) {
         return publicationVoteRepository.findById(id)
+                .map(publicationVoteMapper::toModel);
+    }
+
+    @Override
+    public Flux<PublicationVoteModel> findByBranchId(UUID branchId) {
+        return publicationVoteRepository.findByBranchId(branchId)
                 .map(publicationVoteMapper::toModel);
     }
 }
