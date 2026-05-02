@@ -19,6 +19,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,10 +48,10 @@ class PublicationVoteControllerTests {
         @BeforeEach
         void setUp() {
                 this.webTestClient = WebTestClient
-                                .bindToApplicationContext(this.context)
-                                .apply(springSecurity())
-                                .configureClient()
-                                .build();
+                        .bindToApplicationContext(this.context)
+                        .apply(springSecurity())
+                        .configureClient()
+                        .build();
 
                 publicationVoteRepository.deleteAll().block();
                 voteRepository.deleteAll().block();
@@ -64,12 +65,13 @@ class PublicationVoteControllerTests {
                 request.setClosingAt(Instant.now().plus(1, ChronoUnit.DAYS));
                 request.setType("SINGLE_CHOICE");
                 request.setBranchId(UUID.randomUUID());
+                request.setChoices(List.of("React", "Vue", "Angular")); // Ajout des choix
 
                 webTestClient.post()
-                                .uri("/publication-votes")
-                                .bodyValue(request)
-                                .exchange()
-                                .expectStatus().isCreated();
+                        .uri("/publication-votes")
+                        .bodyValue(request)
+                        .exchange()
+                        .expectStatus().isCreated();
 
                 PublicationVote vote = publicationVoteRepository.findAll().blockFirst();
                 assertNotNull(vote);
@@ -80,7 +82,7 @@ class PublicationVoteControllerTests {
         @Test
         void testCastVote_Success() {
                 PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
-                                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
+                        Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE", new String[]{"Blue"});
                 PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
                 assertNotNull(savedPoll);
 
@@ -88,16 +90,14 @@ class PublicationVoteControllerTests {
                 CastVoteRequest request = new CastVoteRequest();
                 request.setChoiceLabel("Blue");
 
-                // 2. Perform authenticated POST request
                 webTestClient
-                                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
-                                .post()
-                                .uri("/publication-votes/{publicationVoteId}/cast", savedPoll.id())
-                                .bodyValue(request)
-                                .exchange()
-                                .expectStatus().isOk();
+                        .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
+                        .post()
+                        .uri("/publication-votes/{publicationVoteId}/cast", savedPoll.id())
+                        .bodyValue(request)
+                        .exchange()
+                        .expectStatus().isOk();
 
-                // 3. Verify the vote was saved
                 Vote vote = voteRepository.findAll().blockFirst();
                 assertNotNull(vote);
                 assertEquals(testUserId, vote.userId());
@@ -109,8 +109,8 @@ class PublicationVoteControllerTests {
         void testCastVote_Error_PollClosed() {
                 // 1. Create a poll that is already closed
                 PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Past Poll", "desc",
-                                Instant.now().minus(1, ChronoUnit.HOURS),
-                                "SINGLE");
+                        Instant.now().minus(1, ChronoUnit.HOURS),
+                        "SINGLE", new String[]{"Any"});
                 PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
                 assertNotNull(savedPoll);
 
@@ -118,81 +118,75 @@ class PublicationVoteControllerTests {
                 CastVoteRequest request = new CastVoteRequest();
                 request.setChoiceLabel("Any");
 
-                // 2. Perform authenticated POST request and expect an error
                 webTestClient
-                                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
-                                .post()
-                                .uri("/publication-votes/{publicationVoteId}/cast", savedPoll.id())
-                                .bodyValue(request)
-                                .exchange()
-                                .expectStatus().is4xxClientError(); // Or a specific 4xx error if you have exception
-                                                                    // handling
+                        .mutateWith(mockJwt().jwt(jwt -> jwt.subject(testUserId.toString())))
+                        .post()
+                        .uri("/publication-votes/{publicationVoteId}/cast", savedPoll.id())
+                        .bodyValue(request)
+                        .exchange()
+                        .expectStatus().is4xxClientError();
         }
 
         @Test
         void testGetVoteResults_Success() {
                 // 1. Create a poll
                 PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Color", "desc",
-                                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
+                        Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE", new String[]{"Blue", "Red"});
                 PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
                 assertNotNull(savedPoll);
 
-                // 2. Create votes
                 UUID user1 = UUID.randomUUID();
                 UUID user2 = UUID.randomUUID();
-                UUID user3 = UUID.randomUUID(); // This is the user who will be making the request
+                UUID user3 = UUID.randomUUID();
                 voteRepository.save(new Vote(null, user1, savedPoll.id(), "Blue")).block();
                 voteRepository.save(new Vote(null, user2, savedPoll.id(), "Red")).block();
                 voteRepository.save(new Vote(null, user3, savedPoll.id(), "Blue")).block();
 
-                // 3. Perform authenticated GET request
                 webTestClient
-                                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(user3.toString())))
-                                .get()
-                                .uri("/publication-votes/{publicationVoteId}/results", savedPoll.id())
-                                .exchange()
-                                .expectStatus().isOk()
-                                .expectBody(PublicationVoteWithResultsDTO.class)
-                                .value(dto -> {
-                                        assertEquals(3, dto.getTotalVotes());
-                                        assertEquals(true, dto.isHasVoted());
-                                        assertEquals(2, dto.getResults().size());
-                                        VoteResultDTO blueResult = dto.getResults().stream()
-                                                        .filter(r -> r.getChoiceLabel().equals("Blue"))
-                                                        .findFirst().orElseThrow();
-                                        assertEquals(2, blueResult.getCount());
-                                        VoteResultDTO redResult = dto.getResults().stream()
-                                                        .filter(r -> r.getChoiceLabel().equals("Red"))
-                                                        .findFirst().orElseThrow();
-                                        assertEquals(1, redResult.getCount());
-                                });
+                        .mutateWith(mockJwt().jwt(jwt -> jwt.subject(user3.toString())))
+                        .get()
+                        .uri("/publication-votes/{publicationVoteId}/results", savedPoll.id())
+                        .exchange()
+                        .expectStatus().isOk()
+                        .expectBody(PublicationVoteWithResultsDTO.class)
+                        .value(dto -> {
+                                assertEquals(3, dto.getTotalVotes());
+                                assertEquals(true, dto.isHasVoted());
+                                assertEquals(2, dto.getResults().size());
+                                VoteResultDTO blueResult = dto.getResults().stream()
+                                        .filter(r -> r.getChoiceLabel().equals("Blue"))
+                                        .findFirst().orElseThrow();
+                                assertEquals(2, blueResult.getCount());
+                                VoteResultDTO redResult = dto.getResults().stream()
+                                        .filter(r -> r.getChoiceLabel().equals("Red"))
+                                        .findFirst().orElseThrow();
+                                assertEquals(1, redResult.getCount());
+                        });
         }
 
         @Test
         void testGetVoteResults_UserHasNotVoted() {
                 // 1. Create a poll
                 PublicationVote poll = new PublicationVote(null, UUID.randomUUID(), "Favorite Animal", "desc",
-                                Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE");
+                        Instant.now().plus(5, ChronoUnit.DAYS), "SINGLE", new String[]{"Dog"});
                 PublicationVote savedPoll = publicationVoteRepository.save(poll).block();
                 assertNotNull(savedPoll);
 
-                // 2. Create votes from other users
                 voteRepository.save(new Vote(null, UUID.randomUUID(), savedPoll.id(), "Dog")).block();
 
-                UUID nonVoterId = UUID.randomUUID(); // This user has not voted
+                UUID nonVoterId = UUID.randomUUID();
 
-                // 3. Perform authenticated GET request
                 webTestClient
-                                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(nonVoterId.toString())))
-                                .get()
-                                .uri("/publication-votes/{publicationVoteId}/results", savedPoll.id())
-                                .exchange()
-                                .expectStatus().isOk()
-                                .expectBody(PublicationVoteWithResultsDTO.class)
-                                .value(dto -> {
-                                        assertEquals(1, dto.getTotalVotes());
-                                        assertEquals(false, dto.isHasVoted());
-                                        assertEquals(1, dto.getResults().size());
-                                });
+                        .mutateWith(mockJwt().jwt(jwt -> jwt.subject(nonVoterId.toString())))
+                        .get()
+                        .uri("/publication-votes/{publicationVoteId}/results", savedPoll.id())
+                        .exchange()
+                        .expectStatus().isOk()
+                        .expectBody(PublicationVoteWithResultsDTO.class)
+                        .value(dto -> {
+                                assertEquals(1, dto.getTotalVotes());
+                                assertEquals(false, dto.isHasVoted());
+                                assertEquals(1, dto.getResults().size());
+                        });
         }
 }
